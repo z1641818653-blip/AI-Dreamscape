@@ -149,6 +149,7 @@ function renderMD(content){
   if(!content)return'';
   content=content.replace(/\\\[([\s\S]*?)\\\]/g,(m,f)=>'$$'+f+'$$');
   content=content.replace(/\\\((.+?)\\\)/g,(m,f)=>'$'+f+'$');
+  content=content.replace(/<(?!\/?[a-z])/gi,'&lt;');
   const bl=[];let p=content;
   p=p.replace(/\$\$([\s\S]*?)\$\$/g,(m,f)=>{bl.push({t:'block',c:f.trim()});return'\u0000B'+(bl.length-1)+'\u0000E';});
   p=p.replace(/(?<!\$)\$(?!\$)([^$\n]+?)(?<!\$)\$(?!\$)/g,(m,f)=>{bl.push({t:'inline',c:f.trim()});return'\u0000I'+(bl.length-1)+'\u0000E';});
