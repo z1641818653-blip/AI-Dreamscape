@@ -145,21 +145,24 @@ const editor=document.getElementById('editor'),preview=document.getElementById('
 function saveDocs(){try{localStorage.setItem('md_docs',JSON.stringify(docs))}catch(e){}}
 function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
 
-function renderMD(content){
-  if(!content)return'';
-  content=content.replace(/\\\[([\s\S]*?)\\\]/g,(m,f)=>'$$'+f+'$$');
-  content=content.replace(/\\\((.+?)\\\)/g,(m,f)=>'$'+f+'$');
-  // Escape < that isn't part of HTML tags to prevent content disappearing
-  content=content.replace(/</g,'&lt;').replace(/&lt;(\/?[a-zA-Z][^>]*>)/g,'<$1');
-  const bl=[];let p=content;
-  p=p.replace(/\$\$([\s\S]*?)\$\$/g,(m,f)=>{bl.push({t:'block',c:f.trim()});return'\u0000B'+(bl.length-1)+'\u0000E';});
-  p=p.replace(/(?<!\$)\$(?!\$)([^$\n]+?)(?<!\$)\$(?!\$)/g,(m,f)=>{bl.push({t:'inline',c:f.trim()});return'\u0000I'+(bl.length-1)+'\u0000E';});
-  let h;
-  if(typeof marked!=='undefined'){try{h=marked.parse(p);}catch(e){h=esc(p).replace(/\n/g,'<br>');}}
-  else{h=esc(p).replace(/\n/g,'<br>');}
-  bl.forEach(function(b,i){const ph=b.t==='block'?'\u0000B'+i+'\u0000E':'\u0000I'+i+'\u0000E';const rp=b.t==='block'?'$$'+b.c+'$$':'$'+b.c+'$';h=h.split(ph).join(rp);});
-  return h;
-}
+// 测试用例
+const testContent = `
+# 标题
+
+这是一段文字，包含小于号 1 < 2 和合法标签 <strong>加粗</strong>。
+
+数学公式：
+块级：$$ E = mc^2 $$
+行内：$ a^2 + b^2 = c^2 $
+
+- 列表项 1
+- 列表项 2
+
+<script>alert('危险代码')</script>  <!-- 会被过滤掉 -->
+`;
+
+const result = renderMD(testContent);
+document.getElementById('content').innerHTML = result;
 
 function updatePreview(){
   const text=editor.value;
