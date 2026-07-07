@@ -742,12 +742,84 @@
 
   // ============ 提供商配置 ============
   const PROVIDERS = {
-    deepseek:{name:'DeepSeek',icon:'🟢',models:['deepseek-chat','deepseek-reasoner'],endpoint:'https://api.deepseek.com/v1/chat/completions',authHeader:(key)=>({'Authorization':`Bearer ${key}`}),buildBody:(model,messages,mt,temp)=>({model,messages,temperature:temp??0.7,max_tokens:mt}),parseResponse:(data)=>data.choices?.[0]?.message?.content,info:'1M上下文 · deepseek-chat / deepseek-reasoner'},
-    openai:{name:'OpenAI',icon:'🟣',models:['gpt-4o','gpt-4o-mini','gpt-4.1','o3-mini'],endpoint:'https://api.openai.com/v1/chat/completions',authHeader:(key)=>({'Authorization':`Bearer ${key}`}),buildBody:(model,messages,mt,temp)=>({model,messages,temperature:temp??0.7,max_tokens:mt}),parseResponse:(data)=>data.choices?.[0]?.message?.content,info:'gpt-4o / o3-mini · 最新'},
-    claude:{name:'Claude',icon:'🟠',models:['claude-sonnet-4-20250514','claude-3-5-haiku-20241022'],endpoint:'https://api.anthropic.com/v1/messages',authHeader:(key)=>({'x-api-key':key,'anthropic-version':'2023-06-01'}),buildBody:(model,messages,mt,temp)=>{const sm=messages.find(m=>m.role==='system');const cm=messages.filter(m=>m.role!=='system');const b={model,max_tokens:mt,temperature:temp??0.7,messages:cm.map(m=>({role:m.role,content:m.content}))};if(sm)b.system=sm.content;return b;},parseResponse:(data)=>data.content?.[0]?.text,info:'claude-sonnet-4 / haiku · 最新'},
-    gemini:{name:'Gemini',icon:'🔵',models:['gemini-2.5-flash','gemini-2.5-pro','gemini-2.0-flash'],endpoint:(model)=>`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,authHeader:(key)=>({}),buildBody:(model,messages,mt,temp)=>{const contents=messages.filter(m=>m.role!=='system').map(m=>({role:m.role==='assistant'?'model':'user',parts:[{text:m.content}]}));const sm=messages.find(m=>m.role==='system');const b={contents,generationConfig:{maxOutputTokens:mt,temperature:temp??0.7}};if(sm)b.systemInstruction={parts:[{text:sm.content}]};return b;},parseResponse:(data)=>data.candidates?.[0]?.content?.parts?.[0]?.text,info:'gemini-2.5-flash/pro · 免费'},
-    qwen:{name:'千问',icon:'🔴',models:['qwen3-235b','qwen3-30b','qwen3-turbo'],endpoint:'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',authHeader:(key)=>({'Authorization':`Bearer ${key}`}),buildBody:(model,messages,mt,temp)=>({model,messages,temperature:temp??0.7,max_tokens:mt}),parseResponse:(data)=>data.choices?.[0]?.message?.content,info:'qwen3-235b / turbo · ¥2/¥8'}
-  };
+  const llmProviders = {
+    deepseek:{
+        name:'DeepSeek',
+        icon:'🟢',
+        models:['deepseek-v4-pro','deepseek-v4-flash'],
+        endpoint:'https://api.deepseek.com/v1/chat/completions',
+        authHeader:(key)=>({'Authorization':`Bearer ${key}`}),
+        buildBody:(model,messages,mt,temp)=>({model,messages,temperature:temp??0.7,max_tokens:mt}),
+        parseResponse:(data)=>data.choices?.[0]?.message?.content,
+        info:'1M上下文 · V4-Pro旗舰推理 / V4-Flash高速低成本'
+    },
+    openai:{
+        name:'OpenAI',
+        icon:'🟣',
+        models:['gpt-5.6-sol','gpt-5.6-terra','gpt-5.6-luna','gpt-5.5-latest'],
+        endpoint:'https://api.openai.com/v1/chat/completions',
+        authHeader:(key)=>({'Authorization':`Bearer ${key}`}),
+        buildBody:(model,messages,mt,temp)=>({model,messages,temperature:temp??0.7,max_tokens:mt}),
+        parseResponse:(data)=>data.choices?.[0]?.message?.content,
+        info:'GPT-5.6全系列 · Sol旗舰/均衡Terra/轻量Luna'
+    },
+    claude:{
+        name:'Claude',
+        icon:'🟠',
+        models:['claude-opus-4-6','claude-sonnet-4-6','claude-haiku-4-5'],
+        endpoint:'https://api.anthropic.com/v1/messages',
+        authHeader:(key)=>({'x-api-key':key,'anthropic-version':'2023-06-01'}),
+        buildBody:(model,messages,mt,temp)=>{
+            const sm=messages.find(m=>m.role==='system');
+            const cm=messages.filter(m=>m.role!=='system');
+            const b={
+                model,
+                max_tokens:mt,
+                temperature:temp??0.7,
+                messages:cm.map(m=>({role:m.role,content:m.content}))
+            };
+            if(sm)b.system=sm.content;
+            return b;
+        },
+        parseResponse:(data)=>data.content?.[0]?.text,
+        info:'Opus4.6最强推理 / Sonnet4.6主力 / Haiku4.5高吞吐'
+    },
+    gemini:{
+        name:'Gemini',
+        icon:'🔵',
+        models:['gemini-3.5-flash','gemini-3.5-pro','gemini-omni-flash'],
+        endpoint:(model)=>`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+        authHeader:(key)=>({}),
+        buildBody:(model,messages,mt,temp)=>{
+            const contents=messages.filter(m=>m.role!=='system').map(m=>({
+                role:m.role==='assistant'?'model':'user',
+                parts:[{text:m.content}]
+            }));
+            const sm=messages.find(m=>m.role==='system');
+            const b={
+                contents,
+                generationConfig:{
+                    maxOutputTokens:mt,
+                    temperature:temp??0.7
+                }
+            };
+            if(sm)b.systemInstruction={parts:[{text:sm.content}]};
+            return b;
+        },
+        parseResponse:(data)=>data.candidates?.[0]?.content?.parts?.[0]?.text,
+        info:'Gemini3.5系列 + Omni全模态世界模型'
+    },
+    qwen:{
+        name:'千问',
+        icon:'🔴',
+        models:['qwen3.7-max','qwen3.7-plus','qwen3.7-flash'],
+        endpoint:'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
+        authHeader:(key)=>({'Authorization':`Bearer ${key}`}),
+        buildBody:(model,messages,mt,temp)=>({model,messages,temperature:temp??0.7,max_tokens:mt}),
+        parseResponse:(data)=>data.choices?.[0]?.message?.content,
+        info:'Qwen3.7-Max国产旗舰 · 262K超长上下文'
+    }
+};
 
   const defaultProviders = {};
   Object.keys(PROVIDERS).forEach(k => { defaultProviders[k] = { apiKey: (k==='deepseek'?(localStorage.getItem('dk30')||''):''), model: PROVIDERS[k].models[0] }; });
