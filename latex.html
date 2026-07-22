@@ -1,597 +1,163 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LaTeX 渲染</title>
-<style>
-:root{--surface:rgba(255,255,255,.7);--surface-hover:rgba(0,0,0,.04);--border:rgba(0,0,0,.08);--text:#1e1b16;--text2:#7a7268;--primary:#7c5cfc;--primary-glow:rgba(124,92,252,.25);--accent:#ff6b9d;--radius:12px}
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,'Inter','PingFang SC',sans-serif;background:#fff;color:var(--text);height:100vh;overflow:hidden;display:flex;flex-direction:column}
-
-/* ── Header ── */
-header{display:flex;align-items:center;padding:10px 20px;gap:12px;border-bottom:1px solid var(--border);flex-shrink:0;background:#f5f3f0}
-header .title{font-size:14px;font-weight:700;color:var(--text)}
-header .actions{margin-left:auto;display:flex;gap:8px}
-header .actions a{padding:5px 12px;border-radius:8px;font-size:11px;color:var(--text2);text-decoration:none;transition:all .2s}
-header .actions a:hover{background:var(--surface-hover);color:var(--text)}
-header .sidebar-toggle{padding:5px 12px;border:1px solid var(--border);border-radius:8px;font-size:11px;background:transparent;color:var(--text2);cursor:pointer;transition:all .25s}
-header .sidebar-toggle:hover{background:var(--surface-hover);color:var(--text)}
-header .sidebar-toggle.active{background:linear-gradient(135deg,var(--primary),#4f46e5);color:#fff;border-color:transparent;box-shadow:0 2px 8px var(--primary-glow)}
-
-/* ── Main layout ── */
-.main{flex:1;display:flex;overflow:hidden}
-
-/* ── Preview Panel ── */
-.preview-pane{flex:1;display:flex;flex-direction:column;min-width:200px;border-right:1px solid var(--border)}
-.pane-header{display:flex;align-items:center;padding:5px 16px;font-size:12px;color:var(--text2);border-bottom:1px solid var(--border);flex-shrink:0;gap:8px;background:var(--surface);height:34px}
-.preview-pane .pane-header .badge{font-size:10px;padding:2px 8px;border-radius:4px;background:rgba(255,107,157,.1);color:var(--accent)}
-.preview-pane .pane-header .status{margin-left:auto;font-size:11px;color:var(--text2)}
-.preview-pane .pane-header .status.loading{color:var(--primary)}
-.preview-pane iframe{width:100%;height:100%;border:none;background:#fff}
-
-/* ── Editor Panel ── */
-.editor-pane{flex:1;display:flex;flex-direction:column;min-width:200px}
-.editor-pane .pane-header .hint{font-size:10px;color:var(--text2);opacity:.4;margin-left:auto}
-.engine-select{padding:3px 6px;border:1px solid var(--border);border-radius:6px;font-size:11px;outline:none;background:#fff;color:var(--text2);cursor:pointer;transition:all .2s}
-.engine-select:hover{border-color:var(--primary)}
-.engine-info{position:relative;display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;border:1px solid var(--border);font-size:10px;color:var(--text2);cursor:help;transition:all .2s;flex-shrink:0}
-.engine-info:hover{border-color:var(--primary);color:var(--primary)}
-.engine-info .tip{display:none;position:absolute;top:calc(100% + 8px);left:50%;transform:translateX(-50%);background:#fff;border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:11px;color:var(--text);white-space:nowrap;z-index:100;box-shadow:0 4px 20px rgba(0,0,0,.1);line-height:1.8;font-weight:400}
-.engine-info .tip::before{content:'';position:absolute;top:-5px;left:50%;transform:translateX(-50%);border-left:5px solid transparent;border-right:5px solid transparent;border-bottom:5px solid var(--border)}
-.engine-info:hover .tip{display:block}
-.engine-info .tip span.c{padding:1px 6px;border-radius:3px;font-weight:600;font-size:10px;margin-right:4px}
-.engine-info .tip span.c1{background:rgba(124,92,252,.1);color:var(--primary)}
-.engine-info .tip span.c2{background:rgba(255,107,157,.1);color:var(--accent)}
-.engine-info .tip span.c3{background:rgba(16,185,129,.1);color:#10b981}
-.editor-pane textarea{flex:1;padding:16px;font-family:'SF Mono','JetBrains Mono',monospace;font-size:13px;line-height:1.7;background:#fff;color:#333;border:none;outline:none;resize:none;tab-size:2;white-space:pre;overflow:auto}
-
-/* ── Buttons ── */
-.run-btn{padding:6px 18px;border:none;border-radius:8px;font-size:12px;font-weight:600;background:linear-gradient(135deg,var(--primary),#4f46e5);color:#fff;cursor:pointer;transition:all .25s;box-shadow:0 2px 8px var(--primary-glow)}
-.run-btn:hover{transform:translateY(-1px);box-shadow:0 4px 16px var(--primary-glow)}
-.run-btn:active{transform:translateY(0)}
-.run-btn.loading{opacity:.6;pointer-events:none}
-.ver-btn{padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:11px;background:#fff;color:var(--text2);cursor:pointer;transition:all .2s}
-.ver-btn:hover{background:var(--surface-hover);color:var(--text);border-color:rgba(124,92,252,.2)}
-.ver-btn:disabled{opacity:.25;cursor:default}
-.ver-badge{font-size:10px;padding:2px 8px;border-radius:4px;background:var(--surface);color:var(--text2)}
-.tool-btn{padding:4px 10px;border:1px solid transparent;border-radius:6px;font-size:11px;background:transparent;color:var(--text2);cursor:pointer;transition:all .2s}
-.tool-btn:hover{background:var(--surface-hover);color:var(--text);border-color:var(--border)}
-
-/* ── Sidebars ── */
-.sidebar,.outline{width:0;overflow:hidden;display:flex;flex-direction:column;background:#fff;transition:width .25s}
-.sidebar{border-left:1px solid var(--border)}
-.outline{border-right:1px solid var(--border)}
-.sidebar.open,.outline.open{width:340px}
-.sidebar-header,.outline-header{display:flex;align-items:center;padding:5px 16px;font-size:12px;font-weight:600;color:var(--text);border-bottom:1px solid var(--border);flex-shrink:0;gap:8px;height:34px}
-.sidebar-header .close-btn,.outline-header .close-btn{margin-left:auto;padding:2px 6px;border:none;border-radius:4px;font-size:12px;background:transparent;color:var(--text2);cursor:pointer}
-.sidebar-header .close-btn:hover,.outline-header .close-btn:hover{background:var(--surface-hover);color:var(--text)}
-.sidebar-body,.outline-body{flex:1;display:flex;flex-direction:column;overflow:hidden}
-.chat-msgs{flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:8px}
-.chat-msg{font-size:12px;line-height:1.6;padding:8px 12px;border-radius:8px;max-width:90%}
-.chat-msg.user{background:linear-gradient(135deg,var(--primary),#4f46e5);color:#fff;align-self:flex-end;margin-left:auto;box-shadow:0 2px 8px var(--primary-glow)}
-.chat-msg.ai{background:#fff;color:var(--text);border:1px solid var(--border);align-self:flex-start}
-.chat-msg.ai .sender{font-size:10px;color:var(--text2);margin-bottom:4px}
-.chat-msg.ai .sender span{color:var(--primary);font-weight:600}
-.chat-msg .loading-dots{display:inline-flex;gap:3px}
-.chat-msg .loading-dots span{width:5px;height:5px;border-radius:50%;background:var(--text2);animation:dotPulse 1s infinite}
-.chat-msg .loading-dots span:nth-child(2){animation-delay:.2s}
-.chat-msg .loading-dots span:nth-child(3){animation-delay:.4s}
-@keyframes dotPulse{0%,100%{opacity:.3}50%{opacity:1}}
-.chat-input-wrap{display:flex;gap:8px;padding:10px 16px;border-top:1px solid var(--border);flex-shrink:0}
-.chat-input-wrap textarea{flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;outline:none;resize:none;font-family:inherit;line-height:1.5;background:#f5f3f0;color:var(--text);transition:border-color .2s}
-.chat-input-wrap textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-glow)}
-.chat-input-wrap textarea::placeholder{color:var(--text2);opacity:.4}
-.chat-send-btn{padding:8px 16px;border:none;border-radius:8px;font-size:12px;font-weight:600;background:linear-gradient(135deg,var(--primary),#4f46e5);color:#fff;cursor:pointer;transition:all .25s;align-self:flex-end;box-shadow:0 2px 8px var(--primary-glow)}
-.chat-send-btn:hover{transform:translateY(-1px);box-shadow:0 4px 16px var(--primary-glow)}
-.chat-send-btn:disabled{opacity:.4;cursor:default;transform:none;box-shadow:none}
-.chat-config{padding:10px 16px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:6px;flex-shrink:0}
-.chat-config-row{display:flex;gap:6px;align-items:center}
-.chat-config-row select{flex:1;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:11px;outline:none;background:#f5f3f0;color:var(--text)}
-.chat-config-row select:focus{border-color:var(--primary)}
-.chat-config-row input{flex:1;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:11px;outline:none;background:#f5f3f0;color:var(--text)}
-.chat-config-row input:focus{border-color:var(--primary)}
-.chat-config-row label{font-size:11px;color:var(--text2);white-space:nowrap}
-.sidebar-footer{font-size:10px;color:var(--text2);opacity:.3;text-align:center;padding:6px;flex-shrink:0}
-
-/* ── Outline ── */
-.outline-items{padding:8px 0;overflow-y:auto;flex:1;font-size:12px}
-.outline-item{display:flex;align-items:center;padding:4px 16px 4px 20px;cursor:pointer;color:var(--text2);transition:all .15s;gap:6px;border-left:2px solid transparent}
-.outline-item:hover{background:var(--surface-hover);color:var(--text)}
-.outline-item.active{color:var(--primary);border-left-color:var(--primary);background:rgba(124,92,252,.06)}
-.outline-item .icon{font-size:10px;opacity:.5;flex-shrink:0}
-.outline-item .label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.outline-item.d1{padding-left:20px;font-weight:500}
-.outline-item.d2{padding-left:36px;font-size:11px}
-.outline-item.d3{padding-left:52px;font-size:11px;opacity:.85}
-.outline-empty{display:flex;align-items:center;justify-content:center;flex:1;font-size:12px;color:var(--text2);opacity:.4}
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light">
+  <title>LaTeX 演示文稿工作台</title>
+  <link rel="stylesheet" href="assets/latexfix.css">
 </head>
 <body>
-<header>
-  <div class="title">LaTeX 渲染</div>
-  <div class="actions">
-    <button class="sidebar-toggle" id="outlineToggle" onclick="toggleOutline()">大纲</button>
-    <button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()">AI</button>
-    <a href="index.html">返回</a>
-  </div>
-</header>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">L</span>
+      <div>
+        <strong>LaTeX 演示文稿</strong>
+        <span id="saveState">草稿已保存</span>
+      </div>
+    </div>
 
-<div class="main">
-  <div class="outline" id="outline">
-    <div class="outline-header">
-      大纲
-      <button class="close-btn" onclick="toggleOutline()">关闭</button>
-    </div>
-    <div class="outline-body">
-      <div class="outline-items" id="outlineItems"></div>
-    </div>
+    <nav class="top-actions" aria-label="页面操作">
+      <button class="quiet-btn" id="outlineToggle" type="button" aria-controls="outlinePanel" aria-expanded="false">大纲</button>
+      <button class="quiet-btn" id="aiToggle" type="button" aria-controls="aiPanel" aria-expanded="false">AI 辅助</button>
+      <a class="quiet-btn link-btn" href="index.html">返回首页</a>
+    </nav>
+  </header>
+
+  <div class="mobile-tabs" role="tablist" aria-label="工作区视图">
+    <button type="button" role="tab" data-mobile-view="preview" aria-selected="true">预览</button>
+    <button type="button" role="tab" data-mobile-view="source" aria-selected="false">源码</button>
   </div>
-  <div class="preview-pane">
-    <div class="pane-header">
-      <span class="badge">PDF 预览</span>
-      <span class="status" id="statusLabel">就绪</span>
-    </div>
-    <iframe name="pdfFrame" id="pdfFrame"></iframe>
-  </div>
-  <div class="editor-pane">
-    <div class="pane-header">
-      <span>源码</span>
-      <button class="ver-btn" id="undoBtn" onclick="undoVersion()" disabled title="回退">←</button>
-      <button class="ver-btn" id="redoBtn" onclick="redoVersion()" disabled title="前进">→</button>
-      <span class="ver-badge" id="verBadge">v1</span>
-      <select id="engineSelect" class="engine-select">
-        <option value="pdflatex">pdflatex</option>
-        <option value="xelatex">xelatex</option>
-        <option value="lualatex">lualatex</option>
-      </select>
-      <span class="engine-info">i
-        <span class="tip">
-          <span class="c c1">pdflatex</span> 纯英文最快，不支持中文<br>
-          <span class="c c2">xelatex</span> 中文/ctex/CJK推荐<br>
-          <span class="c c3">lualatex</span> 功能最全，速度较慢
-        </span>
-      </span>
-      <button class="run-btn" id="runBtn" onclick="compile()">运行</button>
-      <button class="tool-btn" onclick="resetCode()">重置</button>
-      <span class="hint" id="verHint"></span>
-    </div>
-    <textarea id="texEditor" spellcheck="false" placeholder="输入 LaTeX 代码..."></textarea>
-  </div>
-  <div class="sidebar" id="sidebar">
-    <div class="sidebar-header">
-      AI 助手
-      <button class="close-btn" onclick="toggleSidebar()">关闭</button>
-    </div>
-    <div class="chat-config">
-      <div class="chat-config-row">
-        <label>模型</label>
-        <select id="aiModel"></select>
+
+  <main class="workspace" id="workspace" data-mobile-view="preview">
+    <aside class="drawer drawer-left" id="outlinePanel" aria-label="文档大纲" aria-hidden="true">
+      <div class="drawer-header">
+        <strong>文档大纲</strong>
+        <button class="icon-btn" type="button" data-close="outline" aria-label="关闭大纲">×</button>
       </div>
-      <div class="chat-config-row">
-        <label>Key</label>
-        <input type="password" id="aiKey" placeholder="输入 API Key">
-      </div>
-    </div>
-    <div class="sidebar-body">
-      <div class="chat-msgs" id="chatMsgs">
-        <div class="chat-msg ai">
-          <div class="sender">AI 助手</div>
-          你好！我可以读取你左侧的 LaTeX 代码，帮你分析问题、建议修改。需要我做什么？
+      <div class="outline-list" id="outlineList"></div>
+    </aside>
+
+    <section class="pane preview-pane" aria-label="PDF 预览">
+      <div class="pane-toolbar">
+        <div class="pane-title">
+          <strong>PDF 预览</strong>
+          <span class="status-dot" id="compileDot" data-state="idle" aria-hidden="true"></span>
+          <span class="status-text" id="compileStatus" role="status">尚未编译</span>
+        </div>
+        <div class="toolbar-actions">
+          <button class="quiet-btn compact" id="clearPreviewBtn" type="button">清空预览</button>
         </div>
       </div>
-      <div class="chat-input-wrap">
-        <textarea id="chatInput" rows="2" placeholder="问 AI 关于代码的问题..." onkeydown="chatKeydown(event)"></textarea>
-        <button class="chat-send-btn" id="chatSendBtn" onclick="sendChat()">发送</button>
+      <div class="preview-empty" id="previewEmpty">
+        <div class="preview-symbol" aria-hidden="true">PDF</div>
+        <strong>从右侧源码开始</strong>
+        <p>中文内容会优先使用 XeLaTeX 编译，结果由 TeXLive.net 返回。</p>
       </div>
-    </div>
-    <div class="sidebar-footer">API Key 仅本地存储</div>
-  </div>
-</div>
+      <iframe id="pdfFrame" name="pdfFrame" title="LaTeX 编译结果" hidden></iframe>
+    </section>
 
-<form id="compileForm" action="https://texlive.net/cgi-bin/latexcgi" method="POST" enctype="multipart/form-data" target="pdfFrame" style="display:none">
-  <input type="hidden" name="filecontents[]" id="formTex">
-  <input type="hidden" name="filename[]" value="document.tex">
-  <input type="hidden" name="engine" id="formEngine" value="xelatex">
-  <input type="hidden" name="return" value="pdf">
-</form>
+    <section class="pane source-pane" aria-label="LaTeX 源码">
+      <div class="pane-toolbar source-toolbar">
+        <div class="pane-title"><strong>源码</strong></div>
+        <div class="history-controls" aria-label="版本历史">
+          <button class="icon-btn" id="undoBtn" type="button" aria-label="撤销到上一版本" disabled>←</button>
+          <span id="versionBadge">v1/1</span>
+          <button class="icon-btn" id="redoBtn" type="button" aria-label="恢复到下一版本" disabled>→</button>
+        </div>
+        <div class="toolbar-actions source-actions">
+          <label class="select-wrap">
+            <span>引擎</span>
+            <select id="engineSelect">
+              <option value="xelatex">XeLaTeX（中文推荐）</option>
+              <option value="lualatex">LuaLaTeX</option>
+              <option value="pdflatex">pdfLaTeX</option>
+            </select>
+          </label>
+          <button class="danger-quiet compact" id="cancelCompileBtn" type="button" hidden>停止等待</button>
+          <button class="primary-btn compact" id="compileBtn" type="button">编译预览</button>
+        </div>
+      </div>
+      <div class="editor-notice" id="editorNotice" role="status" hidden></div>
+      <textarea id="texEditor" aria-label="LaTeX 源码编辑器" spellcheck="false" autocomplete="off"></textarea>
+    </section>
 
-<script>
-const editor = document.getElementById('texEditor');
-const runBtn = document.getElementById('runBtn');
-const statusLabel = document.getElementById('statusLabel');
-const pdfFrame = document.getElementById('pdfFrame');
-const compileForm = document.getElementById('compileForm');
-const formTex = document.getElementById('formTex');
-const formEngine = document.getElementById('formEngine');
-const undoBtn = document.getElementById('undoBtn');
-const redoBtn = document.getElementById('redoBtn');
-const verBadge = document.getElementById('verBadge');
-const verHint = document.getElementById('verHint');
-const sidebar = document.getElementById('sidebar');
-const outline = document.getElementById('outline');
-const chatMsgs = document.getElementById('chatMsgs');
-const chatInput = document.getElementById('chatInput');
-const chatSendBtn = document.getElementById('chatSendBtn');
-const aiModel = document.getElementById('aiModel');
-const aiKey = document.getElementById('aiKey');
-const engineSelect = document.getElementById('engineSelect');
-// ── AI Providers ──
-const PROVIDERS = {
-  deepseek:{name:'DeepSeek',models:['deepseek-v4-flash','deepseek-v4-pro'],endpoint:'https://api.deepseek.com/v1/chat/completions',authHeader:(k)=>({'Authorization':`Bearer ${k}`})},
-  openai:{name:'OpenAI',models:['gpt-5.4','gpt-4o-mini'],endpoint:'https://api.openai.com/v1/chat/completions',authHeader:(k)=>({'Authorization':`Bearer ${k}`})},
-  gemini:{name:'Gemini',models:['gemini-3.5-flash','gemini-3.5-pro'],endpoint:'https://generativelanguage.googleapis.com/v1beta/models/',authHeader:()=>({})},
-  qwen:{name:'千问',models:['qwen3.7-plus','qwen3.7-flash'],endpoint:'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',authHeader:(k)=>({'Authorization':`Bearer ${k}`})},
-};
+    <aside class="drawer drawer-right" id="aiPanel" aria-label="AI 辅助" aria-hidden="true">
+      <div class="drawer-header">
+        <div>
+          <strong>AI 辅助</strong>
+          <span>分析排版，也可以安全应用整份源码</span>
+        </div>
+        <button class="icon-btn" type="button" data-close="ai" aria-label="关闭 AI 辅助">×</button>
+      </div>
 
-// Populate model select
-const MODEL_MAP = {};
-for (const [pk, pv] of Object.entries(PROVIDERS)) {
-  for (const m of pv.models) {
-    MODEL_MAP[m] = pk;
-    const opt = document.createElement('option');
-    opt.value = m; opt.textContent = `${pv.name} · ${m}`;
-    aiModel.appendChild(opt);
-  }
-}
+      <details class="ai-config-fold">
+        <summary>
+          <strong>模型设置</strong>
+          <span id="aiConfigSummary">DeepSeek · deepseek-v4-flash</span>
+        </summary>
+        <div class="ai-config">
+          <label>
+            <span>服务</span>
+            <select id="providerSelect">
+              <option value="deepseek">DeepSeek</option>
+              <option value="openai">OpenAI</option>
+              <option value="gemini">Gemini</option>
+              <option value="qwen">千问</option>
+            </select>
+          </label>
+          <label>
+            <span>模型</span>
+            <select id="modelInput" aria-label="模型选择"></select>
+          </label>
+          <input id="customModelInput" class="custom-model-input" type="text" autocomplete="off" placeholder="输入自定义模型 ID" hidden>
+          <details class="api-key-fold">
+            <summary>
+              <span>API Key</span>
+              <small>点击展开 · 仅本次保留</small>
+            </summary>
+            <div class="api-key-row">
+              <input id="apiKeyInput" aria-label="API Key" type="password" autocomplete="off" placeholder="输入当前服务的 API Key">
+              <button id="clearApiKeyBtn" type="button">清除</button>
+            </div>
+          </details>
+          <p>源码会发送给你选择的模型服务；Key 不写入长期存储。</p>
+        </div>
+      </details>
 
-// ── Version History ──
-const versions = [{code: '', ts: Date.now()}];
-let verIdx = 0;
+      <div class="ai-quick-actions" aria-label="AI 快捷操作">
+        <button type="button" data-ai-action="diagnose"><span aria-hidden="true">✓</span>检查源码</button>
+        <button type="button" data-ai-action="optimize"><span aria-hidden="true">◇</span>优化排版</button>
+        <button type="button" data-ai-action="overlays"><span aria-hidden="true">▤</span>控制页数</button>
+        <button type="button" data-ai-action="log"><span aria-hidden="true">!</span>分析日志</button>
+      </div>
 
-function saveVersion() {
-  const code = editor.value;
-  if (versions.length > 0 && versions[versions.length - 1].code === code) return;
-  versions.splice(verIdx + 1);
-  versions.push({code, ts: Date.now()});
-  verIdx = versions.length - 1;
-  updateVerUI();
-}
+      <div class="chat-messages" id="chatMessages" aria-live="polite">
+        <article class="message assistant">
+          <div class="message-label">AI 辅助</div>
+          <p>我可以检查编译错误、改善 Beamer 页面层次，或根据你的要求修改整份源码。应用修改前会先校验文档结构并保存旧版本。</p>
+        </article>
+      </div>
 
-function undoVersion() {
-  if (verIdx <= 0) return;
-  verIdx--;
-  editor.value = versions[verIdx].code;
-  updateVerUI();
-}
+      <div class="chat-compose">
+        <textarea id="chatInput" rows="3" placeholder="例如：帮我优化这一页的视觉层次，但不要删除内容"></textarea>
+        <div class="compose-actions">
+          <button class="danger-quiet compact" id="cancelAiBtn" type="button" hidden>停止</button>
+          <button class="primary-btn compact" id="sendAiBtn" type="button">发送</button>
+        </div>
+      </div>
+    </aside>
+  </main>
 
-function redoVersion() {
-  if (verIdx >= versions.length - 1) return;
-  verIdx++;
-  editor.value = versions[verIdx].code;
-  updateVerUI();
-}
+  <div class="drawer-backdrop" id="drawerBackdrop" hidden></div>
 
-function updateVerUI() {
-  undoBtn.disabled = verIdx <= 0;
-  redoBtn.disabled = verIdx >= versions.length - 1;
-  verBadge.textContent = `v${verIdx + 1}/${versions.length}`;
-  const diff = versions.length - 1 - verIdx;
-  verHint.textContent = diff > 0 ? `(前进 ${diff} 次)` : '';
-}
+  <form id="compileForm" action="https://texlive.net/cgi-bin/latexcgi" method="post" enctype="multipart/form-data" target="pdfFrame" hidden>
+    <input type="hidden" name="filecontents[]" id="formTex">
+    <input type="hidden" name="filename[]" value="document.tex">
+    <input type="hidden" name="engine" id="formEngine" value="xelatex">
+    <input type="hidden" name="return" value="pdf">
+  </form>
 
-// ── Default Template ──
-const DEFAULT_TEX = `\\documentclass{beamer}
-\\usepackage[UTF8]{ctex}
-\\usepackage{amsmath,amssymb}
-
-\\title{AI 灵境 · LaTeX 演示}
-\\author{AI 灵境}
-\\date{\\today}
-
-\\begin{document}
-
-\\frame{\\titlepage}
-
-\\begin{frame}{目录}
-  \\tableofcontents
-\\end{frame}
-
-\\section{中文支持}
-
-\\begin{frame}{中文排版}
-  LaTeX 配合 \\textbf{ctex} 宏包可以完美支持中文排版。
-  \\begin{itemize}
-    \\item 支持 \\textbf{粗体}、\\textit{斜体}
-    \\item 支持自动换行与段落缩进
-    \\item 支持中文标点符号处理
-  \\end{itemize}
-\\end{frame}
-
-\\section{数学公式}
-
-\\begin{frame}{行内公式}
-  爱因斯坦质能方程：$E = mc^2$
-  
-  欧拉公式：$e^{i\\pi} + 1 = 0$
-\\end{frame}
-
-\\begin{frame}{独立公式}
-  \\[
-    \\int_{0}^{\\infty} e^{-x^2} \\, dx = \\frac{\\sqrt{\\pi}}{2}
-  \\]
-  \\[
-    \\sum_{n=1}^{\\infty} \\frac{1}{n^2} = \\frac{\\pi^2}{6}
-  \\]
-\\end{frame}
-
-\\end{document}`;
-editor.value = DEFAULT_TEX;
-versions[0] = {code: DEFAULT_TEX, ts: Date.now()};
-updateVerUI();
-engineSelect.value = detectEngine(DEFAULT_TEX);
-
-// ── Compile ──
-function detectEngine(tex) {
-  if (tex.includes('xeCJK') || tex.includes('fontspec') || tex.includes('xelatex')) return 'xelatex';
-  if (tex.includes('lualatex') || tex.includes('luatex')) return 'lualatex';
-  if (tex.includes('ctex') || tex.includes('CJK')) return 'xelatex';
-  return 'pdflatex';
-}
-
-function compile() {
-  const tex = editor.value.trim();
-  if (!tex) return;
-  saveVersion();
-  formTex.value = tex;
-  formEngine.value = engineSelect.value;
-  runBtn.classList.add('loading');
-  runBtn.textContent = '⏳ 编译中';
-  statusLabel.textContent = '编译中...';
-  statusLabel.className = 'status loading';
-  compileForm.submit();
-  let loaded = false;
-  pdfFrame.onload = () => {
-    if (loaded) return;
-    loaded = true;
-    runBtn.classList.remove('loading');
-    runBtn.textContent = '运行';
-    statusLabel.textContent = '完成';
-    statusLabel.className = 'status';
-  };
-  setTimeout(() => {
-    if (!loaded) {
-      runBtn.classList.remove('loading');
-      runBtn.textContent = '运行';
-    statusLabel.textContent = '超时或失败，可尝试切换引擎重试';
-    statusLabel.className = '';
-    }
-  }, 30000);
-}
-
-function resetCode() {
-  editor.value = DEFAULT_TEX;
-  engineSelect.value = detectEngine(DEFAULT_TEX);
-  delete engineSelect.dataset.locked;
-  engineSelect.style.borderColor = '';
-}
-
-// ── Sidebar ──
-function toggleSidebar() {
-  sidebar.classList.toggle('open');
-  document.getElementById('sidebarToggle').classList.toggle('active');
-}
-
-// ── Outline ──
-function toggleOutline() {
-  outline.classList.toggle('open');
-  document.getElementById('outlineToggle').classList.toggle('active');
-  if (outline.classList.contains('open')) parseOutline();
-}
-
-function parseOutline() {
-  const container = document.getElementById('outlineItems');
-  const lines = editor.value.split('\n');
-  const items = [];
-  const regex = /^\\(?:part|chapter|section|subsection|subsubsection|begin\{frame\})\s*(?:\[[^\]]*\])?\s*\{([^}]*)\}/;
-  for (let i = 0; i < lines.length; i++) {
-    const m = lines[i].match(regex);
-    if (m) {
-      let t = m[1].trim();
-      if (lines[i].includes('\\part')) items.push({label:t,depth:0,line:i});
-      else if (lines[i].includes('\\chapter')) items.push({label:t,depth:1,line:i});
-      else if (lines[i].includes('\\section')) items.push({label:t,depth:1,line:i});
-      else if (lines[i].includes('\\subsection')) items.push({label:t,depth:2,line:i});
-      else if (lines[i].includes('\\subsubsection')) items.push({label:t,depth:3,line:i});
-      else if (lines[i].includes('\\begin{frame}')) items.push({label:t||'(无标题)',depth:1,line:i});
-    }
-  }
-  if (items.length === 0) {
-    container.innerHTML = '<div class="outline-empty">未检测到章节结构</div>';
-    return;
-  }
-  container.innerHTML = '';
-  for (const item of items) {
-    const div = document.createElement('div');
-    div.className = 'outline-item d' + Math.min(item.depth, 3);
-    const icon = document.createElement('span');
-    icon.className = 'icon';
-    icon.textContent = ['◇', '§', '·', '·'][Math.min(item.depth, 3)];
-    div.appendChild(icon);
-    const label = document.createElement('span');
-    label.className = 'label';
-    label.textContent = item.label;
-    div.appendChild(label);
-    // Estimate page number from frame count before this line
-    const frameCount = editor.value.slice(0, editor.value.split('\n').slice(0, item.line).join('\n').length).split('\\begin{frame}').length - 1;
-    div.onclick = () => {
-      document.querySelectorAll('.outline-item').forEach(el=>el.classList.remove('active'));
-      div.classList.add('active');
-      const pos = editor.value.substr(0, editor.value.split('\n').slice(0, item.line).join('\n').length).length;
-      editor.focus();
-      editor.setSelectionRange(pos, pos);
-      editor.scrollTop = (item.line / lines.length) * editor.scrollHeight;
-    };
-    container.appendChild(div);
-  }
-}
-
-// Auto-parse outline on editor changes (debounced)
-let outlineTimer;
-editor.addEventListener('input', () => {
-  clearTimeout(outlineTimer);
-  outlineTimer = setTimeout(() => { if (outline.classList.contains('open')) parseOutline(); }, 500);
-  // Auto-update engine select if user hasn't manually changed it
-  if (!engineSelect.dataset.locked) {
-    engineSelect.value = detectEngine(editor.value);
-  }
-});
-
-// Lock engine auto-detect when user manually changes it
-engineSelect.addEventListener('change', () => {
-  const auto = detectEngine(editor.value);
-  if (engineSelect.value !== auto) {
-    engineSelect.dataset.locked = 'true';
-    engineSelect.style.borderColor = 'var(--primary)';
-  } else {
-    delete engineSelect.dataset.locked;
-    engineSelect.style.borderColor = '';
-  }
-});
-
-// ── AI Chat ──
-let chatHistory = [];
-let streaming = false;
-
-function getSystemPrompt() {
-  return `你是 LaTeX 排版专家，正在帮助用户处理以下 LaTeX 代码：
-
-\`\`\`latex
-${editor.value}
-\`\`\`
-
-你可以分析代码问题、建议修改、解释 LaTeX 概念。当用户要求修改代码时，用 \`\`\`latex ... \`\`\` 代码块输出修改后的完整代码，我会自动替换到编辑器中。`;
-}
-
-async function sendChat() {
-  if (streaming) return;
-  const msg = chatInput.value.trim();
-  if (!msg) return;
-  chatInput.value = '';
-  chatMsgs.appendChild(createMsg(msg, 'user'));
-  chatMsgs.scrollTop = chatMsgs.scrollHeight;
-
-  const loadingDiv = document.createElement('div');
-  loadingDiv.className = 'chat-msg ai';
-  loadingDiv.innerHTML = '<div class="sender">AI 助手</div><div class="loading-dots"><span></span><span></span><span></span></div>';
-  chatMsgs.appendChild(loadingDiv);
-  chatMsgs.scrollTop = chatMsgs.scrollHeight;
-  streaming = true;
-  chatSendBtn.disabled = true;
-
-  try {
-    const key = aiKey.value.trim();
-    if (!key) { throw new Error('请先填写 API Key'); }
-    const model = aiModel.value;
-    const provider = MODEL_MAP[model];
-
-    // Build messages
-    const msgs = [{role:'system',content:getSystemPrompt()}];
-    for (const h of chatHistory) msgs.push(h);
-    msgs.push({role:'user',content:msg});
-
-    let url, body, headers;
-
-    if (provider === 'gemini') {
-      const ep = PROVIDERS.gemini.endpoint;
-      url = `${ep}${model}:generateContent?key=${key}`;
-      headers = {'Content-Type':'application/json'};
-      const contents = msgs.filter(m=>m.role!=='system').map(m=>({role:m.role==='assistant'?'model':'user',parts:[{text:m.content}]}));
-      const sys = msgs.find(m=>m.role==='system');
-      body = {contents};
-      if (sys) body.systemInstruction = {parts:[{text:sys.content}]};
-      body.generationConfig = {maxOutputTokens:16384,temperature:0.7};
-    } else {
-      url = PROVIDERS[provider].endpoint;
-      headers = {'Content-Type':'application/json',...PROVIDERS[provider].authHeader(key)};
-      body = {model,messages:msgs,temperature:0.7,max_tokens:16384};
-    }
-
-    const res = await fetch(url, {method:'POST',headers,body:JSON.stringify(body)});
-    if (!res.ok) {
-      const txt = await res.text();
-      throw new Error(`API ${res.status}: ${txt.slice(0,200)}`);
-    }
-    const data = await res.json();
-
-    let reply;
-    if (provider === 'gemini') {
-      reply = data.candidates?.[0]?.content?.parts?.[0]?.text || '(无回复)';
-    } else {
-      reply = data.choices?.[0]?.message?.content || '(无回复)';
-    }
-
-    chatHistory.push({role:'user',content:msg});
-    chatHistory.push({role:'assistant',content:reply});
-
-    loadingDiv.remove();
-    chatMsgs.appendChild(createMsg(reply, 'ai'));
-    chatMsgs.scrollTop = chatMsgs.scrollHeight;
-  } catch (e) {
-    loadingDiv.remove();
-    chatMsgs.appendChild(createMsg('错误: ' + e.message, 'ai'));
-    chatMsgs.scrollTop = chatMsgs.scrollHeight;
-  } finally {
-    streaming = false;
-    chatSendBtn.disabled = false;
-  }
-}
-
-function chatKeydown(e) {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
-}
-
-function createMsg(text, role) {
-  const div = document.createElement('div');
-  div.className = 'chat-msg ' + role;
-  if (role === 'ai') {
-    const header = document.createElement('div');
-    header.className = 'sender';
-    header.innerHTML = 'AI 助手';
-    div.appendChild(header);
-    const body = document.createElement('div');
-    body.style.cssText = 'display:flex;flex-direction:column;gap:6px';
-    // Parse code blocks: ```lang\n...\n```
-    const parts = text.split(/(```[\w]*\n[\s\S]*?\n```)/g);
-    for (const part of parts) {
-      const codeMatch = part.match(/^```(\w*)\n([\s\S]*?)\n```$/);
-      if (codeMatch) {
-        const code = codeMatch[2];
-        const pre = document.createElement('pre');
-        pre.style.cssText = 'background:#f5f5f5;padding:8px;border-radius:6px;font-size:11px;overflow-x:auto;line-height:1.5;font-family:monospace';
-        pre.textContent = code;
-        body.appendChild(pre);
-        const btn = document.createElement('button');
-        btn.textContent = '应用代码';
-        btn.style.cssText = 'padding:4px 12px;border:none;border-radius:6px;font-size:11px;font-weight:600;background:#7c5cfc;color:#fff;cursor:pointer;align-self:flex-start;transition:all .2s';
-        btn.onmouseover = () => btn.style.opacity = '.85';
-        btn.onmouseout = () => btn.style.opacity = '1';
-        btn.onclick = () => {
-          saveVersion();
-          editor.value = code;
-          updateVerUI();
-          btn.textContent = '已应用';
-          btn.style.background = '#10b981';
-        };
-        body.appendChild(btn);
-      } else if (part) {
-        const p = document.createElement('div');
-        p.innerHTML = part.replace(/\n/g,'<br>');
-        body.appendChild(p);
-      }
-    }
-    div.appendChild(body);
-  } else {
-    div.textContent = text;
-  }
-  return div;
-}
-
-// Load saved API key
-try { aiKey.value = localStorage.getItem('latex_ai_key') || ''; } catch(e){}
-aiKey.addEventListener('change', () => {
-  try { localStorage.setItem('latex_ai_key', aiKey.value); } catch(e){}
-});
-</script>
+  <script src="assets/latexfix.js" defer></script>
 </body>
 </html>
