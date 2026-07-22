@@ -56,11 +56,10 @@
     .section-head h2{margin:0;font-size:clamp(24px,2.5vw,34px);letter-spacing:-.025em}
     .section-head p{margin:0;color:var(--muted);font-size:14px}
     .tools{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
-    .tool{min-height:218px;padding:27px;border:1px solid var(--line);border-radius:20px;background:var(--surface);text-decoration:none;display:flex;flex-direction:column;position:relative;overflow:hidden;box-shadow:0 8px 28px rgba(52,47,111,.045);transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease}
-    .tool::before{content:"";position:absolute;inset:0 0 auto;height:3px;background:linear-gradient(90deg,#7668ef,#a873e6,#dd8dbb);opacity:.75}
-    .tool:nth-child(2)::before{background:linear-gradient(90deg,#6d8deb,#62c0cf)}
-    .tool:nth-child(3)::before{background:linear-gradient(90deg,#d777b6,#eea36c)}
-    .tool:nth-child(4)::before{background:linear-gradient(90deg,#5fbba1,#7e9be9)}
+    .tool{min-height:218px;padding:27px;border:1px solid rgba(101,88,232,.14);border-radius:20px;background:linear-gradient(145deg,rgba(121,105,239,.11) 0%,rgba(255,255,255,.94) 42%,rgba(235,241,255,.78) 100%);text-decoration:none;display:flex;flex-direction:column;position:relative;overflow:hidden;box-shadow:0 8px 28px rgba(52,47,111,.045);transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease}
+    .tool:nth-child(2){background:linear-gradient(145deg,rgba(103,151,232,.11) 0%,rgba(255,255,255,.94) 43%,rgba(229,248,247,.78) 100%);border-color:rgba(91,160,198,.15)}
+    .tool:nth-child(3){background:linear-gradient(145deg,rgba(218,119,181,.105) 0%,rgba(255,255,255,.94) 43%,rgba(255,241,224,.76) 100%);border-color:rgba(205,121,170,.15)}
+    .tool:nth-child(4){background:linear-gradient(145deg,rgba(91,186,158,.105) 0%,rgba(255,255,255,.94) 43%,rgba(234,239,255,.78) 100%);border-color:rgba(83,165,155,.15)}
     .tool:hover{transform:translateY(-4px);border-color:#c9c5f6;box-shadow:0 20px 48px rgba(52,47,111,.11)}
     .tool-top{display:flex;align-items:center;justify-content:space-between;gap:12px}
     .icon{display:grid;place-items:center;width:46px;height:46px;border-radius:14px;background:linear-gradient(145deg,#f0edff,#e9e4ff);box-shadow:inset 0 0 0 1px rgba(101,88,232,.07);font-size:20px}
