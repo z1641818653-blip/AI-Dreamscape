@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 流程树 · AI 灵境</title>
+<meta name="description" content="AI 灵境流程树：将复杂任务拆分为可复用、可按依赖执行的 AI 节点。">
+<link rel="stylesheet" href="./workflow.css?v=lingjing-workflow-1">
+</head>
+<body>
+<div class="layout" id="layout">
+
+  <!-- LEFT -->
+  <aside class="panel-left" id="panelLeft">
+    <div class="header collapsible-header" id="navHeader">🧭 AI 工具 <span class="section-arrow" id="navArrow">▼</span></div>
+    <nav class="nav-links" id="navBody" aria-label="AI 工具导航">
+      <a class="nav-link" href="index.html">🏠 <span>AI 灵境</span></a>
+      <a class="nav-link" href="chat.html">💬 <span>AI 工作台</span></a>
+      <a class="nav-link" href="chatroom.html">👥 <span>AI 聊天室</span></a>
+      <a class="nav-link active" href="workflow.html" aria-current="page">🌳 <span>AI 流程树</span></a>
+      <a class="nav-link" href="mdtest.html">📝 <span>Markdown 测试</span></a>
+      <a class="nav-link" href="latex.html">∑ <span>LaTeX 渲染</span></a>
+    </nav>
+    <div class="header collapsible-header section-divider" id="wfListHeader">📂 流程列表 <span class="section-arrow" id="wfListArrow">▼</span></div>
+    <div class="workflow-list-section" id="wfListBody">
+      <div id="wfListContainer"></div>
+      <button class="new-workflow-btn" id="btnNewWorkflow">➕ 新建流程</button>
+    </div>
+    <div class="header">⚙️ 设置</div>
+    <div class="body" id="settingsBody"></div>
+    <div class="theme-toggle" id="themeToggle">🌙 暗色模式</div>
+  </aside>
+  <button class="floating-btn" id="collapseBtnLeft" title="切换左侧栏">◀</button>
+
+  <!-- CENTER -->
+  <main class="panel-center">
+    <div class="top-bar" id="topBar">
+      <input class="workflow-name-input" id="wfNameInput" placeholder="流程名称" aria-label="流程名称">
+      <span class="node-path-label" id="nodePath">📌 节点</span>
+      <span class="title-display" id="nodeTitleDisplay"></span>
+    </div>
+    <div class="content" id="workspaceContent"></div>
+    <div class="bottom-bar" id="bottomBar"></div>
+  </main>
+
+  <button class="floating-btn" id="collapseBtnRight" title="切换右侧栏">▶</button>
+
+  <!-- RIGHT -->
+  <aside class="panel-right" id="panelRight">
+    <div class="resize-handle" id="resizeHandle"></div>
+    <div class="header">
+      <span class="flow-header-title">🌳 流程控制</span>
+      <span class="flow-version-actions">
+        <button class="version-mini" id="btnUndoVersion" disabled title="撤销上一次流程修改" aria-label="撤销上一次流程修改">↶<span class="version-mini-count" id="undoVersionCount">0</span></button>
+        <button class="version-mini" id="btnRedoVersion" disabled title="重做刚才撤销的修改" aria-label="重做刚才撤销的修改">↷<span class="version-mini-count" id="redoVersionCount">0</span></button>
+      </span>
+      <span class="flow-help" tabindex="0" aria-label="查看五种节点颜色说明">?
+          <span class="flow-help-tooltip" role="tooltip">
+            <span class="flow-help-title">五种节点状态颜色</span>
+            <span class="flow-help-row"><span class="flow-help-swatch gray"></span><span><b>灰色</b>：从未执行或等待执行</span></span>
+            <span class="flow-help-row"><span class="flow-help-swatch yellow"></span><span><b>黄色</b>：正在执行，或内容修改后结果已过期</span></span>
+            <span class="flow-help-row"><span class="flow-help-swatch green"></span><span><b>绿色</b>：执行完成，当前输出有效且可以复用</span></span>
+            <span class="flow-help-row"><span class="flow-help-swatch red"></span><span><b>红色</b>：输入缺失、执行错误或依赖阻塞</span></span>
+            <span class="flow-help-row"><span class="flow-help-swatch blue"></span><span><b>蓝色</b>：输入有效，但 Prompt 为空</span></span>
+            <span class="flow-help-note">节点左侧的外置色签是自定义分类标签，不属于运行状态。</span>
+          </span>
+      </span>
+    </div>
+    <div class="body" id="treeBody"><div id="treeContainer"></div></div>
+    <div class="tree-buttons" id="treeButtons">
+      <button class="btn btn-sm btn-primary tree-run-all" data-action="executeTree">▶ 运行整个流程树</button>
+      <button class="btn btn-sm" data-action="addChild">➕ 添加子节点</button>
+      <button class="btn btn-sm" data-action="deleteCurrent">✂ 仅删当前</button>
+      <button class="btn btn-sm btn-danger" data-action="deleteNode">✕ 删除分支</button>
+      <button class="btn btn-sm" data-action="copyNode">📋 复制</button>
+      <button class="btn btn-sm" data-action="pasteNode">📥 粘贴</button>
+    </div>
+  </aside>
+
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+<div class="confirm-overlay" id="confirmOverlay" role="dialog" aria-modal="true" aria-labelledby="confirmMsg">
+  <div class="confirm-dialog">
+    <p id="confirmMsg"></p>
+    <div class="confirm-actions">
+      <button class="btn btn-sm" id="confirmNo">取消</button>
+      <button class="btn btn-sm btn-danger" id="confirmYes">确认</button>
+    </div>
+  </div>
+</div>
+<div class="context-menu" id="contextMenu"></div>
+
+<script src="./workflow.js?v=lingjing-workflow-1"></script>
+</body>
+</html>
