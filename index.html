@@ -70,6 +70,9 @@
     .tool h3{margin:22px 0 7px;font-size:20px}
     .tool p{margin:0;color:var(--muted);font-size:14px}
     .tool-meta{margin-top:auto;padding-top:20px;color:var(--primary);font-size:12px;font-weight:700}
+    .tool-upcoming{display:flex;align-items:center;flex-wrap:wrap;gap:7px;margin-top:16px}
+    .tool-upcoming-label{font-size:11px;font-weight:750;color:var(--muted)}
+    .tool-upcoming-item{padding:4px 9px;border-radius:999px;background:rgba(101,88,232,.08);border:1px solid rgba(101,88,232,.12);color:var(--primary);font-size:11px;font-weight:700}
     .tool.disabled{cursor:not-allowed;background:rgba(248,248,252,.7);box-shadow:none;opacity:.7}
     .tool.disabled:hover{transform:none;border-color:var(--line)}
     .tool.disabled .tool-meta{color:var(--muted)}
@@ -93,7 +96,7 @@
         <span class="eyebrow"><span class="eyebrow-dot">✦</span> 欢迎来到 AI 灵境</span>
         <h1 id="page-title">让每一次提问，<span class="title-gradient">都通向更辽阔的想法。</span></h1>
         <p class="lead">与 AI 自由对话，邀请多个模型共同讨论，或让文字与公式即时呈现。选择一种方式，开始属于你的探索。</p>
-        <div class="quick-notes" aria-label="主要能力"><span>自然对话</span><span>多模型讨论</span><span>Markdown</span><span>LaTeX</span></div>
+        <div class="quick-notes" aria-label="主要能力"><span>自然对话</span><span>多模型讨论</span><span>流程编排</span><span>Markdown</span><span>LaTeX</span></div>
         <div class="hero-actions">
           <a class="button primary" href="chat.html">开始对话 <span aria-hidden="true">→</span></a>
           <a class="button" href="#tools">探索全部工具</a>
@@ -144,12 +147,17 @@
           <p>专注呈现复杂公式与 LaTeX 内容，让数学、理论和技术表达更加清晰。</p>
           <span class="tool-meta">专注公式表达</span>
         </a>
-        <div class="tool disabled" aria-disabled="true">
-          <div class="tool-top"><span class="icon">🌳</span><span class="badge wait">暂停开放</span></div>
-          <h3>流程树</h3>
-          <p>一种更直观的 AI 任务编排方式正在重新整理，完成后会再次与大家见面。</p>
-          <span class="tool-meta">正在准备中</span>
-        </div>
+        <a class="tool" href="workflow.html">
+          <div class="tool-top"><span class="icon">🌳</span><span class="badge">Beta 可用</span></div>
+          <h3>AI 流程树</h3>
+          <p>把复杂任务拆成可连接的节点，按依赖顺序执行、复用上级结果，并支持流程保存、导入与导出。</p>
+          <div class="tool-upcoming" aria-label="流程树即将更新">
+            <span class="tool-upcoming-label">即将更新</span>
+            <span class="tool-upcoming-item">条件节点</span>
+            <span class="tool-upcoming-item">真假分支</span>
+          </div>
+          <span class="tool-meta">开始编排流程 · Beta</span>
+        </a>
       </div>
     </section>
   </main>
