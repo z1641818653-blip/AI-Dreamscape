@@ -15,7 +15,7 @@ https://z1641818653-blip.github.io/AI-Dreamscape/index.html
 | `chatroom.html` | 多 AI 聊天室 | 可用 |
 | `mdtest.html` | Markdown 与公式测试 | 可用 |
 | `latex.html` | LaTeX 编辑与编译 | 兼容性测试中 |
-| `workflow.html` | AI 流程树 | 未部署，入口已封锁 |
+| `workflow.html` | AI 流程树 | Beta 可用，DeepSeek 接口已接入 |
 
 ## 分支约定
 
