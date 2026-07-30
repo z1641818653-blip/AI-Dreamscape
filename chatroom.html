@@ -80,6 +80,10 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .history-item .h-del{color:var(--text2);cursor:pointer;padding:1px 4px;border-radius:3px;font-size:10px;opacity:0;transition:opacity .15s}
 .history-item:hover .h-del{opacity:1}
 .history-item .h-del:hover{background:rgba(255,107,157,.15);color:var(--accent)}
+.history-import{margin-top:8px;padding-top:8px;border-top:1px solid var(--border)}
+.history-import-btn{width:100%;padding:6px 8px;border-radius:10px;border:1px dashed rgba(124,92,252,.45);background:rgba(124,92,252,.05);color:var(--primary);font-size:11px;font-weight:600;cursor:pointer;transition:all .2s}
+.history-import-btn:hover{background:rgba(124,92,252,.12);border-color:var(--primary)}
+.history-import-help{display:block;margin-top:5px;color:var(--text2);font-size:9px;line-height:1.45}
 
 .main-area{flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--bg)}
 .top-bar{display:flex;align-items:center;justify-content:space-between;padding:10px 18px;background:var(--surface);border-bottom:1px solid var(--border);backdrop-filter:blur(12px);z-index:10;flex-shrink:0}
@@ -282,6 +286,11 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     <div class="sidebar-section history-section" id="historySection" style="display:none">
       <h3>📂 历史聊天室</h3>
       <div class="history-list" id="historyList"></div>
+      <div class="history-import">
+        <button id="importRoomBtn" class="history-import-btn">📥 导入房间 / 模板</button>
+        <input id="importRoomInput" type="file" accept=".json,application/json" hidden>
+        <span class="history-import-help">自动识别模板文件和包含聊天记录的整体备份。</span>
+      </div>
     </div>
 
     <div class="sidebar-section" style="margin-top:auto">
@@ -304,7 +313,8 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
             <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
           </div>
         </div>
-        <button id="exportTemplateBtn" class="top-btn" title="导出当前角色和房间设置，不包含聊天记录或 API Key">📤 导出模板</button>
+        <button id="exportTemplateBtn" class="top-btn" title="只导出角色与房间设置，不包含聊天记录或 API Key">📤 模板导出</button>
+        <button id="exportFullRoomBtn" class="top-btn" title="导出房间设置和完整聊天记录，不包含 API Key">📦 整体导出</button>
         <button id="clearChatBtn" class="top-btn" title="清空聊天">🗑️ 清空</button>
       </div>
     </div>
@@ -645,57 +655,153 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
   }
 
   function sanitizeFileName(name) {
-    return String(name || 'AI聊天室模板')
+    return String(name || 'AI聊天室')
       .replace(/[\\/:*?"<>|]/g, '_')
       .replace(/\s+/g, ' ')
       .trim()
-      .slice(0, 80) || 'AI聊天室模板';
+      .slice(0, 80) || 'AI聊天室';
   }
 
-  function buildRoomTemplate(room) {
+  function exportParticipant(participant) {
+    if (participant.type === 'human') {
+      return { type: 'human', name: participant.name || '你' };
+    }
     return {
-      schemaVersion: 1,
-      kind: 'ai-dreamscape-chatroom-template',
-      exportedAt: new Date().toISOString(),
-      template: {
-        name: room.name || 'AI 聊天室模板',
-        discussionGoal: room.discussionGoal || '',
-        collaborationMode: room.collaborationMode || 'free',
-        discussionMode: room.discussionMode || 'fixed',
-        rounds: Number(room.rounds) || 3,
-        autoStart: room.autoStart !== false,
-        participants: room.participants.map(participant => {
-          if (participant.type === 'human') {
-            return { type: 'human', name: participant.name || '你' };
-          }
-          return {
-            type: 'ai',
-            name: participant.name || 'AI',
-            prompt: participant.prompt || '',
-            provider: participant.provider || 'deepseek',
-            model: participant.model || '',
-            temp: Number.isFinite(Number(participant.temp)) ? Number(participant.temp) : 0.7,
-            locked: participant.locked === true
-          };
-        })
-      }
+      type: 'ai',
+      name: participant.name || 'AI',
+      prompt: participant.prompt || '',
+      provider: participant.provider || 'deepseek',
+      model: participant.model || '',
+      temp: Number.isFinite(Number(participant.temp)) ? Number(participant.temp) : 0.7,
+      locked: participant.locked === true
     };
+  }
+
+  function buildRoomSettings(room) {
+    return {
+      name: room.name || 'AI 聊天室',
+      discussionGoal: room.discussionGoal || '',
+      collaborationMode: room.collaborationMode || 'free',
+      discussionMode: room.discussionMode || 'fixed',
+      rounds: Number(room.rounds) || 3,
+      autoStart: room.autoStart !== false,
+      participants: room.participants.map(exportParticipant)
+    };
+  }
+
+  function buildRoomExport(room, includeMessages) {
+    const payload = {
+      schemaVersion: 1,
+      kind: includeMessages ? 'ai-dreamscape-chatroom-full' : 'ai-dreamscape-chatroom-template',
+      exportedAt: new Date().toISOString()
+    };
+    if (includeMessages) {
+      payload.room = {
+        ...buildRoomSettings(room),
+        messages: room.messages.map(message => ({
+          role: message.role === 'ai' ? 'ai' : 'user',
+          name: String(message.name || (message.role === 'ai' ? 'AI' : '你')),
+          content: String(message.content || ''),
+          timestamp: String(message.timestamp || '')
+        }))
+      };
+    } else {
+      payload.template = buildRoomSettings(room);
+    }
+    return payload;
+  }
+
+  function downloadRoomJSON(payload, fileName) {
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
   function exportRoomTemplate() {
     const room = state.room;
     if (!room) { showToast('当前没有可导出的房间', 'warning'); return; }
-    const payload = buildRoomTemplate(room);
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = sanitizeFileName(room.name) + '_模板.json';
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    downloadRoomJSON(buildRoomExport(room, false), sanitizeFileName(room.name) + '_模板.json');
     showToast('✅ 模板已导出：不包含聊天记录和 API Key', 'success');
+  }
+
+  function exportFullRoom() {
+    const room = state.room;
+    if (!room) { showToast('当前没有可导出的房间', 'warning'); return; }
+    downloadRoomJSON(buildRoomExport(room, true), sanitizeFileName(room.name) + '_整体备份.json');
+    showToast('✅ 整体房间已导出：包含聊天记录，不包含 API Key', 'success');
+  }
+
+  function sanitizeImportedParticipant(participant) {
+    const source = participant && typeof participant === 'object' ? participant : {};
+    if (source.type === 'human') {
+      return normalizeParticipant({ type: 'human', name: String(source.name || '你').slice(0, 80) });
+    }
+    return normalizeParticipant({
+      type: 'ai',
+      name: String(source.name || 'AI').slice(0, 80),
+      prompt: String(source.prompt || '').slice(0, 20000),
+      provider: String(source.provider || 'deepseek'),
+      model: String(source.model || ''),
+      temp: Number(source.temp),
+      locked: source.locked === true,
+      collapsed: false
+    });
+  }
+
+  function sanitizeImportedMessages(messages) {
+    if (!Array.isArray(messages)) return [];
+    if (messages.length > 5000) throw new Error('聊天记录超过 5000 条，无法导入');
+    return messages.map(message => {
+      if (!message || typeof message !== 'object') throw new Error('聊天记录格式不正确');
+      const content = String(message.content || '');
+      if (!content.trim()) throw new Error('聊天记录中存在空消息');
+      if (content.length > 200000) throw new Error('单条聊天记录过长，无法导入');
+      return {
+        role: message.role === 'ai' ? 'ai' : 'user',
+        name: String(message.name || (message.role === 'ai' ? 'AI' : '你')).slice(0, 80),
+        content,
+        timestamp: String(message.timestamp || '').slice(0, 40)
+      };
+    });
+  }
+
+  function createRoomFromImport(payload) {
+    if (!payload || typeof payload !== 'object') throw new Error('文件内容不是有效的房间数据');
+    if (Number(payload.schemaVersion || 1) > 1) throw new Error('该文件版本高于当前页面支持的版本');
+
+    const isTemplate = payload.kind === 'ai-dreamscape-chatroom-template';
+    const isFull = payload.kind === 'ai-dreamscape-chatroom-full';
+    let source = isTemplate ? payload.template : isFull ? payload.room : payload;
+    if (!source || typeof source !== 'object') throw new Error('文件缺少房间配置');
+    if (!Array.isArray(source.participants) || source.participants.length === 0) {
+      throw new Error('文件中没有有效的参与角色');
+    }
+    if (source.participants.length > 30) throw new Error('参与角色超过 30 个，无法导入');
+
+    const allowedRounds = [1, 2, 3, 5, 10];
+    const rounds = allowedRounds.includes(Number(source.rounds)) ? Number(source.rounds) : 3;
+    const room = createRoom(getUniqueRoomName(String(source.name || '导入的 AI 聊天室').slice(0, 80)), [], rounds, source.autoStart !== false, ['fixed', 'auto', 'infinite'].includes(source.discussionMode) ? source.discussionMode : 'fixed');
+    room.collaborationMode = ['free', 'cocreate', 'debate'].includes(source.collaborationMode) ? source.collaborationMode : 'free';
+    room.discussionGoal = String(source.discussionGoal || '').slice(0, 30000);
+    room.participants = source.participants.map(sanitizeImportedParticipant);
+    room.messages = isTemplate ? [] : sanitizeImportedMessages(source.messages);
+    return { room, importType: isTemplate ? '模板' : '整体房间' };
+  }
+
+  async function importRoomFile(file) {
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) throw new Error('文件超过 10MB，无法导入');
+    const payload = JSON.parse(await file.text());
+    const result = createRoomFromImport(payload);
+    if (!saveRoom(result.room)) return;
+    initRoom(result.room);
+    showToast('✅ 已导入' + result.importType + '：' + result.room.name, 'success');
   }
 
   let state = {
@@ -849,12 +955,17 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     updateHistory();
   }
 
-  function getNextRoomName() {
+  function getUniqueRoomName(baseName) {
+    const base = String(baseName || 'AI 聊天室').trim() || 'AI 聊天室';
     const names = new Set(listRooms().map(room => room.name));
-    if (!names.has('AI 聊天室')) return 'AI 聊天室';
+    if (!names.has(base)) return base;
     let number = 2;
-    while (names.has('AI 聊天室 ' + number)) number++;
-    return 'AI 聊天室 ' + number;
+    while (names.has(base + ' ' + number)) number++;
+    return base + ' ' + number;
+  }
+
+  function getNextRoomName() {
+    return getUniqueRoomName('AI 聊天室');
   }
 
   function newRoom() {
@@ -1691,6 +1802,22 @@ ${transcript}
   });
 
   document.getElementById('exportTemplateBtn').addEventListener('click', exportRoomTemplate);
+  document.getElementById('exportFullRoomBtn').addEventListener('click', exportFullRoom);
+  document.getElementById('importRoomBtn').addEventListener('click', () => {
+    if (state.isDiscussing) { showToast('请先停止讨论再导入文件', 'warning'); return; }
+    document.getElementById('importRoomInput').click();
+  });
+  document.getElementById('importRoomInput').addEventListener('change', async (event) => {
+    const input = event.target;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+    try {
+      await importRoomFile(file);
+    } catch (error) {
+      showToast('导入失败：' + (error?.message || '文件格式不正确'), 'error');
+    }
+  });
 
   document.getElementById('clearChatBtn').addEventListener('click', () => {
     if (!state.room) return;
