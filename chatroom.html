@@ -54,9 +54,12 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .ai-card-body{transition:max-height .2s ease,opacity .2s ease;overflow:hidden}
 
 .setting-row{display:flex;align-items:center;gap:6px;margin-bottom:6px}
+.setting-row.stacked{align-items:stretch;flex-direction:column;gap:4px}
 .setting-row label{font-size:11px;font-weight:600;color:var(--text);min-width:52px}
-.setting-row input[type="text"],.setting-row select{flex:1;padding:4px 8px;border:1px solid var(--border);border-radius:5px;font-size:11px;outline:none;background:rgba(0,0,0,.2);color:var(--text);transition:all .15s}
-.setting-row input[type="text"]:focus,.setting-row select:focus{border-color:var(--primary);box-shadow:0 0 0 2px rgba(124,92,252,.15)}
+.setting-row input[type="text"],.setting-row select,.setting-row textarea{flex:1;padding:4px 8px;border:1px solid var(--border);border-radius:5px;font-size:11px;outline:none;background:rgba(0,0,0,.2);color:var(--text);transition:all .15s;font-family:inherit}
+.setting-row textarea{min-height:58px;resize:vertical;line-height:1.5}
+.setting-row input[type="text"]:focus,.setting-row select:focus,.setting-row textarea:focus{border-color:var(--primary);box-shadow:0 0 0 2px rgba(124,92,252,.15)}
+.setting-help{font-size:9px;line-height:1.4;color:var(--text2)}
 .setting-row input[type="checkbox"]{width:16px;height:16px;cursor:pointer;accent-color:var(--primary);flex-shrink:0}
 .setting-row .chk-label{font-size:11px;color:var(--text2)}
 
@@ -174,7 +177,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
  .toast.info{background:linear-gradient(135deg,#7c5cfc,#6a4de8)}
  .ai-card-name{background:rgba(0,0,0,.04)}
  .ai-card-field input,.ai-card-field select,.ai-card-field textarea{background:rgba(0,0,0,.04)}
- .setting-row input[type="text"],.setting-row select{background:rgba(0,0,0,.04)}
+ .setting-row input[type="text"],.setting-row select,.setting-row textarea{background:rgba(0,0,0,.04)}
  .input-row textarea{background:rgba(0,0,0,.04)}
 
 @media(max-width:600px){
@@ -228,8 +231,21 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
         <label>名称</label>
         <input type="text" id="roomNameInput" value="AI 聊天室">
       </div>
+      <div class="setting-row stacked">
+        <label for="discussionGoalInput">讨论目标</label>
+        <textarea id="discussionGoalInput" rows="3" placeholder="留空时自动使用第一条用户消息"></textarea>
+        <span class="setting-help">所有角色将围绕这个目标推进，而不只是回答最近一句话。</span>
+      </div>
       <div class="setting-row">
-        <label>讨论模式</label>
+        <label>协作模式</label>
+        <select id="collaborationModeSelect">
+          <option value="free" selected>自由讨论</option>
+          <option value="cocreate">方案共创</option>
+          <option value="debate">正反辩论</option>
+        </select>
+      </div>
+      <div class="setting-row">
+        <label>轮次控制</label>
         <select id="discussionModeSelect">
           <option value="fixed" selected>固定 N 轮</option>
           <option value="auto">AI 自主判断</option>
@@ -545,6 +561,8 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
       rounds: rounds || 3,
       autoStart: autoStart !== undefined ? autoStart : true,
       discussionMode: discussionMode || 'fixed',
+      collaborationMode: 'free',
+      discussionGoal: '',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
@@ -677,6 +695,8 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 
   function initRoom(room) {
     room.participants = room.participants.map(normalizeParticipant);
+    room.collaborationMode = ['free', 'cocreate', 'debate'].includes(room.collaborationMode) ? room.collaborationMode : 'free';
+    room.discussionGoal = typeof room.discussionGoal === 'string' ? room.discussionGoal : '';
     state.room = room;
     state.isDiscussing = false;
     state.discussStopped = false;
@@ -734,6 +754,8 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     if (!state.room) return;
     const room = state.room;
     document.getElementById('roomNameInput').value = room.name;
+    document.getElementById('discussionGoalInput').value = room.discussionGoal || '';
+    document.getElementById('collaborationModeSelect').value = room.collaborationMode || 'free';
     document.getElementById('discussionModeSelect').value = state.discussionMode || 'fixed';
     document.getElementById('roundsSelect').value = room.rounds;
     document.getElementById('autoStartCheck').checked = room.autoStart;
@@ -859,7 +881,9 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     const room = state.room;
     document.getElementById('roomTitle').textContent = room.name;
     const modeMap = { fixed: room.rounds + ' 轮', auto: 'AI 判断', infinite: '无限' };
-    document.getElementById('roomBadge').textContent = modeMap[state.discussionMode] || room.rounds + ' 轮';
+    const collaborationMap = { free: '自由讨论', cocreate: '方案共创', debate: '正反辩论' };
+    const controlText = modeMap[state.discussionMode] || room.rounds + ' 轮';
+    document.getElementById('roomBadge').textContent = (collaborationMap[room.collaborationMode] || '自由讨论') + ' · ' + controlText;
 
     const phaseText = document.getElementById('phaseText');
     const progressFill = document.getElementById('progressFill');
@@ -1087,7 +1111,98 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     }
   }
 
-  async function callSingleAI(participantIdx) {
+  const COLLABORATION_PROMPTS = {
+    free: `【协作模式：自由讨论】
+从你的独特视角推进讨论。优先补充尚未出现的观点；如果回应他人，必须指出具体观点，避免简单重复或泛泛赞同。`,
+    cocreate: `【协作模式：方案共创】
+你的任务是和其他参与者共同完成一个可执行结果。继承已有的有效内容，补足缺口、解决冲突，并给出具体的下一步；不要为了表现个性而推翻可用成果。`,
+    debate: `【协作模式：正反辩论】
+明确你的立场，锁定对方一个具体论点进行回应。区分事实、定义和价值判断；可以承认局部合理性，但不能用空泛折中回避核心分歧。`
+  };
+
+  function getDiscussionGoal(room) {
+    const configured = String(room.discussionGoal || '').trim();
+    if (configured) return configured;
+    const firstUserMessage = room.messages.find(message => message.role === 'user');
+    return firstUserMessage?.content || '围绕用户提出的问题，从不同角度分析并形成清晰结论。';
+  }
+
+  function buildAttributedTranscript(messages) {
+    return messages.map(message => {
+      const speaker = message.role === 'user' ? (message.name || '用户') : (message.name || 'AI');
+      return '[' + speaker + ']\n' + message.content;
+    }).join('\n\n');
+  }
+
+  function buildRoundPrompt(room, participant, round, totalRounds) {
+    const isFixedFinalRound = state.discussionMode === 'fixed' && round >= totalRounds;
+    const previousAI = [...room.messages].reverse().find(message => message.role === 'ai' && message.name !== participant.name);
+    const previousNote = previousAI
+      ? '\n上一位其他角色是「' + previousAI.name + '」。请检查其最近观点，并在有必要时明确回应。'
+      : '';
+
+    if (round === 1) {
+      return `【当前轮任务：建立观点】
+这是第 1 轮。请从你的角色职责出发提出核心判断和关键理由。
+如果前面已经有角色发言，可以回应，但必须保留自己的独立分析。
+不要总结整场讨论，也不要向用户提出非必要问题。` + previousNote;
+    }
+
+    if (isFixedFinalRound) {
+      return `【当前轮任务：收敛结论】
+这是最后一轮。请指出已经形成的共识、仍未解决的核心分歧，以及完成讨论目标所需的最终建议。
+不要引入无关的新话题，不要重复此前完整观点。` + previousNote;
+    }
+
+    return `【当前轮任务：交叉推进】
+这是第 ${round} 轮。请选择讨论记录中一个尚未解决的具体观点，明确赞同、反对或修正，并补充新的理由、证据或实施细节。
+禁止重新完整复述自己的上一轮发言，不要向用户提出非必要问题。` + previousNote;
+  }
+
+  function buildParticipantSystemPrompt(room, participant, round, totalRounds) {
+    const goal = getDiscussionGoal(room);
+    const collaborationPrompt = COLLABORATION_PROMPTS[room.collaborationMode] || COLLABORATION_PROMPTS.free;
+    const roundPrompt = buildRoundPrompt(room, participant, round, totalRounds);
+
+    return `你正在参加一个多角色 AI 讨论。
+
+【共同目标】
+${goal}
+
+【房间协议】
+1. 所有发言必须直接推进共同目标，不能脱离主题。
+2. 优先回应尚未解决的分歧，不重复已经表达过的内容。
+3. 赞同他人时必须补充新的理由、证据或实施细节。
+4. 反对他人时必须指出具体观点以及反对理由。
+5. 不要代替其他角色发言，也不要模拟完整聊天室。
+6. 每次只完成当前轮分配的任务。
+7. 除非确实缺少完成目标所必需的信息，否则不要向用户提问。
+8. 只输出你本轮的正式发言，不输出规则说明或思考过程。
+
+【你的身份与职责】
+${participant.prompt}
+
+${collaborationPrompt}
+
+${roundPrompt}`;
+  }
+
+  function buildParticipantMessages(room, participant, round, totalRounds) {
+    const transcript = buildAttributedTranscript(room.messages);
+    return [
+      { role: 'system', content: buildParticipantSystemPrompt(room, participant, round, totalRounds) },
+      {
+        role: 'user',
+        content: `【带署名的讨论记录】
+${transcript}
+
+【现在轮到你】
+你是「${participant.name}」。请严格围绕共同目标完成本轮任务，只输出本轮发言。`
+      }
+    ];
+  }
+
+  async function callSingleAI(participantIdx, round, totalRounds) {
     const room = state.room;
     if (!room) return null;
     const p = room.participants[participantIdx];
@@ -1096,10 +1211,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 
     showTypingIndicator(p.name, color);
 
-    const msgs = [{ role: 'system', content: p.prompt }];
-    for (const m of room.messages) {
-      msgs.push({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.content });
-    }
+    const msgs = buildParticipantMessages(room, p, round, totalRounds);
 
     const { bubble } = addMessageDOM('ai', p.name, '', color);
     let fullContent = '';
@@ -1136,12 +1248,17 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     if (!room || room.participants.length === 0) return false;
 
     const judge = room.participants[0];
-    const questionText = '以上讨论是否有新的观点产生？如果没有，请回复【END】。如果还有讨论空间，请回复【继续】。';
+    const questionText = `你是讨论完成度评估器，不参与观点表达。
+共同目标：${getDiscussionGoal(room)}
+协作模式：${room.collaborationMode || 'free'}
 
-    const msgs = [{ role: 'system', content: questionText }];
-    for (const m of room.messages) {
-      msgs.push({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.content });
-    }
+判断现有讨论是否已经覆盖主要观点、回应核心分歧，并足以形成清晰结论。
+如果讨论已经充分，只回复【END】；如果仍有关键问题未解决，只回复【继续】。`;
+
+    const msgs = [
+      { role: 'system', content: questionText },
+      { role: 'user', content: buildAttributedTranscript(room.messages) }
+    ];
 
     showTypingIndicator('讨论评估', '#8b5cf6');
     try {
@@ -1209,7 +1326,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
           if (state.discussStopped) break;
 
           const aiIdx = queue[idx];
-          const result = await callSingleAI(aiIdx);
+          const result = await callSingleAI(aiIdx, round, totalRounds);
 
           if (state.discussStopped) break;
 
@@ -1335,8 +1452,17 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     if (e.target.id === 'roomNameInput' && state.room) {
       state.room.name = e.target.value.trim() || 'AI 聊天室'; updateHeader(); saveRoom(state.room); updateHistory();
     }
+    if (e.target.id === 'discussionGoalInput' && state.room) {
+      state.room.discussionGoal = e.target.value;
+      saveRoom(state.room);
+    }
   });
   document.getElementById('sidebar').addEventListener('change', function(e) {
+    if (e.target.id === 'collaborationModeSelect' && state.room) {
+      state.room.collaborationMode = e.target.value;
+      updateHeader();
+      saveRoom(state.room);
+    }
     if (e.target.id === 'discussionModeSelect' && state.room) {
       state.discussionMode = e.target.value;
       state.room.discussionMode = e.target.value;
@@ -1364,6 +1490,11 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     if (!text || !state.room) return;
     input.value = ''; input.style.height = 'auto';
 
+    if (!String(state.room.discussionGoal || '').trim() && state.room.messages.length === 0) {
+      state.room.discussionGoal = text;
+      const goalInput = document.getElementById('discussionGoalInput');
+      if (goalInput) goalInput.value = text;
+    }
     state.room.messages.push({role:'user',name:'你',content:text,timestamp:new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'})});
     addMessageDOM('user',null,text);
     saveRoom(state.room);
