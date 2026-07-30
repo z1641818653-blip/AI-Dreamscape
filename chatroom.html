@@ -1031,9 +1031,15 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 
   function renderMessages() {
     const area = document.getElementById('messagesArea');
-    const empty = document.getElementById('emptyChat');
+    const existingEmpty = document.getElementById('emptyChat');
+    const empty = existingEmpty ? existingEmpty.cloneNode(true) : document.createElement('div');
+    if (!existingEmpty) {
+      empty.className = 'empty-chat';
+      empty.id = 'emptyChat';
+      empty.innerHTML = '<div class="empty-icon">💬</div><div>在下方输入消息开始聊天</div><div style="font-size:11px;margin-top:6px">或点击 "🤖 开始自动讨论" 让 AI 们自主对话</div>';
+    }
     area.innerHTML = '';
-    area.appendChild(empty.cloneNode(true));
+    area.appendChild(empty);
 
     if (!state.room) return;
     const room = state.room;
