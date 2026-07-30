@@ -219,6 +219,54 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
   .ai-card-field textarea{min-height:30px}
   .progress-bar-wrap{width:40px}
 }
+
+/* Chatroom shortcuts and tutorial */
+.chatroom-shortcuts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.chatroom-shortcut{display:flex;align-items:center;justify-content:center;min-height:34px;padding:7px 9px;border:1px solid var(--border);border-radius:10px;background:transparent;color:var(--text);font:600 12px/1.2 inherit;text-decoration:none;cursor:pointer;transition:all var(--transition)}
+.chatroom-shortcut:hover{border-color:rgba(124,92,252,.35);background:var(--primary-glow);color:var(--primary)}
+.tutorial-overlay{position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;padding:24px;background:rgba(18,13,28,.66);backdrop-filter:blur(7px)}
+.tutorial-overlay.open{display:flex}
+.tutorial-dialog{width:min(1060px,96vw);height:min(820px,92vh);display:flex;flex-direction:column;overflow:hidden;border:1px solid var(--border);border-radius:22px;background:var(--surface);box-shadow:0 24px 80px rgba(0,0,0,.3)}
+.tutorial-header{display:flex;align-items:center;gap:14px;padding:18px 20px;border-bottom:1px solid var(--border)}
+.tutorial-header-copy{flex:1;min-width:0}
+.tutorial-header h2{font-size:19px;margin:0 0 3px}
+.tutorial-header p{font-size:12px;color:var(--text2)}
+.tutorial-close{width:34px;height:34px;border:1px solid var(--border);border-radius:10px;background:transparent;color:var(--text2);font-size:20px;cursor:pointer}
+.tutorial-close:hover{background:var(--surface-hover);color:var(--text)}
+.tutorial-layout{display:grid;grid-template-columns:210px minmax(0,1fr);min-height:0;flex:1}
+.tutorial-toc{overflow-y:auto;padding:16px 12px;border-right:1px solid var(--border);background:rgba(124,92,252,.035)}
+.tutorial-toc-title{padding:0 9px 8px;color:var(--text2);font-size:11px;font-weight:700;letter-spacing:.08em}
+.tutorial-toc-link{display:block;width:100%;margin:2px 0;padding:8px 10px;border:0;border-radius:9px;background:transparent;color:var(--text2);font:500 12px/1.35 inherit;text-align:left;cursor:pointer}
+.tutorial-toc-link:hover,.tutorial-toc-link.active{background:var(--primary-glow);color:var(--primary);font-weight:700}
+.tutorial-content{overflow-y:auto;scroll-behavior:smooth;padding:24px 28px 50px}
+.tutorial-section{scroll-margin-top:20px;padding-bottom:25px;margin-bottom:25px;border-bottom:1px solid var(--border)}
+.tutorial-section:last-child{border-bottom:0}
+.tutorial-section h2{font-size:18px;margin:0 0 10px;color:var(--text)}
+.tutorial-section h3{font-size:14px;margin:18px 0 7px;color:var(--text)}
+.tutorial-section p,.tutorial-section li{font-size:13px;line-height:1.75;color:var(--text2)}
+.tutorial-section ul,.tutorial-section ol{padding-left:20px;margin:7px 0}
+.tutorial-lead{font-size:14px!important;color:var(--text)!important}
+.tutorial-callout{margin:12px 0;padding:12px 14px;border:1px solid rgba(124,92,252,.2);border-radius:12px;background:var(--primary-glow)}
+.tutorial-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 0}
+.tutorial-card{padding:12px;border:1px solid var(--border);border-radius:12px;background:rgba(124,92,252,.025)}
+.tutorial-card strong{display:block;margin-bottom:4px;font-size:13px}
+.tutorial-card p{font-size:12px;line-height:1.6}
+.tutorial-table-wrap{overflow-x:auto;margin:10px 0}
+.tutorial-table{width:100%;border-collapse:collapse;min-width:560px}
+.tutorial-table th,.tutorial-table td{padding:9px 10px;border:1px solid var(--border);font-size:12px;line-height:1.55;text-align:left;vertical-align:top}
+.tutorial-table th{background:var(--surface-hover);color:var(--text)}
+.tutorial-prompt{white-space:pre-wrap;margin:10px 0;padding:13px;border:1px solid var(--border);border-radius:12px;background:rgba(0,0,0,.08);color:var(--text2);font:12px/1.7 ui-monospace,SFMono-Regular,Menlo,monospace}
+@media(max-width:720px){
+  .tutorial-overlay{padding:0}
+  .tutorial-dialog{width:100vw;height:100vh;max-height:none;border:0;border-radius:0}
+  .tutorial-layout{display:flex;flex-direction:column}
+  .tutorial-toc{display:flex;gap:5px;flex:0 0 auto;overflow-x:auto;overflow-y:hidden;padding:9px;border-right:0;border-bottom:1px solid var(--border)}
+  .tutorial-toc-title{display:none}
+  .tutorial-toc-link{width:auto;flex:0 0 auto;white-space:nowrap;padding:7px 9px}
+  .tutorial-content{padding:20px 18px 40px}
+  .tutorial-grid{grid-template-columns:1fr}
+}
+
 </style>
 </head>
 <body>
@@ -232,19 +280,186 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     </div>
   </div>
 </div>
+
+<div class="tutorial-overlay" id="tutorialOverlay" aria-hidden="true">
+  <div class="tutorial-dialog" role="dialog" aria-modal="true" aria-labelledby="tutorialTitle">
+    <div class="tutorial-header">
+      <div class="tutorial-header-copy">
+        <h2 id="tutorialTitle">AI 聊天室教程</h2>
+        <p>从三人辩论到大型讨论赛：角色、目标、轮次与用户介入指南</p>
+      </div>
+      <button class="tutorial-close" id="tutorialCloseBtn" type="button" aria-label="关闭教程">×</button>
+    </div>
+    <div class="tutorial-layout">
+      <nav class="tutorial-toc" aria-label="教程目录">
+        <div class="tutorial-toc-title">目录</div>
+        <button class="tutorial-toc-link active" data-target="guide-start">快速开始</button>
+        <button class="tutorial-toc-link" data-target="guide-roles">角色设置</button>
+        <button class="tutorial-toc-link" data-target="guide-room">房间设置</button>
+        <button class="tutorial-toc-link" data-target="guide-rounds">模式与轮次</button>
+        <button class="tutorial-toc-link" data-target="guide-buttons">按钮说明</button>
+        <button class="tutorial-toc-link" data-target="guide-user">用户如何参与</button>
+        <button class="tutorial-toc-link" data-target="guide-files">历史与导入导出</button>
+        <button class="tutorial-toc-link" data-target="guide-prompt">Prompt 写法</button>
+        <button class="tutorial-toc-link" data-target="guide-plays">推荐玩法</button>
+        <button class="tutorial-toc-link" data-target="guide-quality">避免无效讨论</button>
+      </nav>
+      <main class="tutorial-content" id="tutorialContent">
+        <section class="tutorial-section" id="guide-start">
+          <h2>这不是普通群聊</h2>
+          <p class="tutorial-lead">AI 聊天室是一张可以编排角色、立场、顺序和讨论目标的“多人思维桌”。你可以旁观 AI 自主讨论、随时插话，或者把自己加入固定发言顺序。</p>
+          <div class="tutorial-callout"><strong>第一次使用：</strong>在左侧加载“展示模板”。它包含三名角色、完整目标和 16 条示例记录，是理解页面最快的入口。</div>
+          <h3>一分钟开局</h3>
+          <ol>
+            <li>添加至少两个 AI，填写名称和角色 Prompt。</li>
+            <li>设置讨论目标，并选择自由讨论、方案共创或正反辩论。</li>
+            <li>新手建议先选择“固定 2～3 轮”。</li>
+            <li>点击“开始自动讨论”，或发送第一条问题触发讨论。</li>
+          </ol>
+        </section>
+
+        <section class="tutorial-section" id="guide-roles">
+          <h2>角色设置</h2>
+          <div class="tutorial-table-wrap"><table class="tutorial-table">
+            <thead><tr><th>项目</th><th>作用</th><th>建议</th></tr></thead>
+            <tbody>
+              <tr><td>添加 AI</td><td>创建一个可配置模型、Prompt 和温度的角色。</td><td>每个角色应有不可替代的任务。</td></tr>
+              <tr><td>添加用户</td><td>把你加入固定发言顺序，只需要名字。</td><td>偶尔插话不必添加，使用“插入发言”即可。</td></tr>
+              <tr><td>名称</td><td>聊天显示名，也是其他角色点名回应的依据。</td><td>使用“正方一辩、风险审查员”等明确名称。</td></tr>
+              <tr><td>角色 Prompt</td><td>规定身份、立场、职责和互动规则。</td><td>留空仍可回答，但容易失去立场、变成泛泛而谈。</td></tr>
+              <tr><td>模型 / 提供商</td><td>每个角色可以使用不同模型。</td><td>强模型做裁判，快速模型做普通辩手。</td></tr>
+              <tr><td>温度</td><td>越低越稳定，越高越发散。</td><td>裁判 0.2～0.4；分析 0.5～0.7；辩手或创意角色 0.7～0.9。</td></tr>
+              <tr><td>发言开关</td><td>关闭后不进入队列、不响应点名，也不参与裁判选择。</td><td>用它手动控制辩论阶段，不会删除角色。</td></tr>
+              <tr><td>↑ / ↓</td><td>调整角色和用户的发言顺序。</td><td>主持或裁判通常放在一轮的最后。</td></tr>
+              <tr><td>展开 / 收起</td><td>显示或隐藏角色详细设置。</td><td>角色很多时收起已配置角色。</td></tr>
+              <tr><td>锁定</td><td>防止误改名称、Prompt、模型和温度。</td><td>锁定后仍可使用发言开关。</td></tr>
+              <tr><td>移除</td><td>从房间移除角色，旧消息仍保留。</td><td>只是暂时不让其发言时请用开关。</td></tr>
+            </tbody>
+          </table></div>
+        </section>
+
+        <section class="tutorial-section" id="guide-room">
+          <h2>房间设置与“留空”的作用</h2>
+          <h3>房间名称</h3>
+          <p>用于历史记录识别。建议按任务命名，例如“自由意志辩论”“产品风险评审”。</p>
+          <h3>讨论目标</h3>
+          <p>这是所有角色持续遵守的长期任务，不只是最近一句消息。复杂讨论应写清问题、结果、边界、互动方式和停止条件。</p>
+          <div class="tutorial-callout"><strong>讨论目标留空：</strong>系统会自动把第一条用户消息作为目标。适合快速聊天，但复杂任务最好单独填写。</div>
+          <p>可以把“讨论目标”理解为这场讨论为什么存在，把“最近消息”理解为当前需要处理什么。</p>
+          <h3>其他空值</h3>
+          <ul>
+            <li><strong>角色 Prompt 为空：</strong>角色缺乏稳定职责，不建议用于多人讨论。</li>
+            <li><strong>消息输入为空：</strong>不会发送；如果已经设置讨论目标，可以直接开始自动讨论。</li>
+            <li><strong>API Key 为空：</strong>对应模型无法生成内容；API Key 不会写入导出文件。</li>
+          </ul>
+        </section>
+
+        <section class="tutorial-section" id="guide-rounds">
+          <h2>协作模式与轮次</h2>
+          <div class="tutorial-grid">
+            <div class="tutorial-card"><strong>自由讨论</strong><p>角色从各自视角自然发言。适合哲学沙龙、多专家观察和开放探索。</p></div>
+            <div class="tutorial-card"><strong>方案共创</strong><p>所有角色追求同一个结果，但分工不同。适合产品、计划、写作和技术评审。</p></div>
+            <div class="tutorial-card"><strong>正反辩论</strong><p>角色需要质疑、回应和反驳对方。建议配置正方、反方和裁判。</p></div>
+            <div class="tutorial-card"><strong>固定 N 轮</strong><p>按角色顺序运行指定轮数，容易控制成本。第一次建议 2～3 轮。</p></div>
+            <div class="tutorial-card"><strong>AI 自主判断</strong><p>由 AI 根据讨论进展决定是否继续。请在目标中写清停止条件。</p></div>
+            <div class="tutorial-card"><strong>无限（手动停止）</strong><p>持续运行直到点击停止，适合开放探索，但需要注意 API 消耗。</p></div>
+          </div>
+          <p><strong>发送消息后 AI 自动讨论：</strong>开启时，发送消息立即启动角色队列；关闭时，可以先连续输入背景资料，再手动开始。</p>
+        </section>
+
+        <section class="tutorial-section" id="guide-buttons">
+          <h2>聊天区按钮</h2>
+          <ul>
+            <li><strong>发送：</strong>把输入内容加入当前房间；开启自动讨论时会触发 AI。</li>
+            <li><strong>开始自动讨论：</strong>让所有“发言开”的 AI 按当前顺序开始。</li>
+            <li><strong>插入发言：</strong>当前 AI 完成后暂停，把下一次发言机会交给你。</li>
+            <li><strong>停止：</strong>停止自动讨论，已经生成的内容和房间状态会保留。</li>
+            <li><strong>清空：</strong>清除当前聊天记录，角色和设置不变。重要内容建议先整体导出。</li>
+          </ul>
+        </section>
+
+        <section class="tutorial-section" id="guide-user">
+          <h2>用户是否下场，由你决定</h2>
+          <div class="tutorial-grid">
+            <div class="tutorial-card"><strong>纯旁观</strong><p>不添加用户角色，直接让 AI 自己讨论。</p></div>
+            <div class="tutorial-card"><strong>临时插话</strong><p>点击“插入发言”，在当前 AI 发言结束后接管。</p></div>
+            <div class="tutorial-card"><strong>固定参赛</strong><p>添加用户并调整顺序，轮到你时讨论会等待输入。</p></div>
+            <div class="tutorial-card"><strong>挑战裁判</strong><p>关闭所有辩手，只留下裁判，直接质疑它的结论和判定标准。</p></div>
+          </div>
+          <p>如果在 AI 正在输出时关闭其发言，本次内容会完成，从下一次轮到它时开始跳过。</p>
+        </section>
+
+        <section class="tutorial-section" id="guide-files">
+          <h2>历史、模板与备份</h2>
+          <ul>
+            <li><strong>历史房间：</strong>点击切换；铅笔用于改名；删除按钮移除房间。</li>
+            <li><strong>新建房间：</strong>创建独立空间，不影响已有记录。</li>
+            <li><strong>模板导出：</strong>保存角色、设置、顺序和发言状态，不含聊天记录和 API Key。</li>
+            <li><strong>整体导出：</strong>额外包含完整聊天记录，仍不包含 API Key。</li>
+            <li><strong>导入：</strong>自动识别模板和整体备份，并保存为独立房间。</li>
+          </ul>
+        </section>
+
+        <section class="tutorial-section" id="guide-prompt">
+          <h2>角色 Prompt 怎么写</h2>
+          <p>比起长篇人物传记，更重要的是写清楚角色在讨论中必须完成什么。</p>
+          <div class="tutorial-prompt">你是【角色名称】，负责【主要职责】。
+你的核心立场或观察角度是【立场】。
+你需要重点分析【关键问题】。
+每次发言必须回应上一位角色最重要的观点，避免重复。
+可以承认对方合理的部分，但必须说明适用边界。
+当讨论没有新增信息时进行总结，不要为了延长讨论重复发言。</div>
+          <p>推荐结构：身份 → 立场 → 职责 → 分析方法 → 互动规则 → 停止条件。</p>
+        </section>
+
+        <section class="tutorial-section" id="guide-plays">
+          <h2>推荐玩法</h2>
+          <div class="tutorial-grid">
+            <div class="tutorial-card"><strong>经典三人辩论</strong><p>正方、反方、低温度裁判。最稳定，也最适合新手。</p></div>
+            <div class="tutorial-card"><strong>4 正 4 反大型辩论</strong><p>一辩立论、二辩举证、三辩反驳、四辩总结，再由裁判判定。</p></div>
+            <div class="tutorial-card"><strong>专家会诊</strong><p>理论专家、实践专家、数据分析、风险审查和综合决策者共同给方案。</p></div>
+            <div class="tutorial-card"><strong>创作工作室</strong><p>世界观、人物、剧情、逻辑审查、读者观察和主编分阶段协作。</p></div>
+            <div class="tutorial-card"><strong>反向压力测试</strong><p>提案者面对怀疑者、成本控制、安全审查和普通用户，提前暴露问题。</p></div>
+            <div class="tutorial-card"><strong>关系观察室</strong><p>双方视角、情绪观察、逻辑分析和中立调解者区分表达、需求与误解。</p></div>
+          </div>
+          <h3>大型辩论的阶段控制</h3>
+          <ol>
+            <li>立论：只开启双方一辩。</li>
+            <li>质询：开启二辩和三辩。</li>
+            <li>总结：只开启双方四辩。</li>
+            <li>判定：关闭全部辩手，只开启裁判。</li>
+          </ol>
+          <p>角色越多、轮次越多，API 请求越多。大型房间建议先运行一轮检查角色表现。</p>
+        </section>
+
+        <section class="tutorial-section" id="guide-quality">
+          <h2>避免“公说公有理，婆说婆有理”</h2>
+          <p>把下面的规则写进讨论目标或裁判 Prompt：</p>
+          <ul>
+            <li>每次发言必须明确回应对方的某个观点，不允许只重复立场。</li>
+            <li>必须承认对方至少一个合理部分，并说明其适用边界。</li>
+            <li>主张尽量给出案例、证据或可检验条件。</li>
+            <li>无法回应核心质疑时应明确承认。</li>
+            <li>裁判必须给出判定标准，不能用“双方都有道理”代替结论。</li>
+            <li>价值前提不同和逻辑论证失败必须分开说明。</li>
+            <li>没有新增信息时结束，而不是继续重复。</li>
+          </ul>
+          <div class="tutorial-callout"><strong>最后原则：</strong>角色数量不是重点。好的房间应该让你知道为什么需要每个角色、谁质疑谁、谁形成结论、用户何时介入，以及讨论什么时候结束。</div>
+        </section>
+      </main>
+    </div>
+  </div>
+</div>
+
 <div class="app-layout">
   <div class="sidebar" id="sidebar">
     <div class="sidebar-section" style="padding:10px 12px">
-      <h3 style="cursor:pointer;user-select:none;margin-bottom:4px" id="chatNavHeader">🧭 AI 工具 <span style="margin-left:auto;font-size:10px;color:var(--text2)" id="chatNavArrow">▼</span></h3>
-      <div id="chatNavBody" style="overflow:hidden;max-height:500px;transition:max-height .3s ease">
-        <a href="index.html" style="display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:6px;font-size:12px;color:var(--text);text-decoration:none;transition:all .15s" onmouseover="this.style.background='rgba(124,92,252,.08)'" onmouseout="this.style.background='transparent'">🏠 AI 灵境</a>
-        <a href="chat.html" style="display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:6px;font-size:12px;color:var(--text);text-decoration:none;transition:all .15s" onmouseover="this.style.background='rgba(124,92,252,.08)'" onmouseout="this.style.background='transparent'">💬 AI 工作台</a>
-        <a href="chatroom.html" style="display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:6px;font-size:12px;color:var(--primary);text-decoration:none;font-weight:600;background:rgba(124,92,252,.08)">👥 AI 聊天室</a>
-        <a href="workflow.html" style="display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:6px;font-size:12px;color:var(--text);text-decoration:none;transition:all .15s" onmouseover="this.style.background='rgba(124,92,252,.08)'" onmouseout="this.style.background='transparent'">🌳 AI 流程树</a>
-        <a href="mdtest.html" style="display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:6px;font-size:12px;color:var(--text);text-decoration:none;transition:all .15s" onmouseover="this.style.background='rgba(124,92,252,.08)'" onmouseout="this.style.background='transparent'">📝 Markdown 测试</a>
+      <div class="chatroom-shortcuts">
+        <a class="chatroom-shortcut" href="index.html">AI 灵境</a>
+        <button class="chatroom-shortcut" id="openTutorialBtn" type="button">聊天室教程</button>
       </div>
     </div>
-    <div class="sidebar-section">
+        <div class="sidebar-section">
       <h3>💬 参与角色</h3>
       <div id="aiList"></div>
       <div class="add-role-row">
@@ -2181,11 +2396,57 @@ ${transcript}
 
   init();
 })();
-// Nav collapse
+// Chatroom tutorial
 (function(){
-  var h=document.getElementById('chatNavHeader'),b=document.getElementById('chatNavBody'),a=document.getElementById('chatNavArrow');
-  if(b)b.style.maxHeight=b.scrollHeight+'px';
-  if(h)h.addEventListener('click',function(){var closed=b.style.maxHeight==='0px';b.style.maxHeight=closed?b.scrollHeight+'px':'0px';a.textContent=closed?'▼':'▶';});
+  var overlay=document.getElementById('tutorialOverlay');
+  var openBtn=document.getElementById('openTutorialBtn');
+  var closeBtn=document.getElementById('tutorialCloseBtn');
+  var content=document.getElementById('tutorialContent');
+  var links=Array.prototype.slice.call(document.querySelectorAll('.tutorial-toc-link'));
+  var lastFocus=null;
+
+  function openTutorial(){
+    lastFocus=document.activeElement;
+    overlay.classList.add('open');
+    overlay.setAttribute('aria-hidden','false');
+    document.body.style.overflow='hidden';
+    closeBtn.focus();
+  }
+  function closeTutorial(){
+    overlay.classList.remove('open');
+    overlay.setAttribute('aria-hidden','true');
+    document.body.style.overflow='';
+    if(lastFocus&&lastFocus.focus)lastFocus.focus();
+  }
+
+  if(openBtn)openBtn.addEventListener('click',openTutorial);
+  if(closeBtn)closeBtn.addEventListener('click',closeTutorial);
+  if(overlay)overlay.addEventListener('click',function(e){if(e.target===overlay)closeTutorial();});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape'&&overlay.classList.contains('open'))closeTutorial();});
+
+  links.forEach(function(link){
+    link.addEventListener('click',function(){
+      var target=document.getElementById(link.getAttribute('data-target'));
+      if(!target)return;
+      links.forEach(function(item){item.classList.remove('active');});
+      link.classList.add('active');
+      target.scrollIntoView({behavior:'smooth',block:'start'});
+    });
+  });
+
+  if(content)content.addEventListener('scroll',function(){
+    var best=null;
+    var bestDistance=Infinity;
+    links.forEach(function(link){
+      var target=document.getElementById(link.getAttribute('data-target'));
+      if(!target)return;
+      var distance=Math.abs(target.getBoundingClientRect().top-content.getBoundingClientRect().top-8);
+      if(distance<bestDistance){bestDistance=distance;best=link;}
+    });
+    if(best){
+      links.forEach(function(item){item.classList.toggle('active',item===best);});
+    }
+  },{passive:true});
 })();
 </script>
 </body>
