@@ -55,6 +55,10 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .participant-order-btn:disabled{opacity:.3;cursor:not-allowed}
 .interject-btn{display:none;border-color:rgba(16,185,129,.45);color:#10b981}
 .interject-btn.active{background:rgba(16,185,129,.12);border-color:#10b981;color:#10b981}
+.ai-card.speech-off{opacity:.58;border-style:dashed;filter:saturate(.55)}
+.ai-speech-btn{padding:2px 7px;border-radius:10px;border:1px solid rgba(16,185,129,.4);background:rgba(16,185,129,.08);color:#10b981;font-size:9px;font-weight:700;cursor:pointer;white-space:nowrap}
+.ai-speech-btn.off{border-color:rgba(148,163,184,.45);background:rgba(148,163,184,.08);color:var(--text2)}
+.ai-speech-btn:hover{filter:brightness(1.08)}
 
 .ai-header-btn{width:18px;height:18px;border-radius:50%;border:none;background:transparent;color:var(--text2);font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s}
 .ai-header-btn:hover{background:rgba(124,92,252,.1);color:var(--primary)}
@@ -77,9 +81,11 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .history-item:hover{background:rgba(124,92,252,.08);border-color:rgba(124,92,252,.2)}
 .history-item .h-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .history-item .h-date{font-size:9px;color:var(--text2);white-space:nowrap}
-.history-item .h-del{color:var(--text2);cursor:pointer;padding:1px 4px;border-radius:3px;font-size:10px;opacity:0;transition:opacity .15s}
-.history-item:hover .h-del{opacity:1}
+.history-item .h-rename,.history-item .h-del{color:var(--text2);cursor:pointer;padding:1px 4px;border-radius:3px;font-size:10px;opacity:0;transition:opacity .15s}
+.history-item:hover .h-rename,.history-item:hover .h-del{opacity:1}
+.history-item .h-rename:hover{background:rgba(124,92,252,.12);color:var(--primary)}
 .history-item .h-del:hover{background:rgba(255,107,157,.15);color:var(--accent)}
+.history-rename-input{flex:1;min-width:0;padding:3px 6px;border:1px solid var(--primary);border-radius:6px;background:var(--surface);color:var(--text);font-size:11px;outline:none}
 .builtin-templates{margin-top:8px;padding-top:8px;border-top:1px solid var(--border)}
 .builtin-templates label{display:block;margin-bottom:5px;font-size:10px;font-weight:700;color:var(--text)}
 .builtin-template-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:5px}
@@ -294,7 +300,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
       <h3>📂 历史聊天室</h3>
       <div class="history-list" id="historyList"></div>
       <div class="builtin-templates">
-        <label for="builtinTemplateSelect">🎓 内置示例</label>
+        <label for="builtinTemplateSelect">🎓 展示模板</label>
         <div class="builtin-template-row">
           <select id="builtinTemplateSelect">
             <option value="market-vs-public-plan">市场竞争 vs 公共计划</option>
@@ -532,7 +538,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
   function findMentionedParticipant(text, participants, excludeName) {
     if (!text) return null;
     for (const p of participants) {
-      if (p.name !== excludeName && text.includes(p.name)) return p;
+      if (p.enabled !== false && p.name !== excludeName && text.includes(p.name)) return p;
     }
     return null;
   }
@@ -590,6 +596,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
       return {
         type: 'human',
         name: String(source.name || '你').trim() || '你',
+        enabled: source.enabled !== false,
         collapsed: true,
         locked: false
       };
@@ -603,6 +610,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     return {
       ...source,
       type: 'ai',
+      enabled: source.enabled !== false,
       provider,
       model,
       temp: Number.isFinite(Number(source.temp)) ? Number(source.temp) : 0.7,
@@ -677,7 +685,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     "title": "市场竞争 vs 公共计划",
     "description": "三角色、16 条完整对话，展示正反交锋与中立裁判收敛。",
     "room": {
-      "name": "市场竞争 vs 公共计划 · 完整辩论示例",
+      "name": "展示模板",
       "discussionGoal": "围绕指定议题，由资本主义立场与社会主义立场分别提出核心观点、现实依据和反驳意见。双方必须回应对方上一轮的关键论点，避免重复陈述和人身攻击；中立裁判负责识别共识、分歧与逻辑漏洞。当一方明确认输，或裁判判断主要争议已经充分讨论且继续辩论不会产生新信息时，结束辩论，并由裁判总结双方最有力的论据、未解决的问题及最终判定。",
       "collaborationMode": "debate",
       "discussionMode": "auto",
@@ -824,11 +832,12 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 
   function exportParticipant(participant) {
     if (participant.type === 'human') {
-      return { type: 'human', name: participant.name || '你' };
+      return { type: 'human', name: participant.name || '你', enabled: participant.enabled !== false };
     }
     return {
       type: 'ai',
       name: participant.name || 'AI',
+      enabled: participant.enabled !== false,
       prompt: participant.prompt || '',
       provider: participant.provider || 'deepseek',
       model: participant.model || '',
@@ -900,11 +909,12 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
   function sanitizeImportedParticipant(participant) {
     const source = participant && typeof participant === 'object' ? participant : {};
     if (source.type === 'human') {
-      return normalizeParticipant({ type: 'human', name: String(source.name || '你').slice(0, 80) });
+      return normalizeParticipant({ type: 'human', name: String(source.name || '你').slice(0, 80), enabled: source.enabled !== false });
     }
     return normalizeParticipant({
       type: 'ai',
       name: String(source.name || 'AI').slice(0, 80),
+      enabled: source.enabled !== false,
       prompt: String(source.prompt || '').slice(0, 20000),
       provider: String(source.provider || 'deepseek'),
       model: String(source.model || ''),
@@ -974,7 +984,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     });
     if (!saveRoom(result.room)) return;
     initRoom(result.room);
-    showToast('✅ 已加载内置示例：' + item.title, 'success');
+    showToast('✅ 已加载展示模板：' + item.title, 'success');
   }
 
   let state = {
@@ -1202,12 +1212,13 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     room.participants.forEach((p, i) => {
       const color = COLORS[i % COLORS.length];
       const isHuman = p.type === 'human';
+      const enabled = p.enabled !== false;
       const collapsed = p.collapsed === true;
       const locked = !isHuman && p.locked === true;
       const disabledAttr = locked ? 'disabled' : '';
 
       const card = document.createElement('div');
-      card.className = 'ai-card' + (isHuman ? ' human-card' : '');
+      card.className = 'ai-card' + (isHuman ? ' human-card' : '') + (enabled ? '' : ' speech-off');
 
       if (isHuman) {
         card.innerHTML = `
@@ -1215,6 +1226,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
             <div class="ai-avatar" style="background:#10b981">${esc(p.name[0] || '你')}</div>
             <input class="ai-card-name human-name" value="${esc(p.name)}" data-idx="${i}" placeholder="输入你的名字">
             <span class="human-badge">用户</span>
+            <button class="ai-speech-btn ${enabled ? '' : 'off'}" data-action="speech" title="控制该角色是否参加固定发言轮次">${enabled ? '发言开' : '发言关'}</button>
             <button class="participant-order-btn" data-action="up" title="上移" ${i === 0 ? 'disabled' : ''}>↑</button>
             <button class="participant-order-btn" data-action="down" title="下移" ${i === room.participants.length - 1 ? 'disabled' : ''}>↓</button>
             <button class="remove-btn" data-idx="${i}" title="移除">✕</button>
@@ -1225,6 +1237,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
           <div class="ai-card-header">
             <div class="ai-avatar" style="background:${color}">${esc(p.name[0] || '?')}</div>
             <input class="ai-card-name" value="${esc(p.name)}" data-idx="${i}" placeholder="输入名称" ${disabledAttr}>
+            <button class="ai-speech-btn ${enabled ? '' : 'off'}" data-action="speech" title="关闭后自动讨论将跳过该角色">${enabled ? '发言开' : '发言关'}</button>
             <button class="participant-order-btn" data-action="up" title="上移" ${i === 0 ? 'disabled' : ''}>↑</button>
             <button class="participant-order-btn" data-action="down" title="下移" ${i === room.participants.length - 1 ? 'disabled' : ''}>↓</button>
             <button class="ai-header-btn" data-idx="${i}" data-action="toggle" title="${collapsed ? '展开' : '折叠'}">${collapsed ? '▶' : '▼'}</button>
@@ -1263,6 +1276,13 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 
       card.querySelector('[data-action="up"]')?.addEventListener('click', () => moveParticipant(room, i, -1));
       card.querySelector('[data-action="down"]')?.addEventListener('click', () => moveParticipant(room, i, 1));
+      card.querySelector('[data-action="speech"]')?.addEventListener('click', () => {
+        room.participants[i].enabled = room.participants[i].enabled === false;
+        saveRoom(room);
+        const isNowEnabled = room.participants[i].enabled !== false;
+        showToast((isNowEnabled ? '🎙️ 已开启：' : '🔇 已关闭：') + room.participants[i].name + ' 的发言通道', 'info');
+        renderSidebar();
+      });
 
       card.querySelector('.ai-card-name')?.addEventListener('input', (e) => {
         if (!isHuman && room.participants[i]?.locked) return;
@@ -1673,7 +1693,7 @@ ${transcript}
     const room = state.room;
     if (!room) return null;
     const p = room.participants[participantIdx];
-    if (!p) return null;
+    if (!p || p.enabled === false) return null;
     const color = COLORS[participantIdx % COLORS.length];
 
     showTypingIndicator(p.name, color);
@@ -1714,7 +1734,8 @@ ${transcript}
     const room = state.room;
     if (!room || room.participants.length === 0) return false;
 
-    const judge = room.participants[0];
+    const judge = room.participants.find(participant => participant.type !== 'human' && participant.enabled !== false && getApiKey(participant.provider));
+    if (!judge) return false;
     const questionText = `你是讨论完成度评估器，不参与观点表达。
 共同目标：${getDiscussionGoal(room)}
 协作模式：${room.collaborationMode || 'free'}
@@ -1747,7 +1768,7 @@ ${transcript}
   async function startDiscussion() {
     const room = state.room;
     if (!room || state.isDiscussing) return;
-    const aiParticipants = room.participants.filter(participant => participant.type !== 'human');
+    const aiParticipants = room.participants.filter(participant => participant.type !== 'human' && participant.enabled !== false);
     if (aiParticipants.length === 0) { showToast('至少需要一个 AI 参与者', 'warning'); return; }
     if (room.messages.length === 0) { showToast('请先发送一条消息', 'warning'); return; }
     const hasConfiguredParticipant = aiParticipants.some(participant => getApiKey(participant.provider));
@@ -1797,7 +1818,7 @@ ${transcript}
           await delay(600);
         }
 
-        let queue = room.participants.map((_, i) => i);
+        let queue = room.participants.map((participant, i) => participant.enabled !== false ? i : -1).filter(i => i >= 0);
         let idx = 0;
 
         while (idx < queue.length) {
@@ -1805,7 +1826,7 @@ ${transcript}
 
           const participantIdx = queue[idx];
           const participant = room.participants[participantIdx];
-          if (!participant) { idx++; continue; }
+          if (!participant || participant.enabled === false) { idx++; continue; }
 
           let result = null;
           if (participant.type === 'human') {
@@ -1882,6 +1903,49 @@ ${transcript}
     updateHeader();
   }
 
+  function startHistoryRename(item) {
+    const roomId = item?.dataset?.roomId;
+    const nameEl = item?.querySelector('.h-name');
+    if (!roomId || !nameEl) return;
+    const targetRoom = state.room?.id === roomId ? state.room : loadRoom(roomId);
+    if (!targetRoom) { showToast('房间数据不存在', 'error'); return; }
+
+    const input = document.createElement('input');
+    input.className = 'history-rename-input';
+    input.value = targetRoom.name || 'AI 聊天室';
+    nameEl.replaceWith(input);
+    input.focus();
+    input.select();
+    let finished = false;
+
+    const finish = (shouldSave) => {
+      if (finished) return;
+      finished = true;
+      if (shouldSave) {
+        const nextName = input.value.trim();
+        if (nextName) {
+          targetRoom.name = nextName.slice(0, 80);
+          saveRoom(targetRoom);
+          if (state.room?.id === roomId) {
+            state.room.name = targetRoom.name;
+            document.getElementById('roomNameInput').value = targetRoom.name;
+            updateHeader();
+          }
+          showToast('✎ 已重命名为：' + targetRoom.name, 'success');
+        }
+      }
+      updateHistory();
+    };
+
+    input.addEventListener('click', event => event.stopPropagation());
+    input.addEventListener('keydown', event => {
+      event.stopPropagation();
+      if (event.key === 'Enter') { event.preventDefault(); finish(true); }
+      if (event.key === 'Escape') { event.preventDefault(); finish(false); }
+    });
+    input.addEventListener('blur', () => finish(true));
+  }
+
   function updateHistory() {
     const rooms = listRooms();
     const section = document.getElementById('historySection');
@@ -1901,7 +1965,8 @@ ${transcript}
       item.innerHTML = `
         <span class="h-name">${esc(r.name)}</span>
         <span class="h-date">${r.updatedAt ? new Date(r.updatedAt).toLocaleDateString('zh-CN') : ''}</span>
-        <span class="h-del">✕</span>
+        <span class="h-rename" title="重命名">✎</span>
+        <span class="h-del" title="删除">✕</span>
       `;
       list.appendChild(item);
     });
@@ -1923,6 +1988,11 @@ ${transcript}
       state.room.participants.push(normalizeParticipant({type:'human',name:'你'}));
       renderSidebar(); saveRoom(state.room);
       showToast('已添加用户角色；可用 ↑ ↓ 调整发言顺序', 'success');
+      return;
+    }
+    const rename = t.closest('.h-rename'); if (rename) {
+      const item = rename.closest('.history-item');
+      startHistoryRename(item);
       return;
     }
     const del = t.closest('.h-del'); if (del) {
