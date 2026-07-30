@@ -304,6 +304,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
             <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
           </div>
         </div>
+        <button id="exportTemplateBtn" class="top-btn" title="导出当前角色和房间设置，不包含聊天记录或 API Key">📤 导出模板</button>
         <button id="clearChatBtn" class="top-btn" title="清空聊天">🗑️ 清空</button>
       </div>
     </div>
@@ -641,6 +642,60 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 
   function deleteRoom(id) {
     try { localStorage.removeItem('chatroom_' + id); } catch(e) {}
+  }
+
+  function sanitizeFileName(name) {
+    return String(name || 'AI聊天室模板')
+      .replace(/[\\/:*?"<>|]/g, '_')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 80) || 'AI聊天室模板';
+  }
+
+  function buildRoomTemplate(room) {
+    return {
+      schemaVersion: 1,
+      kind: 'ai-dreamscape-chatroom-template',
+      exportedAt: new Date().toISOString(),
+      template: {
+        name: room.name || 'AI 聊天室模板',
+        discussionGoal: room.discussionGoal || '',
+        collaborationMode: room.collaborationMode || 'free',
+        discussionMode: room.discussionMode || 'fixed',
+        rounds: Number(room.rounds) || 3,
+        autoStart: room.autoStart !== false,
+        participants: room.participants.map(participant => {
+          if (participant.type === 'human') {
+            return { type: 'human', name: participant.name || '你' };
+          }
+          return {
+            type: 'ai',
+            name: participant.name || 'AI',
+            prompt: participant.prompt || '',
+            provider: participant.provider || 'deepseek',
+            model: participant.model || '',
+            temp: Number.isFinite(Number(participant.temp)) ? Number(participant.temp) : 0.7,
+            locked: participant.locked === true
+          };
+        })
+      }
+    };
+  }
+
+  function exportRoomTemplate() {
+    const room = state.room;
+    if (!room) { showToast('当前没有可导出的房间', 'warning'); return; }
+    const payload = buildRoomTemplate(room);
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = sanitizeFileName(room.name) + '_模板.json';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    showToast('✅ 模板已导出：不包含聊天记录和 API Key', 'success');
   }
 
   let state = {
@@ -1634,6 +1689,8 @@ ${transcript}
   document.getElementById('sidebarToggle').addEventListener('click', function() {
     state.sidebarOpen = !state.sidebarOpen; updateSidebarState();
   });
+
+  document.getElementById('exportTemplateBtn').addEventListener('click', exportRoomTemplate);
 
   document.getElementById('clearChatBtn').addEventListener('click', () => {
     if (!state.room) return;
