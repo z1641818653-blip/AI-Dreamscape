@@ -47,6 +47,14 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .temp-slider-wrap .temp-val{font-size:10px;color:var(--text2);min-width:22px;text-align:right;font-variant-numeric:tabular-nums}
 .add-ai-btn{width:100%;padding:5px;border-radius:12px;border:1px dashed var(--border);background:transparent;color:var(--text2);font-size:11px;cursor:pointer;transition:all .2s cubic-bezier(.34,1.56,.64,1);font-weight:600;margin-top:2px}
 .add-ai-btn:hover{border-color:var(--primary);color:var(--primary);background:rgba(124,92,252,.08)}
+.add-role-row{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.human-card{border-color:rgba(16,185,129,.35);background:rgba(16,185,129,.04)}
+.human-badge{font-size:9px;color:#10b981;border:1px solid rgba(16,185,129,.35);border-radius:10px;padding:1px 6px;white-space:nowrap}
+.participant-order-btn{width:22px;height:22px;border:1px solid var(--border);background:transparent;color:var(--text2);border-radius:7px;cursor:pointer;font-size:11px}
+.participant-order-btn:hover:not(:disabled){border-color:var(--primary);color:var(--primary);background:rgba(124,92,252,.08)}
+.participant-order-btn:disabled{opacity:.3;cursor:not-allowed}
+.interject-btn{display:none;border-color:rgba(16,185,129,.45);color:#10b981}
+.interject-btn.active{background:rgba(16,185,129,.12);border-color:#10b981;color:#10b981}
 
 .ai-header-btn{width:18px;height:18px;border-radius:50%;border:none;background:transparent;color:var(--text2);font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s}
 .ai-header-btn:hover{background:rgba(124,92,252,.1);color:var(--primary)}
@@ -220,9 +228,12 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
       </div>
     </div>
     <div class="sidebar-section">
-      <h3>💬 AI 成员</h3>
+      <h3>💬 参与角色</h3>
       <div id="aiList"></div>
-      <button id="addAiBtn" class="add-ai-btn">➕ 添加 AI</button>
+      <div class="add-role-row">
+        <button id="addAiBtn" class="add-ai-btn">➕ 添加 AI</button>
+        <button id="addHumanBtn" class="add-ai-btn">🙋 添加用户</button>
+      </div>
     </div>
 
     <div class="sidebar-section">
@@ -321,6 +332,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
         <textarea id="chatInput" placeholder="输入消息..." rows="1"></textarea>
         <div class="input-actions">
           <button id="sendMsgBtn" class="send-btn">发送</button>
+          <button id="requestTurnBtn" class="discuss-btn interject-btn" title="当前 AI 发言结束后暂停，由你发言">✋ 插入发言</button>
           <button id="startDiscussBtn" class="discuss-btn">🤖 开始自动讨论</button>
           <button id="stopDiscussBtn" class="stop-discuss-btn">⏹️ 停止</button>
         </div>
@@ -489,14 +501,24 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     return t.endsWith('?') || t.endsWith('？') || /你觉得|你认为/.test(t);
   }
 
-  function findMentionedAI(text, participants, excludeName) {
+  function findMentionedParticipant(text, participants, excludeName) {
     if (!text) return null;
     for (const p of participants) {
-      if (p.name !== excludeName && text.includes(p.name)) {
-        return p;
-      }
+      if (p.name !== excludeName && text.includes(p.name)) return p;
     }
     return null;
+  }
+
+  function hasExplicitUserQuestion(text) {
+    return /【向用户提问】/.test(text || '');
+  }
+
+  function getHumanParticipant(room) {
+    return room?.participants?.find(participant => participant.type === 'human') || null;
+  }
+
+  function getHumanName(room) {
+    return getHumanParticipant(room)?.name || '你';
   }
 
   const DEFAULTS = [
@@ -536,6 +558,14 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 
   function normalizeParticipant(participant) {
     const source = participant || {};
+    if (source.type === 'human') {
+      return {
+        type: 'human',
+        name: String(source.name || '你').trim() || '你',
+        collapsed: true,
+        locked: false
+      };
+    }
     const provider = PROVIDERS[source.provider] ? source.provider : 'deepseek';
     const availableModels = PROVIDERS[provider].models;
     const migratedModel = MODEL_MIGRATIONS[provider]?.[source.model];
@@ -544,6 +574,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
       : (availableModels.includes(migratedModel) ? migratedModel : availableModels[0]);
     return {
       ...source,
+      type: 'ai',
       provider,
       model,
       temp: Number.isFinite(Number(source.temp)) ? Number(source.temp) : 0.7,
@@ -568,10 +599,19 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     };
   }
 
-  function saveRoom(room) {
-    if (!room) return;
+  function saveRoom(room, notifyOnError) {
+    if (!room) return false;
     room.updatedAt = new Date().toISOString();
-    try { localStorage.setItem('chatroom_' + room.id, JSON.stringify(room)); } catch(e) {}
+    try {
+      localStorage.setItem('chatroom_' + room.id, JSON.stringify(room));
+      return true;
+    } catch(e) {
+      if (notifyOnError !== false) {
+        const isQuota = e && (e.name === 'QuotaExceededError' || e.code === 22);
+        showToast(isQuota ? '浏览器存储空间已满，房间未保存。请先删除不需要的历史房间。' : '房间保存失败，请检查浏览器存储权限。', 'error');
+      }
+      return false;
+    }
   }
 
   function loadRoom(id) {
@@ -615,7 +655,9 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     discussionPaused: false,
     pendingQuestion: null,
     _pendingUserResolve: null,
-    speakingAI: null
+    speakingAI: null,
+    interjectionRequested: false,
+    waitingForHuman: null
   };
 
   function showTypingIndicator(name, color) {
@@ -690,7 +732,44 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     document.getElementById('chatInput').placeholder = '输入消息...';
     state.discussionPaused = false;
     state.pendingQuestion = null;
+    state.waitingForHuman = null;
     updateHeader();
+  }
+
+  function showHumanTurnBanner(name, reason, questionText) {
+    const banner = document.getElementById('questionBanner');
+    const label = reason === 'scheduled'
+      ? '🙋 现在轮到「' + name + '」发言'
+      : reason === 'question'
+        ? '💬 AI 明确向「' + name + '」提问'
+        : '✋ 当前 AI 已说完，现在由「' + name + '」插入发言';
+    document.getElementById('questionBannerText').textContent = questionText ? label + '：' + questionText : label;
+    banner.style.display = 'block';
+    banner.classList.add('show');
+    document.getElementById('chatInput').classList.add('input-highlight');
+    document.getElementById('chatInput').placeholder = '输入你的本轮发言...';
+    state.discussionPaused = true;
+    state.pendingQuestion = { from: name, text: questionText || '', type: reason };
+    state.waitingForHuman = { name, reason };
+    updateRequestTurnButton();
+    updateHeader();
+    setTimeout(() => document.getElementById('chatInput').focus(), 50);
+  }
+
+  function waitForHumanTurn(name, reason, questionText) {
+    showHumanTurnBanner(name, reason, questionText);
+    return new Promise(resolve => {
+      state._pendingUserResolve = resolve;
+    });
+  }
+
+  function updateRequestTurnButton() {
+    const button = document.getElementById('requestTurnBtn');
+    if (!button) return;
+    button.style.display = state.isDiscussing ? 'inline-flex' : 'none';
+    button.disabled = state.discussionPaused;
+    button.classList.toggle('active', state.interjectionRequested);
+    button.textContent = state.interjectionRequested ? '✋ 已申请发言' : '✋ 插入发言';
   }
 
   function initRoom(room) {
@@ -706,6 +785,8 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     state.pendingQuestion = null;
     state._pendingUserResolve = null;
     state.speakingAI = null;
+    state.interjectionRequested = false;
+    state.waitingForHuman = null;
     state.discussionMode = room.discussionMode || 'fixed';
     renderSidebar();
     renderMessages();
@@ -713,11 +794,19 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     updateHistory();
   }
 
+  function getNextRoomName() {
+    const names = new Set(listRooms().map(room => room.name));
+    if (!names.has('AI 聊天室')) return 'AI 聊天室';
+    let number = 2;
+    while (names.has('AI 聊天室 ' + number)) number++;
+    return 'AI 聊天室 ' + number;
+  }
+
   function newRoom() {
-    const room = createRoom('AI 聊天室', null, 3, true);
-    saveRoom(room);
+    const room = createRoom(getNextRoomName(), null, 3, true);
+    if (!saveRoom(room)) return;
     initRoom(room);
-    showToast('✅ 已创建新房间', 'success');
+    showToast('✅ 已创建「' + room.name + '」，已加入历史列表', 'success');
   }
 
   function loadRoomById(id) {
@@ -750,6 +839,14 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     localStorage.setItem('chatroom_sidebar', state.sidebarOpen ? 'open' : 'closed');
   }
 
+  function moveParticipant(room, index, direction) {
+    const target = index + direction;
+    if (target < 0 || target >= room.participants.length) return;
+    [room.participants[index], room.participants[target]] = [room.participants[target], room.participants[index]];
+    saveRoom(room);
+    renderSidebar();
+  }
+
   function renderSidebar() {
     if (!state.room) return;
     const room = state.room;
@@ -765,113 +862,136 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     list.innerHTML = '';
     room.participants.forEach((p, i) => {
       const color = COLORS[i % COLORS.length];
+      const isHuman = p.type === 'human';
       const collapsed = p.collapsed === true;
-      const locked = p.locked === true;
+      const locked = !isHuman && p.locked === true;
       const disabledAttr = locked ? 'disabled' : '';
 
       const card = document.createElement('div');
-      card.className = 'ai-card';
-      card.innerHTML = `
-        <div class="ai-card-header">
-          <div class="ai-avatar" style="background:${color}">${esc(p.name[0] || '?')}</div>
-          <input class="ai-card-name" value="${esc(p.name)}" data-idx="${i}" placeholder="输入名称" ${disabledAttr}>
-          <button class="ai-header-btn" data-idx="${i}" data-action="toggle" title="${collapsed ? '展开' : '折叠'}">${collapsed ? '▶' : '▼'}</button>
-        </div>
-        <div class="ai-card-body" style="${collapsed ? 'display:none' : ''}">
-          <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
-            <button class="ai-lock-btn ${locked ? 'locked' : ''}" data-idx="${i}" data-action="lock" style="flex:1">${locked ? '已锁定' : '未锁定'}</button>
-            <button class="remove-btn" data-idx="${i}" style="flex:1">✕ 移除</button>
+      card.className = 'ai-card' + (isHuman ? ' human-card' : '');
+
+      if (isHuman) {
+        card.innerHTML = `
+          <div class="ai-card-header" style="margin-bottom:0">
+            <div class="ai-avatar" style="background:#10b981">${esc(p.name[0] || '你')}</div>
+            <input class="ai-card-name human-name" value="${esc(p.name)}" data-idx="${i}" placeholder="输入你的名字">
+            <span class="human-badge">用户</span>
+            <button class="participant-order-btn" data-action="up" title="上移" ${i === 0 ? 'disabled' : ''}>↑</button>
+            <button class="participant-order-btn" data-action="down" title="下移" ${i === room.participants.length - 1 ? 'disabled' : ''}>↓</button>
+            <button class="remove-btn" data-idx="${i}" title="移除">✕</button>
           </div>
-          <div class="ai-card-field">
-            <label>角色提示</label>
-            <textarea data-idx="${i}" class="ai-prompt" ${disabledAttr} placeholder="例：你是一个毒舌点评师...">${esc(p.prompt)}</textarea>
+        `;
+      } else {
+        card.innerHTML = `
+          <div class="ai-card-header">
+            <div class="ai-avatar" style="background:${color}">${esc(p.name[0] || '?')}</div>
+            <input class="ai-card-name" value="${esc(p.name)}" data-idx="${i}" placeholder="输入名称" ${disabledAttr}>
+            <button class="participant-order-btn" data-action="up" title="上移" ${i === 0 ? 'disabled' : ''}>↑</button>
+            <button class="participant-order-btn" data-action="down" title="下移" ${i === room.participants.length - 1 ? 'disabled' : ''}>↓</button>
+            <button class="ai-header-btn" data-idx="${i}" data-action="toggle" title="${collapsed ? '展开' : '折叠'}">${collapsed ? '▶' : '▼'}</button>
           </div>
-          <div class="ai-card-row">
-            <div class="ai-card-field" style="flex:1">
-              <label>提供商</label>
-              <select class="ai-provider" data-idx="${i}" ${disabledAttr}>
-                ${Object.entries(PROVIDERS).map(([k, v]) => `<option value="${k}" ${k === p.provider ? 'selected' : ''}>${v.icon} ${v.name}</option>`).join('')}
-              </select>
+          <div class="ai-card-body" style="${collapsed ? 'display:none' : ''}">
+            <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
+              <button class="ai-lock-btn ${locked ? 'locked' : ''}" data-idx="${i}" data-action="lock" style="flex:1">${locked ? '已锁定' : '未锁定'}</button>
+              <button class="remove-btn" data-idx="${i}" style="flex:1">✕ 移除</button>
             </div>
-            <div class="ai-card-field" style="flex:1">
-              <label>模型</label>
-              <select class="ai-model" data-idx="${i}" ${disabledAttr}></select>
+            <div class="ai-card-field">
+              <label>角色提示</label>
+              <textarea data-idx="${i}" class="ai-prompt" ${disabledAttr} placeholder="例：你是一个毒舌点评师...">${esc(p.prompt)}</textarea>
+            </div>
+            <div class="ai-card-row">
+              <div class="ai-card-field" style="flex:1">
+                <label>提供商</label>
+                <select class="ai-provider" data-idx="${i}" ${disabledAttr}>
+                  ${Object.entries(PROVIDERS).map(([k, v]) => `<option value="${k}" ${k === p.provider ? 'selected' : ''}>${v.icon} ${v.name}</option>`).join('')}
+                </select>
+              </div>
+              <div class="ai-card-field" style="flex:1">
+                <label>模型</label>
+                <select class="ai-model" data-idx="${i}" ${disabledAttr}></select>
+              </div>
+            </div>
+            <div class="ai-card-field">
+              <label>温度: <span class="temp-val" data-idx="${i}">${p.temp}</span></label>
+              <div class="temp-slider-wrap">
+                <input type="range" min="0" max="1" step="0.05" value="${p.temp}" class="ai-temp" data-idx="${i}" ${disabledAttr}>
+              </div>
             </div>
           </div>
-          <div class="ai-card-field">
-            <label>温度: <span class="temp-val" data-idx="${i}">${p.temp}</span></label>
-            <div class="temp-slider-wrap">
-              <input type="range" min="0" max="1" step="0.05" value="${p.temp}" class="ai-temp" data-idx="${i}" ${disabledAttr}>
-            </div>
-          </div>
-        </div>
-      `;
+        `;
+      }
       list.appendChild(card);
 
-      const provSel = card.querySelector('.ai-provider');
-      const modelSel = card.querySelector('.ai-model');
-      function updateModels() {
-        const prov = PROVIDERS[provSel.value];
-        const curModel = room.participants[i]?.model;
-        const valid = curModel && prov.models.includes(curModel);
-        modelSel.innerHTML = prov.models.map(m => `<option value="${m}" ${m === (valid ? curModel : prov.models[0]) ? 'selected' : ''}>${m}</option>`).join('');
-        if (!valid) room.participants[i].model = prov.models[0];
-      }
-      updateModels();
+      card.querySelector('[data-action="up"]')?.addEventListener('click', () => moveParticipant(room, i, -1));
+      card.querySelector('[data-action="down"]')?.addEventListener('click', () => moveParticipant(room, i, 1));
 
-      if (!locked) {
-        provSel.addEventListener('change', () => {
-          if (room.participants[i]?.locked) return;
-          room.participants[i].provider = provSel.value;
-          room.participants[i].model = PROVIDERS[provSel.value].models[0];
-          updateModels();
+      card.querySelector('.ai-card-name')?.addEventListener('input', (e) => {
+        if (!isHuman && room.participants[i]?.locked) return;
+        room.participants[i].name = e.target.value;
+        saveRoom(room, false);
+      });
+
+      if (!isHuman) {
+        const provSel = card.querySelector('.ai-provider');
+        const modelSel = card.querySelector('.ai-model');
+        function updateModels() {
+          const prov = PROVIDERS[provSel.value];
+          const curModel = room.participants[i]?.model;
+          const valid = curModel && prov.models.includes(curModel);
+          modelSel.innerHTML = prov.models.map(m => `<option value="${m}" ${m === (valid ? curModel : prov.models[0]) ? 'selected' : ''}>${m}</option>`).join('');
+          if (!valid) room.participants[i].model = prov.models[0];
+        }
+        updateModels();
+
+        if (!locked) {
+          provSel.addEventListener('change', () => {
+            if (room.participants[i]?.locked) return;
+            room.participants[i].provider = provSel.value;
+            room.participants[i].model = PROVIDERS[provSel.value].models[0];
+            updateModels();
+            saveRoom(room);
+          });
+          modelSel.addEventListener('change', () => {
+            if (room.participants[i]?.locked) return;
+            room.participants[i].model = modelSel.value;
+            saveRoom(room);
+          });
+          card.querySelector('.ai-prompt').addEventListener('input', (e) => {
+            if (room.participants[i]?.locked) return;
+            room.participants[i].prompt = e.target.value;
+            saveRoom(room, false);
+          });
+          card.querySelector('.ai-temp').addEventListener('input', (e) => {
+            if (room.participants[i]?.locked) return;
+            room.participants[i].temp = parseFloat(e.target.value);
+            const valSpan = card.querySelector('.temp-val');
+            if (valSpan) valSpan.textContent = room.participants[i].temp.toFixed(2);
+            saveRoom(room, false);
+          });
+        }
+
+        card.querySelector('[data-action="toggle"]').addEventListener('click', () => {
+          room.participants[i].collapsed = !room.participants[i].collapsed;
           saveRoom(room);
+          renderSidebar();
         });
-        modelSel.addEventListener('change', () => {
-          if (room.participants[i]?.locked) return;
-          room.participants[i].model = modelSel.value;
+
+        card.querySelector('[data-action="lock"]').addEventListener('click', (e) => {
+          e.stopPropagation();
+          room.participants[i].locked = !room.participants[i].locked;
           saveRoom(room);
-        });
-        card.querySelector('.ai-card-name').addEventListener('input', (e) => {
-          if (room.participants[i]?.locked) return;
-          room.participants[i].name = e.target.value;
-          saveRoom(room);
-        });
-        card.querySelector('.ai-prompt').addEventListener('input', (e) => {
-          if (room.participants[i]?.locked) return;
-          room.participants[i].prompt = e.target.value;
-          saveRoom(room);
-        });
-        card.querySelector('.ai-temp').addEventListener('input', (e) => {
-          if (room.participants[i]?.locked) return;
-          room.participants[i].temp = parseFloat(e.target.value);
-          const valSpan = card.querySelector('.temp-val');
-          if (valSpan) valSpan.textContent = room.participants[i].temp.toFixed(2);
-          saveRoom(room);
+          renderSidebar();
         });
       }
 
-      card.querySelector('.remove-btn').addEventListener('click', (e) => {
+      card.querySelector('.remove-btn')?.addEventListener('click', (e) => {
         e.stopPropagation();
-        if (room.participants.length <= 1) { showToast('至少保留一个 AI 成员', 'warning'); return; }
+        if (room.participants.length <= 1) { showToast('至少保留一个参与角色', 'warning'); return; }
         showConfirm('确定移除「' + room.participants[i].name + '」吗？', function() {
           room.participants.splice(i, 1);
           saveRoom(room);
           renderSidebar();
         });
-      });
-
-      card.querySelector('[data-action="toggle"]').addEventListener('click', () => {
-        room.participants[i].collapsed = !room.participants[i].collapsed;
-        saveRoom(room);
-        renderSidebar();
-      });
-
-      card.querySelector('[data-action="lock"]').addEventListener('click', (e) => {
-        e.stopPropagation();
-        room.participants[i].locked = !room.participants[i].locked;
-        saveRoom(room);
-        renderSidebar();
       });
     });
   }
@@ -919,9 +1039,10 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     const room = state.room;
     room.messages.forEach(m => {
       if (m.role === 'user') {
-        addMessageDOM('user', null, m.content, null, m.timestamp);
+        addMessageDOM('user', m.name || getHumanName(room), m.content, null, m.timestamp);
       } else {
-        addMessageDOM('ai', m.name, m.content, COLORS[room.participants.findIndex(p => p.name === m.name) % COLORS.length], m.timestamp);
+        const participantIndex = room.participants.findIndex(p => p.name === m.name);
+        addMessageDOM('ai', m.name, m.content, COLORS[Math.max(participantIndex, 0) % COLORS.length], m.timestamp);
       }
     });
     scrollToBottom();
@@ -943,7 +1064,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     if (role === 'user') {
       const nameSpan = document.createElement('span');
       nameSpan.className = 'msg-name';
-      nameSpan.textContent = '你';
+      nameSpan.textContent = name || '你';
       header.appendChild(nameSpan);
     } else {
       const avatar = document.createElement('span');
@@ -1176,8 +1297,9 @@ ${goal}
 4. 反对他人时必须指出具体观点以及反对理由。
 5. 不要代替其他角色发言，也不要模拟完整聊天室。
 6. 每次只完成当前轮分配的任务。
-7. 除非确实缺少完成目标所必需的信息，否则不要向用户提问。
-8. 只输出你本轮的正式发言，不输出规则说明或思考过程。
+7. 默认只与房间中的辩论角色交流，不要把对其他角色的反问转交给用户。
+8. 角色间提问必须明确写出对方角色名称；只有确实必须由用户补充信息时，才在发言末尾单独标记【向用户提问】。
+9. 只输出你本轮的正式发言，不输出规则说明或思考过程。
 
 【你的身份与职责】
 ${participant.prompt}
@@ -1280,9 +1402,10 @@ ${transcript}
   async function startDiscussion() {
     const room = state.room;
     if (!room || state.isDiscussing) return;
-    if (room.participants.length === 0) { showToast('没有 AI 参与者', 'warning'); return; }
+    const aiParticipants = room.participants.filter(participant => participant.type !== 'human');
+    if (aiParticipants.length === 0) { showToast('至少需要一个 AI 参与者', 'warning'); return; }
     if (room.messages.length === 0) { showToast('请先发送一条消息', 'warning'); return; }
-    const hasConfiguredParticipant = room.participants.some(participant => getApiKey(participant.provider));
+    const hasConfiguredParticipant = aiParticipants.some(participant => getApiKey(participant.provider));
     if (!hasConfiguredParticipant) {
       showToast('请先在 AI 工作台设置至少一个参与模型的 API Key', 'error');
       return;
@@ -1295,16 +1418,26 @@ ${transcript}
     state.pendingQuestion = null;
     state._pendingUserResolve = null;
     state.speakingAI = null;
+    state.interjectionRequested = false;
+    state.waitingForHuman = null;
     clearTypingIndicators();
     hideQuestionBanner();
 
     document.getElementById('sendMsgBtn').disabled = false;
     document.getElementById('startDiscussBtn').disabled = true;
     document.getElementById('stopDiscussBtn').style.display = 'inline-flex';
+    updateRequestTurnButton();
 
     const totalRounds = room.rounds;
     const mode = state.discussionMode;
     let round = 0;
+
+    async function collectHumanTurn(name, reason, questionText) {
+      const userReply = await waitForHumanTurn(name, reason, questionText);
+      hideQuestionBanner();
+      if (state.discussStopped || userReply === null) return null;
+      return { content: userReply, name, role: 'user' };
+    }
 
     try {
       while (true) {
@@ -1325,29 +1458,39 @@ ${transcript}
         while (idx < queue.length) {
           if (state.discussStopped) break;
 
-          const aiIdx = queue[idx];
-          const result = await callSingleAI(aiIdx, round, totalRounds);
+          const participantIdx = queue[idx];
+          const participant = room.participants[participantIdx];
+          if (!participant) { idx++; continue; }
+
+          let result = null;
+          if (participant.type === 'human') {
+            result = await collectHumanTurn(participant.name || '你', 'scheduled');
+          } else {
+            result = await callSingleAI(participantIdx, round, totalRounds);
+          }
 
           if (state.discussStopped) break;
 
-          if (result && result.content && !result.content.startsWith('❌') && result.content !== '（无响应）') {
+          if (participant.type !== 'human' && result && result.content && !result.content.startsWith('❌') && result.content !== '（无响应）') {
             if (hasQuestion(result.content)) {
-              await delay(400);
-              const mentioned = findMentionedAI(result.content, room.participants, result.name);
+              const mentioned = findMentionedParticipant(result.content, room.participants, result.name);
               if (mentioned) {
                 const mentionedIdx = room.participants.indexOf(mentioned);
-                if (aiIdx !== mentionedIdx && !queue.slice(idx + 1).includes(mentionedIdx)) {
+                if (participantIdx !== mentionedIdx && !queue.slice(idx + 1).includes(mentionedIdx)) {
                   queue.splice(idx + 1, 0, mentionedIdx);
                 }
                 showToast('💬 ' + result.name + ' 向 ' + mentioned.name + ' 提问', 'info');
-              } else {
-                showQuestionBanner(result.name, result.content);
-                const userReply = await new Promise(resolve => {
-                  state._pendingUserResolve = resolve;
-                });
-                hideQuestionBanner();
-                if (state.discussStopped || userReply === null) break;
+              } else if (hasExplicitUserQuestion(result.content)) {
+                const humanResult = await collectHumanTurn(getHumanName(room), 'question', result.content);
+                if (!humanResult && state.discussStopped) break;
               }
+            }
+
+            if (!state.discussStopped && state.interjectionRequested) {
+              state.interjectionRequested = false;
+              updateRequestTurnButton();
+              const humanResult = await collectHumanTurn(getHumanName(room), 'interjection');
+              if (!humanResult && state.discussStopped) break;
             }
           }
 
@@ -1362,7 +1505,6 @@ ${transcript}
         }
 
         if (state.discussStopped) break;
-
         if (mode === 'fixed' && round >= totalRounds) break;
         if (mode === 'auto') {
           const shouldContinue = await checkAutoEnd();
@@ -1373,9 +1515,7 @@ ${transcript}
       finishDiscussion();
     }
 
-    if (!state.discussStopped) {
-      showToast('✅ 讨论完成', 'success');
-    }
+    if (!state.discussStopped) showToast('✅ 讨论完成', 'success');
   }
 
   function finishDiscussion() {
@@ -1384,6 +1524,8 @@ ${transcript}
     state.pendingQuestion = null;
     state._pendingUserResolve = null;
     state.speakingAI = null;
+    state.interjectionRequested = false;
+    state.waitingForHuman = null;
     document.getElementById('sendMsgBtn').disabled = false;
     document.getElementById('startDiscussBtn').disabled = false;
     document.getElementById('stopDiscussBtn').style.display = 'none';
@@ -1391,6 +1533,7 @@ ${transcript}
     hideQuestionBanner();
     hideDiscussionContinuing();
     setThinking(null);
+    updateRequestTurnButton();
     updateHeader();
   }
 
@@ -1426,8 +1569,16 @@ ${transcript}
     if (t.id === 'newRoomBtn') { if (state.isDiscussing) { showToast('请先停止讨论','warning'); return; } newRoom(); return; }
     if (t.id === 'addAiBtn') {
       if (!state.room) { showToast('请先创建房间','warning'); return; }
-      state.room.participants.push(normalizeParticipant({name:'新 AI',prompt:'你是一个有用的AI助手。',provider:'deepseek',model:'deepseek-chat',temp:0.7}));
+      state.room.participants.push(normalizeParticipant({type:'ai',name:'新 AI',prompt:'你是一个有用的AI助手。',provider:'deepseek',model:'deepseek-chat',temp:0.7}));
       renderSidebar(); saveRoom(state.room); return;
+    }
+    if (t.id === 'addHumanBtn') {
+      if (!state.room) { showToast('请先创建房间','warning'); return; }
+      if (getHumanParticipant(state.room)) { showToast('房间中已经有一个用户角色', 'warning'); return; }
+      state.room.participants.push(normalizeParticipant({type:'human',name:'你'}));
+      renderSidebar(); saveRoom(state.room);
+      showToast('已添加用户角色；可用 ↑ ↓ 调整发言顺序', 'success');
+      return;
     }
     const del = t.closest('.h-del'); if (del) {
       const item = del.closest('.history-item'); if (!item) return;
@@ -1488,22 +1639,24 @@ ${transcript}
     const input = document.getElementById('chatInput');
     const text = input.value.trim();
     if (!text || !state.room) return;
-    input.value = ''; input.style.height = 'auto';
+    const userName = state.waitingForHuman?.name || getHumanName(state.room);
+    input.value = '';
+    input.style.height = 'auto';
 
     if (!String(state.room.discussionGoal || '').trim() && state.room.messages.length === 0) {
       state.room.discussionGoal = text;
       const goalInput = document.getElementById('discussionGoalInput');
       if (goalInput) goalInput.value = text;
     }
-    state.room.messages.push({role:'user',name:'你',content:text,timestamp:new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'})});
-    addMessageDOM('user',null,text);
+    state.room.messages.push({role:'user',name:userName,content:text,timestamp:new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'})});
+    addMessageDOM('user', userName, text);
     saveRoom(state.room);
 
     if (state.isDiscussing) {
-      if (state.discussionPaused && state.pendingQuestion && state._pendingUserResolve) {
-        hideQuestionBanner();
+      if (state.discussionPaused && state._pendingUserResolve) {
         const resolve = state._pendingUserResolve;
         state._pendingUserResolve = null;
+        hideQuestionBanner();
         resolve(text);
       } else {
         state.discussStopped = true;
@@ -1519,20 +1672,23 @@ ${transcript}
         state.discussionPaused = false;
         state.pendingQuestion = null;
         state.speakingAI = null;
+        state.interjectionRequested = false;
+        state.waitingForHuman = null;
         document.getElementById('sendMsgBtn').disabled = false;
         document.getElementById('startDiscussBtn').disabled = false;
         document.getElementById('stopDiscussBtn').style.display = 'none';
         setThinking(null);
+        updateRequestTurnButton();
         updateHeader();
 
         await delay(200);
 
-        showToast('⏸️ 您插入了消息，讨论重新开始', 'info');
+        showToast('⏸️ 你立即插入了消息，讨论重新开始', 'info');
         state.discussStopped = false;
         await startDiscussion();
       }
-    } else {
-      if (state.room.autoStart) await startDiscussion();
+    } else if (state.room.autoStart) {
+      await startDiscussion();
     }
   });
 
@@ -1540,11 +1696,26 @@ ${transcript}
     if (!state.room||state.room.messages.length===0) { showToast('请先发送一条消息','warning'); return; }
     await startDiscussion();
   });
+  document.getElementById('requestTurnBtn').addEventListener('click', () => {
+    if (!state.isDiscussing) { showToast('讨论开始后才能申请插入发言', 'warning'); return; }
+    if (state.discussionPaused) { showToast('现在已经轮到你发言', 'info'); return; }
+    state.interjectionRequested = !state.interjectionRequested;
+    updateRequestTurnButton();
+    showToast(state.interjectionRequested ? '✋ 已申请：当前 AI 说完后轮到你' : '已取消插入发言', 'info');
+  });
   document.getElementById('stopDiscussBtn').addEventListener('click', () => {
     state.discussStopped = true;
     state._aborters.forEach(ac=>{try{ac.abort()}catch(e){}});
     state._aborters = [];
+    if (state._pendingUserResolve) {
+      state._pendingUserResolve(null);
+      state._pendingUserResolve = null;
+    }
+    state.interjectionRequested = false;
+    state.waitingForHuman = null;
     clearTypingIndicators();
+    hideQuestionBanner();
+    updateRequestTurnButton();
     showToast('⏹️ 讨论已停止', 'info');
   });
   document.getElementById('chatInput').addEventListener('keydown', (e) => {
