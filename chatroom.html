@@ -318,25 +318,101 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
   if (typeof marked !== 'undefined') marked.setOptions({ breaks: true, gfm: true });
 
   const PROVIDERS = {
-    deepseek: { name: 'DeepSeek', icon: '🟢', models: ['deepseek-chat', 'deepseek-reasoner'], endpoint: 'https://api.deepseek.com/v1/chat/completions', authHeader: (key) => ({ 'Authorization': 'Bearer ' + key }), buildBody: (model, messages, mt, temp) => ({ model, messages, temperature: temp ?? 0.7, max_tokens: mt }), parseResponse: (data) => data.choices?.[0]?.message?.content },
-    openai: { name: 'OpenAI', icon: '🟣', models: ['gpt-4o', 'gpt-4o-mini', 'gpt-4.1', 'o3-mini'], endpoint: 'https://api.openai.com/v1/chat/completions', authHeader: (key) => ({ 'Authorization': 'Bearer ' + key }), buildBody: (model, messages, mt, temp) => ({ model, messages, temperature: temp ?? 0.7, max_tokens: mt }), parseResponse: (data) => data.choices?.[0]?.message?.content },
-    claude: { name: 'Claude', icon: '🟠', models: ['claude-sonnet-4-20250514', 'claude-3-5-haiku-20241022'], endpoint: 'https://api.anthropic.com/v1/messages', authHeader: (key) => ({ 'x-api-key': key, 'anthropic-version': '2023-06-01' }), buildBody: (model, messages, mt, temp) => { const sm = messages.find(m => m.role === 'system'); const cm = messages.filter(m => m.role !== 'system'); const b = { model, max_tokens: mt, temperature: temp ?? 0.7, messages: cm.map(m => ({ role: m.role, content: m.content })) }; if (sm) b.system = sm.content; return b; }, parseResponse: (data) => data.content?.[0]?.text },
-    gemini: { name: 'Gemini', icon: '🔵', models: ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash'], endpoint: (model) => 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent', authHeader: () => ({}), buildBody: (model, messages, mt, temp) => { const contents = messages.filter(m => m.role !== 'system').map(m => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] })); const sm = messages.find(m => m.role === 'system'); const b = { contents, generationConfig: { maxOutputTokens: mt, temperature: temp ?? 0.7 } }; if (sm) b.systemInstruction = { parts: [{ text: sm.content }] }; return b; }, parseResponse: (data) => data.candidates?.[0]?.content?.parts?.[0]?.text },
-    qwen: { name: '千问', icon: '🔴', models: ['qwen3-235b', 'qwen3-30b', 'qwen3-turbo'], endpoint: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', authHeader: (key) => ({ 'Authorization': 'Bearer ' + key }), buildBody: (model, messages, mt, temp) => ({ model, messages, temperature: temp ?? 0.7, max_tokens: mt }), parseResponse: (data) => data.choices?.[0]?.message?.content }
+    deepseek: {
+      name: 'DeepSeek',
+      icon: '🟢',
+      models: ['deepseek-v4-pro', 'deepseek-v4-flash'],
+      endpoint: 'https://api.deepseek.com/v1/chat/completions',
+      streamFormat: 'openai',
+      authHeader: (key) => ({ 'Authorization': 'Bearer ' + key }),
+      buildBody: (model, messages, mt, temp) => ({ model, messages, temperature: temp ?? 0.7, max_tokens: mt }),
+      parseResponse: (data) => data.choices?.[0]?.message?.content
+    },
+    openai: {
+      name: 'OpenAI',
+      icon: '🟣',
+      models: ['gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-5.5-latest'],
+      endpoint: 'https://api.openai.com/v1/chat/completions',
+      streamFormat: 'openai',
+      authHeader: (key) => ({ 'Authorization': 'Bearer ' + key }),
+      buildBody: (model, messages, mt, temp) => ({ model, messages, temperature: temp ?? 0.7, max_completion_tokens: mt }),
+      parseResponse: (data) => data.choices?.[0]?.message?.content
+    },
+    claude: {
+      name: 'Claude',
+      icon: '🟠',
+      models: ['claude-fable-5', 'claude-opus-5', 'claude-sonnet-5', 'claude-haiku-4-5'],
+      endpoint: 'https://api.anthropic.com/v1/messages',
+      streamFormat: 'anthropic',
+      authHeader: (key) => ({
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      }),
+      buildBody: (model, messages, mt, temp) => {
+        const sm = messages.find(m => m.role === 'system');
+        const cm = messages.filter(m => m.role !== 'system');
+        const body = {
+          model,
+          max_tokens: mt,
+          temperature: temp ?? 0.7,
+          messages: cm.map(m => ({ role: m.role, content: m.content }))
+        };
+        if (sm) body.system = sm.content;
+        return body;
+      },
+      parseResponse: (data) => data.content?.map(block => block.text || '').join('') || ''
+    },
+    gemini: {
+      name: 'Gemini',
+      icon: '🔵',
+      models: ['gemini-3.5-flash', 'gemini-3.5-pro', 'gemini-omni-flash'],
+      endpoint: (model) => 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':streamGenerateContent?alt=sse',
+      streamFormat: 'gemini',
+      authHeader: (key) => ({ 'x-goog-api-key': key }),
+      buildBody: (model, messages, mt, temp) => {
+        const contents = messages.filter(m => m.role !== 'system').map(m => ({
+          role: m.role === 'assistant' ? 'model' : 'user',
+          parts: [{ text: m.content }]
+        }));
+        const sm = messages.find(m => m.role === 'system');
+        const body = { contents, generationConfig: { maxOutputTokens: mt, temperature: temp ?? 0.7 } };
+        if (sm) body.systemInstruction = { parts: [{ text: sm.content }] };
+        return body;
+      },
+      parseResponse: (data) => data.candidates?.[0]?.content?.parts?.map(part => part.text || '').join('') || ''
+    },
+    qwen: {
+      name: '千问',
+      icon: '🔴',
+      models: ['qwen3.7-max', 'qwen3.7-plus', 'qwen3.7-flash'],
+      endpoint: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
+      streamFormat: 'openai',
+      authHeader: (key) => ({ 'Authorization': 'Bearer ' + key }),
+      buildBody: (model, messages, mt, temp) => ({ model, messages, temperature: temp ?? 0.7, max_tokens: mt }),
+      parseResponse: (data) => data.choices?.[0]?.message?.content
+    }
   };
 
+  function decodeStoredKey(value) {
+    if (!value) return '';
+    try { return decodeURIComponent(atob(value)); } catch {}
+    return String(value).replace(/[^\x00-\x7F]/g, '').trim();
+  }
+
   function getApiKey(provider) {
-    try {
-      const raw = localStorage.getItem('dp49');
-      if (raw) {
+    for (const storageKey of ['dp0', 'dp49']) {
+      try {
+        const raw = localStorage.getItem(storageKey);
+        if (!raw) continue;
         const providers = JSON.parse(raw);
-        if (providers[provider] && providers[provider].apiKey) {
-          try { return decodeURIComponent(atob(providers[provider].apiKey)); } catch {}
-          return providers[provider].apiKey;
-        }
-      }
-    } catch {}
-    if (provider === 'deepseek') return localStorage.getItem('dk30') || '';
+        const key = decodeStoredKey(providers?.[provider]?.apiKey);
+        if (key) return key;
+      } catch {}
+    }
+    if (provider === 'deepseek') {
+      return String(localStorage.getItem('dk30') || '').replace(/[^\x00-\x7F]/g, '').trim();
+    }
     return '';
   }
 
@@ -413,8 +489,51 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     { name: '温柔姐', prompt: '你是一个温柔体贴的心理咨询师，说话温暖包容，善于鼓励他人。', provider: 'deepseek', model: 'deepseek-chat', temp: 0.7, collapsed: false, locked: false }
   ];
 
-  function normalizeParticipant(p) {
-    return { ...p, collapsed: p.collapsed === true, locked: p.locked === true };
+  const MODEL_MIGRATIONS = {
+    deepseek: {
+      'deepseek-chat': 'deepseek-v4-flash',
+      'deepseek-reasoner': 'deepseek-v4-pro'
+    },
+    openai: {
+      'gpt-4o': 'gpt-5.6-terra',
+      'gpt-4o-mini': 'gpt-5.6-luna',
+      'gpt-4.1': 'gpt-5.6-terra',
+      'o3-mini': 'gpt-5.6-sol'
+    },
+    claude: {
+      'claude-sonnet-4-20250514': 'claude-sonnet-5',
+      'claude-3-5-haiku-20241022': 'claude-haiku-4-5',
+      'claude-opus-4-6': 'claude-opus-5',
+      'claude-sonnet-4-6': 'claude-sonnet-5'
+    },
+    gemini: {
+      'gemini-2.5-flash': 'gemini-3.5-flash',
+      'gemini-2.5-pro': 'gemini-3.5-pro',
+      'gemini-2.0-flash': 'gemini-3.5-flash'
+    },
+    qwen: {
+      'qwen3-235b': 'qwen3.7-max',
+      'qwen3-30b': 'qwen3.7-plus',
+      'qwen3-turbo': 'qwen3.7-flash'
+    }
+  };
+
+  function normalizeParticipant(participant) {
+    const source = participant || {};
+    const provider = PROVIDERS[source.provider] ? source.provider : 'deepseek';
+    const availableModels = PROVIDERS[provider].models;
+    const migratedModel = MODEL_MIGRATIONS[provider]?.[source.model];
+    const model = availableModels.includes(source.model)
+      ? source.model
+      : (availableModels.includes(migratedModel) ? migratedModel : availableModels[0]);
+    return {
+      ...source,
+      provider,
+      model,
+      temp: Number.isFinite(Number(source.temp)) ? Number(source.temp) : 0.7,
+      collapsed: source.collapsed === true,
+      locked: source.locked === true
+    };
   }
 
   function createRoom(name, participants, rounds, autoStart, discussionMode) {
@@ -850,60 +969,122 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     indicator.style.display = name ? 'flex' : 'none';
   }
 
-  async function streamAI(participant, messages, signal) {
-    const p = PROVIDERS[participant.provider];
-    if (!p) throw new Error('未知提供商: ' + participant.provider);
+  function getStreamText(provider, payload) {
+    if (provider.streamFormat === 'anthropic') {
+      return payload.type === 'content_block_delta' ? (payload.delta?.text || '') : '';
+    }
+    if (provider.streamFormat === 'gemini') {
+      return payload.candidates?.[0]?.content?.parts?.map(part => part.text || '').join('') || '';
+    }
+    return payload.choices?.[0]?.delta?.content || '';
+  }
+
+  function getApiError(text, status, providerName) {
+    let message = 'HTTP ' + status;
+    try {
+      const payload = JSON.parse(text);
+      message = payload?.error?.message || payload?.message || payload?.detail || message;
+    } catch {
+      if (text && text.length < 240) message = text;
+    }
+    return '[' + providerName + '] ' + message;
+  }
+
+  async function streamAI(participant, messages, signal, onUpdate) {
+    const provider = PROVIDERS[participant.provider];
+    if (!provider) throw new Error('未知提供商: ' + participant.provider);
+
     const apiKey = getApiKey(participant.provider);
-    if (!apiKey) throw new Error(participant.name + ' 的 ' + p.name + ' API Key 未设置');
+    if (!apiKey) throw new Error(participant.name + ' 的 ' + provider.name + ' API Key 未设置');
 
-    const body = p.buildBody(participant.model, messages, 4000, participant.temp);
-    body.stream = true;
-    const headers = { 'Content-Type': 'application/json', ...p.authHeader(apiKey) };
-    let url = typeof p.endpoint === 'function' ? p.endpoint(participant.model) : p.endpoint;
-    if (participant.provider === 'gemini') url += '?key=' + encodeURIComponent(apiKey) + '&alt=sse';
+    const body = provider.buildBody(participant.model, messages, 4000, participant.temp);
+    if (participant.provider !== 'gemini') body.stream = true;
 
-    const response = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal });
-    if (!response.ok) {
-      const t = await response.text();
-      let m = 'HTTP ' + response.status;
-      try { m = JSON.parse(t).error?.message || m; } catch {}
-      throw new Error('[' + p.name + '] ' + m);
+    const headers = { 'Content-Type': 'application/json', ...provider.authHeader(apiKey) };
+    const url = typeof provider.endpoint === 'function'
+      ? provider.endpoint(participant.model)
+      : provider.endpoint;
+
+    const requestController = new AbortController();
+    let idleTimer = null;
+    let timedOut = false;
+    const abortRequest = () => requestController.abort();
+    const armIdleTimeout = () => {
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => {
+        timedOut = true;
+        requestController.abort();
+      }, 90000);
+    };
+
+    if (signal) {
+      if (signal.aborted) requestController.abort();
+      else signal.addEventListener('abort', abortRequest, { once: true });
     }
 
-    if (participant.provider === 'claude' || participant.provider === 'qwen') {
-      const data = await response.json();
-      return p.parseResponse(data) || '';
-    }
+    try {
+      armIdleTimeout();
+      const response = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+        signal: requestController.signal
+      });
+      armIdleTimeout();
 
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-    let fullContent = '';
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed || !trimmed.startsWith('data: ')) continue;
-        const dataStr = trimmed.slice(6);
-        if (dataStr === '[DONE]') continue;
-        try {
-          const json = JSON.parse(dataStr);
-          if (participant.provider === 'gemini') {
-            const text = json.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (text) fullContent += text;
-            continue;
-          }
-          const delta = json.choices?.[0]?.delta;
-          if (delta?.content) fullContent += delta.content;
-        } catch(e) {}
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(getApiError(text, response.status, provider.name));
       }
+
+      const contentType = response.headers.get('content-type') || '';
+      if (!contentType.includes('text/event-stream') || !response.body) {
+        const data = await response.json();
+        const content = provider.parseResponse(data) || '';
+        if (content && onUpdate) onUpdate(content);
+        return content;
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let fullContent = '';
+
+      const processLine = (line) => {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith('data:')) return;
+        const dataText = trimmed.slice(5).trimStart();
+        if (!dataText || dataText === '[DONE]') return;
+        try {
+          const deltaText = getStreamText(provider, JSON.parse(dataText));
+          if (!deltaText) return;
+          fullContent += deltaText;
+          if (onUpdate) onUpdate(fullContent);
+        } catch {}
+      };
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        armIdleTimeout();
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split(/\r?\n/);
+        buffer = lines.pop() || '';
+        lines.forEach(processLine);
+      }
+
+      buffer += decoder.decode();
+      if (buffer) processLine(buffer);
+      return fullContent;
+    } catch (error) {
+      if (timedOut) {
+        throw new Error('[' + provider.name + '] 90 秒内未收到新数据，请检查网络或稍后重试');
+      }
+      throw error;
+    } finally {
+      clearTimeout(idleTimer);
+      if (signal) signal.removeEventListener('abort', abortRequest);
     }
-    return fullContent;
   }
 
   async function callSingleAI(participantIdx) {
@@ -926,12 +1107,11 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
       const ac = new AbortController();
       state._aborters.push(ac);
 
-      fullContent = await streamAI(p, msgs, ac.signal);
+      fullContent = await streamAI(p, msgs, ac.signal, content => {
+        fullContent = content;
+        updateBubble(bubble, content, false);
+      });
       if (!fullContent) fullContent = '（无响应）';
-
-      const typeDelay = getTypingDelay(fullContent.length);
-      await delay(typeDelay);
-
       updateBubble(bubble, fullContent, true);
     } catch (e) {
       if (e.name === 'AbortError') {
@@ -985,8 +1165,11 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     if (!room || state.isDiscussing) return;
     if (room.participants.length === 0) { showToast('没有 AI 参与者', 'warning'); return; }
     if (room.messages.length === 0) { showToast('请先发送一条消息', 'warning'); return; }
-    const hasKey = room.participants.some(p => getApiKey(p.provider));
-    if (!hasKey) { showToast('请先设置 API Key（在 4.0.1 工作台中配置）', 'error'); return; }
+    const missingProvider = room.participants.find(participant => !getApiKey(participant.provider));
+    if (missingProvider) {
+      showToast('请先在 AI 工作台设置 ' + PROVIDERS[missingProvider.provider].name + ' API Key', 'error');
+      return;
+    }
 
     state.isDiscussing = true;
     state.discussStopped = false;
