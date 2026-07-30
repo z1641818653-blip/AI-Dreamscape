@@ -1165,9 +1165,9 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     if (!room || state.isDiscussing) return;
     if (room.participants.length === 0) { showToast('没有 AI 参与者', 'warning'); return; }
     if (room.messages.length === 0) { showToast('请先发送一条消息', 'warning'); return; }
-    const missingProvider = room.participants.find(participant => !getApiKey(participant.provider));
-    if (missingProvider) {
-      showToast('请先在 AI 工作台设置 ' + PROVIDERS[missingProvider.provider].name + ' API Key', 'error');
+    const hasConfiguredParticipant = room.participants.some(participant => getApiKey(participant.provider));
+    if (!hasConfiguredParticipant) {
+      showToast('请先在 AI 工作台设置至少一个参与模型的 API Key', 'error');
       return;
     }
 
