@@ -1742,8 +1742,23 @@ S.pe=false;updatePromptUI();setTimeout(function(){if(typeof MathJax!=='undefined
       ...options
     }));
   }
+  async function loadDocxLibrary() {
+    try {
+      return await import('https://cdn.jsdelivr.net/npm/docx@9.7.1/+esm');
+    } catch (error) {
+      throw new Error('Word 组件加载失败，请检查网络后重试');
+    }
+  }
+  async function loadZipLibrary() {
+    try {
+      const module = await import('https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm');
+      return module.default || module;
+    } catch (error) {
+      throw new Error('压缩组件加载失败，请检查网络后重试');
+    }
+  }
   async function buildWordBlob(conversations) {
-    if (typeof docx === 'undefined') throw new Error('Word 组件加载失败，请刷新页面后重试');
+    const docx = await loadDocxLibrary();
     const children = [
       new docx.Paragraph({text:'AI 工作台聊天记录',heading:docx.HeadingLevel.TITLE,alignment:docx.AlignmentType.CENTER,spacing:{after:260}}),
       new docx.Paragraph({text:'导出时间：' + new Date().toLocaleString('zh-CN'),alignment:docx.AlignmentType.CENTER,spacing:{after:120}}),
@@ -1801,7 +1816,7 @@ S.pe=false;updatePromptUI();setTimeout(function(){if(typeof MathJax!=='undefined
       const jsonText = wantJson ? buildSelectedJson(conversations) : null;
       const wordBlob = wantWord ? await buildWordBlob(conversations) : null;
       if (wantWord && wantJson) {
-        if (typeof JSZip === 'undefined') throw new Error('压缩组件加载失败，请刷新页面后重试');
+        const JSZip = await loadZipLibrary();
         const zip = new JSZip();
         zip.file(baseName + '.docx', wordBlob);
         zip.file(baseName + '.json', jsonText);
