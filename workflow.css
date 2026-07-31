@@ -611,3 +611,24 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .panel-left .body{flex:0 0 auto;overflow:visible;min-height:auto}
 .panel-left .theme-toggle{position:sticky;bottom:0;z-index:3;margin-top:auto;background:var(--surface);box-shadow:0 -8px 20px color-mix(in srgb,var(--surface) 88%,transparent)}
 .settings-note{margin:-4px 0 12px;color:var(--text2);font-size:10px;line-height:1.5}
+
+/* Unified page entry and tutorial */
+.page-shortcuts{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px 12px;border-bottom:1px solid var(--border)}
+.page-shortcut{display:flex;align-items:center;justify-content:center;min-height:34px;padding:7px 9px;border:1px solid var(--border);border-radius:10px;background:transparent;color:var(--text);font:600 12px/1.2 inherit;text-decoration:none;cursor:pointer;transition:all .2s}
+.page-shortcut:hover{background:rgba(109,63,192,.1);border-color:rgba(124,92,252,.35);color:var(--primary)}
+.page-guide-overlay{position:fixed;inset:0;z-index:9998;display:none;align-items:center;justify-content:center;padding:24px;background:rgba(18,13,28,.66);backdrop-filter:blur(7px)}
+.page-guide-overlay.open{display:flex}
+.page-guide-dialog{width:min(900px,96vw);height:min(720px,90vh);display:flex;flex-direction:column;overflow:hidden;border:1px solid var(--border);border-radius:22px;background:var(--surface);box-shadow:0 24px 80px rgba(0,0,0,.3)}
+.page-guide-head{display:flex;align-items:center;gap:12px;padding:18px 20px;border-bottom:1px solid var(--border)}
+.page-guide-head div{flex:1}.page-guide-head h2{font-size:19px;margin:0 0 3px}.page-guide-head p{font-size:12px;color:var(--text2)}
+.page-guide-close{width:34px;height:34px;border:1px solid var(--border);border-radius:10px;background:transparent;color:var(--text2);font-size:20px;cursor:pointer}
+.page-guide-layout{display:grid;grid-template-columns:190px minmax(0,1fr);min-height:0;flex:1}
+.page-guide-toc{overflow-y:auto;padding:14px 10px;border-right:1px solid var(--border);background:rgba(124,92,252,.035)}
+.page-guide-link{display:block;width:100%;margin:2px 0;padding:8px 10px;border:0;border-radius:9px;background:transparent;color:var(--text2);font:500 12px/1.35 inherit;text-align:left;cursor:pointer}
+.page-guide-link:hover,.page-guide-link.active{background:rgba(109,63,192,.1);color:var(--primary);font-weight:700}
+.page-guide-content{overflow-y:auto;scroll-behavior:smooth;padding:24px 28px 48px}
+.page-guide-section{scroll-margin-top:16px;padding-bottom:22px;margin-bottom:22px;border-bottom:1px solid var(--border)}
+.page-guide-section:last-child{border-bottom:0}.page-guide-section h2{font-size:17px;margin:0 0 9px}.page-guide-section h3{font-size:13px;margin:15px 0 6px}
+.page-guide-section p,.page-guide-section li{font-size:13px;line-height:1.75;color:var(--text2)}.page-guide-section ul,.page-guide-section ol{padding-left:20px;margin:6px 0}
+.page-guide-callout{margin:10px 0;padding:11px 13px;border:1px solid rgba(124,92,252,.2);border-radius:11px;background:rgba(109,63,192,.1);font-size:12px;line-height:1.65;color:var(--text2)}
+@media(max-width:700px){.page-guide-overlay{padding:0}.page-guide-dialog{width:100vw;height:100vh;max-height:none;border:0;border-radius:0}.page-guide-layout{display:flex;flex-direction:column}.page-guide-toc{display:flex;gap:5px;flex:0 0 auto;overflow-x:auto;overflow-y:hidden;border-right:0;border-bottom:1px solid var(--border)}.page-guide-link{width:auto;flex:0 0 auto;white-space:nowrap}.page-guide-content{padding:20px 18px 40px}}
