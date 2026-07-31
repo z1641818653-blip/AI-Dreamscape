@@ -1734,75 +1734,166 @@ S.pe=false;updatePromptUI();setTimeout(function(){if(typeof MathJax!=='undefined
       .replace(/~~(.*?)~~/g,'$1')
       .replace(/\[([^\]]+)\]\(([^)]+)\)/g,'$1 ($2)');
   }
-  function textParagraphs(text, options) {
-    const lines = wordText(text).split(/\r?\n/);
-    return lines.map(line => new docx.Paragraph({
-      children:[new docx.TextRun({text:line || ' ',font:'Microsoft YaHei',size:21})],
-      spacing:{after:line ? 80 : 20},
-      ...options
-    }));
+  function xmlEsc(text) {
+    return String(text == null ? '' : text)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&apos;');
   }
-  async function loadDocxLibrary() {
-    try {
-      return await import('https://cdn.jsdelivr.net/npm/docx@9.7.1/+esm');
-    } catch (error) {
-      throw new Error('Word 组件加载失败，请检查网络后重试');
+  function utf8(text) {
+    return new TextEncoder().encode(String(text));
+  }
+  function concatBytes(parts) {
+    const length = parts.reduce((sum,part) => sum + part.length, 0);
+    const output = new Uint8Array(length);
+    let offset = 0;
+    parts.forEach(part => { output.set(part,offset); offset += part.length; });
+    return output;
+  }
+  function le16(value) {
+    return new Uint8Array([value & 255,(value >>> 8) & 255]);
+  }
+  function le32(value) {
+    return new Uint8Array([value & 255,(value >>> 8) & 255,(value >>> 16) & 255,(value >>> 24) & 255]);
+  }
+  const crcTable = (() => {
+    const table = new Uint32Array(256);
+    for (let n=0;n<256;n++) {
+      let c=n;
+      for (let k=0;k<8;k++) c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1);
+      table[n]=c>>>0;
     }
+    return table;
+  })();
+  function crc32(bytes) {
+    let crc=0xFFFFFFFF;
+    for (let i=0;i<bytes.length;i++) crc=crcTable[(crc^bytes[i])&255]^(crc>>>8);
+    return (crc^0xFFFFFFFF)>>>0;
   }
-  async function loadZipLibrary() {
-    try {
-      const module = await import('https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm');
-      return module.default || module;
-    } catch (error) {
-      throw new Error('压缩组件加载失败，请检查网络后重试');
-    }
+  function dosDateTime(date) {
+    const d=date||new Date();
+    const time=((d.getHours()&31)<<11)|((d.getMinutes()&63)<<5)|((Math.floor(d.getSeconds()/2))&31);
+    const year=Math.max(1980,d.getFullYear());
+    const day=((year-1980)<<9)|((d.getMonth()+1)<<5)|d.getDate();
+    return {time,day};
   }
-  async function buildWordBlob(conversations) {
-    const docx = await loadDocxLibrary();
-    const children = [
-      new docx.Paragraph({text:'AI 工作台聊天记录',heading:docx.HeadingLevel.TITLE,alignment:docx.AlignmentType.CENTER,spacing:{after:260}}),
-      new docx.Paragraph({text:'导出时间：' + new Date().toLocaleString('zh-CN'),alignment:docx.AlignmentType.CENTER,spacing:{after:120}}),
-      new docx.Paragraph({text:'包含聊天页：' + conversations.length + ' 页',alignment:docx.AlignmentType.CENTER,spacing:{after:360}}),
-      new docx.Paragraph({text:'目录',heading:docx.HeadingLevel.HEADING_1})
-    ];
-    conversations.forEach((c,index) => {
-      children.push(new docx.Paragraph({text:(index+1)+'. '+(c.title||'未命名对话'),spacing:{after:70}}));
+  function createStoredZip(files,mimeType) {
+    const locals=[],centrals=[];
+    let offset=0;
+    const stamp=dosDateTime(new Date());
+    files.forEach(file => {
+      const nameBytes=utf8(file.name);
+      const data=file.data instanceof Uint8Array ? file.data : utf8(file.data);
+      const crc=crc32(data);
+      const local=concatBytes([
+        le32(0x04034b50),le16(20),le16(0x0800),le16(0),le16(stamp.time),le16(stamp.day),
+        le32(crc),le32(data.length),le32(data.length),le16(nameBytes.length),le16(0),nameBytes,data
+      ]);
+      const central=concatBytes([
+        le32(0x02014b50),le16(20),le16(20),le16(0x0800),le16(0),le16(stamp.time),le16(stamp.day),
+        le32(crc),le32(data.length),le32(data.length),le16(nameBytes.length),le16(0),le16(0),
+        le16(0),le16(0),le32(0),le32(offset),nameBytes
+      ]);
+      locals.push(local);centrals.push(central);offset+=local.length;
     });
+    const centralData=concatBytes(centrals);
+    const end=concatBytes([
+      le32(0x06054b50),le16(0),le16(0),le16(files.length),le16(files.length),
+      le32(centralData.length),le32(offset),le16(0)
+    ]);
+    return new Blob([...locals,centralData,end],{type:mimeType||'application/zip'});
+  }
+  function wordRun(text,options) {
+    options=options||{};
+    const props=[];
+    if(options.bold)props.push('<w:b/>');
+    if(options.italic)props.push('<w:i/>');
+    if(options.color)props.push('<w:color w:val="'+options.color+'"/>');
+    if(options.size)props.push('<w:sz w:val="'+options.size+'"/>');
+    const rPr=props.length?'<w:rPr>'+props.join('')+'</w:rPr>':'';
+    return '<w:r>'+rPr+'<w:t xml:space="preserve">'+xmlEsc(text||' ')+'</w:t></w:r>';
+  }
+  function wordParagraph(text,options) {
+    options=options||{};
+    const pPr=[];
+    if(options.style)pPr.push('<w:pStyle w:val="'+options.style+'"/>');
+    if(options.pageBreakBefore)pPr.push('<w:pageBreakBefore/>');
+    const properties=pPr.length?'<w:pPr>'+pPr.join('')+'</w:pPr>':'';
+    return '<w:p>'+properties+wordRun(text,{bold:options.bold,color:options.color,size:options.size})+'</w:p>';
+  }
+  function wordTextParagraphs(text) {
+    return wordText(text).split(/\r?\n/).map(line => wordParagraph(line||' ')).join('');
+  }
+  function buildWordBlob(conversations) {
+    let body='';
+    body+=wordParagraph('AI 工作台聊天记录',{style:'Title'});
+    body+=wordParagraph('导出时间：'+new Date().toLocaleString('zh-CN'));
+    body+=wordParagraph('包含聊天页：'+conversations.length+' 页');
+    body+=wordParagraph('目录',{style:'Heading1'});
+    conversations.forEach((c,index) => { body+=wordParagraph((index+1)+'. '+(c.title||'未命名对话')); });
     conversations.forEach((c,index) => {
-      children.push(new docx.Paragraph({children:[new docx.PageBreak()]}));
-      children.push(new docx.Paragraph({text:c.title||'未命名对话',heading:docx.HeadingLevel.HEADING_1,spacing:{after:130}}));
-      children.push(new docx.Paragraph({children:[
-        new docx.TextRun({text:'创建时间：',bold:true,font:'Microsoft YaHei',size:20}),
-        new docx.TextRun({text:c.createdAt ? new Date(c.createdAt).toLocaleString('zh-CN') : '未知',font:'Microsoft YaHei',size:20})
-      ],spacing:{after:90}}));
-      if (c.prompt) {
-        children.push(new docx.Paragraph({text:'页面 Prompt',heading:docx.HeadingLevel.HEADING_2}));
-        children.push(...textParagraphs(c.prompt));
+      body+='<w:p><w:r><w:br w:type="page"/></w:r></w:p>';
+      body+=wordParagraph(c.title||'未命名对话',{style:'Heading1'});
+      body+=wordParagraph('创建时间：'+(c.createdAt?new Date(c.createdAt).toLocaleString('zh-CN'):'未知'));
+      if(c.prompt){
+        body+=wordParagraph('页面 Prompt',{style:'Heading2'});
+        body+=wordTextParagraphs(c.prompt);
       }
-      children.push(new docx.Paragraph({text:'聊天记录',heading:docx.HeadingLevel.HEADING_2,spacing:{before:150,after:100}}));
+      body+=wordParagraph('聊天记录',{style:'Heading2'});
       (c.messages||[]).forEach((message,msgIndex) => {
-        const isUser = message.role === 'user';
-        const label = isUser ? '用户' : (message.providerName || message.model || 'AI');
-        children.push(new docx.Paragraph({
-          children:[
-            new docx.TextRun({text:(msgIndex+1)+'. '+label,bold:true,color:isUser?'2563EB':'7C3AED',font:'Microsoft YaHei',size:22})
-          ],
-          spacing:{before:170,after:65}
-        }));
-        if (message.reasoning) {
-          children.push(new docx.Paragraph({children:[new docx.TextRun({text:'思考过程',bold:true,italics:true,color:'6B7280',font:'Microsoft YaHei',size:18})],spacing:{after:40}}));
-          children.push(...textParagraphs(message.reasoning));
+        const isUser=message.role==='user';
+        const label=isUser?'用户':(message.providerName||message.model||'AI');
+        body+=wordParagraph((msgIndex+1)+'. '+label,{bold:true,color:isUser?'2563EB':'7C3AED'});
+        if(message.reasoning){
+          body+='<w:p>'+wordRun('思考过程',{bold:true,italic:true,color:'6B7280',size:18})+'</w:p>';
+          body+=wordTextParagraphs(message.reasoning);
         }
-        children.push(...textParagraphs(message.content));
+        body+=wordTextParagraphs(message.content);
       });
     });
-    const documentFile = new docx.Document({
-      creator:'AI 灵境',
-      title:'AI 工作台聊天记录',
-      description:'由 AI 工作台导出的聊天记录',
-      sections:[{properties:{},children}]
-    });
-    return docx.Packer.toBlob(documentFile);
+    const documentXml='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+      +'<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>'
+      +body+'<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440"/></w:sectPr></w:body></w:document>';
+    const stylesXml='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+      +'<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+      +'<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:rPr><w:rFonts w:ascii="Microsoft YaHei" w:eastAsia="Microsoft YaHei"/><w:sz w:val="21"/></w:rPr></w:style>'
+      +'<w:style w:type="paragraph" w:styleId="Title"><w:name w:val="Title"/><w:basedOn w:val="Normal"/><w:pPr><w:jc w:val="center"/></w:pPr><w:rPr><w:b/><w:sz w:val="36"/></w:rPr></w:style>'
+      +'<w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:basedOn w:val="Normal"/><w:rPr><w:b/><w:color w:val="4338CA"/><w:sz w:val="30"/></w:rPr></w:style>'
+      +'<w:style w:type="paragraph" w:styleId="Heading2"><w:name w:val="heading 2"/><w:basedOn w:val="Normal"/><w:rPr><w:b/><w:sz w:val="25"/></w:rPr></w:style>'
+      +'</w:styles>';
+    const contentTypes='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+      +'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+      +'<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+      +'<Default Extension="xml" ContentType="application/xml"/>'
+      +'<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>'
+      +'<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>'
+      +'<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>'
+      +'<Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>'
+      +'</Types>';
+    const rootRels='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+      +'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+      +'<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>'
+      +'<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>'
+      +'<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>'
+      +'</Relationships>';
+    const documentRels='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+      +'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+      +'<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>'
+      +'</Relationships>';
+    const created=new Date().toISOString();
+    const coreXml='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+      +'<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">'
+      +'<dc:title>AI 工作台聊天记录</dc:title><dc:creator>AI 灵境</dc:creator><dcterms:created xsi:type="dcterms:W3CDTF">'+created+'</dcterms:created></cp:coreProperties>';
+    const appXml='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+      +'<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"><Application>AI 灵境</Application></Properties>';
+    return createStoredZip([
+      {name:'[Content_Types].xml',data:contentTypes},
+      {name:'_rels/.rels',data:rootRels},
+      {name:'word/document.xml',data:documentXml},
+      {name:'word/styles.xml',data:stylesXml},
+      {name:'word/_rels/document.xml.rels',data:documentRels},
+      {name:'docProps/core.xml',data:coreXml},
+      {name:'docProps/app.xml',data:appXml}
+    ],'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
   }
   async function runBatchExport() {
     const conversations = selectedExportConversations();
@@ -1816,11 +1907,10 @@ S.pe=false;updatePromptUI();setTimeout(function(){if(typeof MathJax!=='undefined
       const jsonText = wantJson ? buildSelectedJson(conversations) : null;
       const wordBlob = wantWord ? await buildWordBlob(conversations) : null;
       if (wantWord && wantJson) {
-        const JSZip = await loadZipLibrary();
-        const zip = new JSZip();
-        zip.file(baseName + '.docx', wordBlob);
-        zip.file(baseName + '.json', jsonText);
-        const zipBlob = await zip.generateAsync({type:'blob'});
+        const zipBlob = createStoredZip([
+          {name:baseName+'.docx',data:new Uint8Array(await wordBlob.arrayBuffer())},
+          {name:baseName+'.json',data:jsonText}
+        ],'application/zip');
         downloadBlob(baseName + '.zip', zipBlob);
       } else if (wantWord) {
         downloadBlob(baseName + '.docx', wordBlob);
