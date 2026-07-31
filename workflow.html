@@ -5,22 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AI 流程树 · AI 灵境</title>
 <meta name="description" content="AI 灵境流程树：将复杂任务拆分为可复用、可按依赖执行的 AI 节点。">
-<link rel="stylesheet" href="./workflow.css?v=lingjing-workflow-1">
+<link rel="stylesheet" href="./workflow.css?v=lingjing-workflow-2">
 </head>
 <body>
 <div class="layout" id="layout">
 
   <!-- LEFT -->
   <aside class="panel-left" id="panelLeft">
-    <div class="header collapsible-header" id="navHeader">🧭 AI 工具 <span class="section-arrow" id="navArrow">▼</span></div>
-    <nav class="nav-links" id="navBody" aria-label="AI 工具导航">
-      <a class="nav-link" href="index.html">🏠 <span>AI 灵境</span></a>
-      <a class="nav-link" href="chat.html">💬 <span>AI 工作台</span></a>
-      <a class="nav-link" href="chatroom.html">👥 <span>AI 聊天室</span></a>
-      <a class="nav-link active" href="workflow.html" aria-current="page">🌳 <span>AI 流程树</span></a>
-      <a class="nav-link" href="mdtest.html">📝 <span>Markdown 测试</span></a>
-      <a class="nav-link" href="latex.html">∑ <span>LaTeX 渲染</span></a>
-    </nav>
+    <div class="page-shortcuts"><a class="page-shortcut" href="index.html">AI 灵境</a><button class="page-shortcut" id="wfGuideOpen" type="button">流程树教程</button></div>
     <div class="header collapsible-header section-divider" id="wfListHeader">📂 流程列表 <span class="section-arrow" id="wfListArrow">▼</span></div>
     <div class="workflow-list-section" id="wfListBody">
       <div id="wfListContainer"></div>
@@ -79,6 +71,29 @@
 
 </div>
 
+
+<div class="page-guide-overlay" id="wfGuideOverlay" aria-hidden="true">
+  <div class="page-guide-dialog" role="dialog" aria-modal="true" aria-labelledby="wfGuideTitle">
+    <div class="page-guide-head"><div><h2 id="wfGuideTitle">流程树教程</h2><p>把复杂任务拆成可保存、可复用、可按依赖执行的节点</p></div><button class="page-guide-close" id="wfGuideClose" aria-label="关闭教程">×</button></div>
+    <div class="page-guide-layout">
+      <nav class="page-guide-toc">
+        <button class="page-guide-link active" data-target="wf-guide-start">快速开始</button>
+        <button class="page-guide-link" data-target="wf-guide-node">节点设置</button>
+        <button class="page-guide-link" data-target="wf-guide-run">运行方式</button>
+        <button class="page-guide-link" data-target="wf-guide-state">状态颜色</button>
+        <button class="page-guide-link" data-target="wf-guide-tree">树与版本</button>
+      </nav>
+      <main class="page-guide-content">
+        <section class="page-guide-section" id="wf-guide-start"><h2>快速开始</h2><ol><li>新建流程并选择主节点。</li><li>填写节点输入和 Prompt。</li><li>添加子节点，把上一步结果继续向下处理。</li><li>先单节点测试，再运行整个流程树。</li></ol></section>
+        <section class="page-guide-section" id="wf-guide-node"><h2>节点设置</h2><p>每个节点代表一个独立步骤。输入可以来自用户、固定内容或上游结果；Prompt 负责说明当前步骤要完成什么。主节点不能删除，但允许修改和复制。</p><div class="page-guide-callout">一个节点只负责一个清晰任务，比把所有要求写在一个超长 Prompt 中更容易检查和复用。</div></section>
+        <section class="page-guide-section" id="wf-guide-run"><h2>运行方式</h2><ul><li><strong>运行当前节点：</strong>只处理当前步骤。</li><li><strong>运行节点及上游：</strong>先补齐依赖，再执行当前节点。</li><li><strong>运行整个流程树：</strong>按依赖顺序执行全部可运行节点。</li></ul><p>上游没有有效结果时，下游会等待或阻塞。</p></section>
+        <section class="page-guide-section" id="wf-guide-state"><h2>状态颜色</h2><ul><li>灰：尚未执行。</li><li>黄：执行中或结果已过期。</li><li>绿：执行完成且结果有效。</li><li>红：输入缺失、报错或依赖阻塞。</li><li>蓝：输入有效，但 Prompt 为空。</li></ul></section>
+        <section class="page-guide-section" id="wf-guide-tree"><h2>树操作与版本</h2><p>右侧可以添加子节点、仅删除当前节点、删除整条分支、复制和粘贴节点。“仅删当前”会让子节点自动连接到上一级。撤销和重做用于恢复最近的流程结构修改。</p></section>
+      </main>
+    </div>
+  </div>
+</div>
+
 <div class="toast-container" id="toastContainer"></div>
 <div class="confirm-overlay" id="confirmOverlay" role="dialog" aria-modal="true" aria-labelledby="confirmMsg">
   <div class="confirm-dialog">
@@ -92,5 +107,22 @@
 <div class="context-menu" id="contextMenu"></div>
 
 <script src="./workflow.js?v=lingjing-workflow-1"></script>
+<script>
+(function(){
+  var overlay=document.getElementById('wfGuideOverlay');
+  var openBtn=document.getElementById('wfGuideOpen');
+  var closeBtn=document.getElementById('wfGuideClose');
+  if(!overlay||!openBtn||!closeBtn)return;
+  var links=Array.prototype.slice.call(overlay.querySelectorAll('.page-guide-link'));
+  var content=overlay.querySelector('.page-guide-content');
+  function open(){overlay.classList.add('open');overlay.setAttribute('aria-hidden','false');closeBtn.focus();}
+  function close(){overlay.classList.remove('open');overlay.setAttribute('aria-hidden','true');}
+  openBtn.addEventListener('click',open);closeBtn.addEventListener('click',close);
+  overlay.addEventListener('click',function(e){if(e.target===overlay)close();});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape'&&overlay.classList.contains('open'))close();});
+  links.forEach(function(link){link.addEventListener('click',function(){var target=document.getElementById(link.dataset.target);if(!target)return;links.forEach(function(x){x.classList.remove('active')});link.classList.add('active');target.scrollIntoView({behavior:'smooth',block:'start'});});});
+  if(content)content.addEventListener('scroll',function(){var best=null,dist=Infinity,top=content.getBoundingClientRect().top;links.forEach(function(link){var target=document.getElementById(link.dataset.target);if(!target)return;var d=Math.abs(target.getBoundingClientRect().top-top-8);if(d<dist){dist=d;best=link;}});links.forEach(function(x){x.classList.toggle('active',x===best)});},{passive:true});
+})();
+</script>
 </body>
 </html>
