@@ -231,7 +231,22 @@
       if (entries.length > 500 || entries.some(([key,value]) => !key || key.length > 200 || typeof value !== 'string')) throw new Error('备份内容超出允许范围');
       const warning = payload.includesApiKeys ? '\n该备份包含 API Key。' : '';
       if (!confirm(`将合并恢复 ${entries.length} 项数据，同名数据会被覆盖。${warning}\n确定继续吗？`)) { status.textContent = '已取消导入'; return; }
-      entries.forEach(([key,value]) => localStorage.setItem(key, value));
+      entries.forEach(([key,value]) => {
+        if (key === STORAGE_KEY && !payload.includesApiKeys) {
+          try {
+            const incoming = JSON.parse(value);
+            const current = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+            Object.keys(incoming).forEach(providerKey => {
+              if (incoming[providerKey] && typeof incoming[providerKey] === 'object') {
+                incoming[providerKey].apiKey = current?.[providerKey]?.apiKey || '';
+              }
+            });
+            localStorage.setItem(key, JSON.stringify(incoming));
+            return;
+          } catch {}
+        }
+        localStorage.setItem(key, value);
+      });
       loadConfig(); renderProviders(); updateStorageStats();
       status.className = 'status-box success'; status.textContent = `已恢复 ${entries.length} 项数据`;
       showToast('数据恢复完成');
