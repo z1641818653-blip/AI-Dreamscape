@@ -1988,7 +1988,7 @@ ${transcript}
     if (room.messages.length === 0) { showToast('请先发送一条消息', 'warning'); return; }
     const hasConfiguredParticipant = aiParticipants.some(participant => getApiKey(participant.provider));
     if (!hasConfiguredParticipant) {
-      showToast('请先在 AI 工作台设置至少一个参与模型的 API Key', 'error');
+      showToast('请先在全局配置中设置至少一个参与模型的 API Key', 'error');
       return;
     }
 
@@ -2449,5 +2449,6 @@ ${transcript}
   },{passive:true});
 })();
 </script>
+<script src="global-storage.js"></script>
 </body>
 </html>
