@@ -63,6 +63,21 @@
     .status-box{min-height:24px;margin-top:13px;color:var(--muted);font-size:13px}
     .status-box.success{color:var(--success)}
     .status-box.error{color:var(--danger)}
+    .cache-manage{width:100%;margin-top:16px}
+    .cache-overlay{position:fixed;inset:0;z-index:45;display:none;place-items:center;padding:18px;background:rgba(28,27,48,.46);backdrop-filter:blur(8px)}
+    .cache-overlay.open{display:grid}
+    .cache-dialog{width:min(100%,660px);max-height:min(82vh,720px);overflow:auto;padding:24px;border:1px solid var(--line);border-radius:20px;background:#fff;box-shadow:0 28px 70px rgba(26,24,57,.25)}
+    .cache-dialog h2{margin:0 0 6px}
+    .cache-dialog>p{margin:0 0 18px;color:var(--muted);font-size:13px}
+    .cache-toggle{display:flex;align-items:flex-start;gap:10px;padding:14px;border:1px solid var(--line);border-radius:13px;background:var(--surface-soft);font-size:13px}
+    .cache-toggle input{width:18px;min-height:auto;margin-top:3px;accent-color:var(--primary)}
+    .cache-list{display:grid;gap:10px;margin-top:16px}
+    .cache-empty{padding:18px;border:1px dashed var(--line);border-radius:12px;color:var(--muted);text-align:center;font-size:13px}
+    .cache-item{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:13px 14px;border:1px solid var(--line);border-radius:12px}
+    .cache-item strong,.cache-item span{display:block}
+    .cache-item span{color:var(--muted);font-size:11px}
+    .cache-delete{flex:0 0 auto;border:0;background:transparent;color:var(--danger);font-weight:700}
+    .cache-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}
     .toast{position:fixed;left:50%;bottom:28px;z-index:50;transform:translate(-50%,18px);padding:11px 16px;border-radius:12px;background:#27283a;color:#fff;box-shadow:0 12px 32px rgba(25,24,46,.25);font-size:13px;opacity:0;pointer-events:none;transition:.2s ease}
     .toast.show{opacity:1;transform:translate(-50%,0)}
     footer{padding:28px 0 44px;text-align:center;color:var(--muted);font-size:12px}
@@ -105,11 +120,21 @@
           <button class="secondary-btn" id="chooseImportBtn" type="button">选择备份文件</button>
           <div class="status-box" id="importStatus" aria-live="polite"></div>
           <ul class="storage-list"><li><span>已保存项目</span><strong id="storageCount">0</strong></li><li><span>估算占用</span><strong id="storageSize">0 KB</strong></li><li><span>最近读取</span><strong id="storageTime">—</strong></li></ul>
+          <button class="secondary-btn cache-manage" id="pageCacheBtn" type="button">管理页面缓存与退出保护</button>
         </article>
       </div>
     </section>
   </main>
   <footer class="shell">AI 灵境 · 配置与数据均由你的浏览器掌管</footer>
+  <div class="cache-overlay" id="cacheOverlay" aria-hidden="true">
+    <section class="cache-dialog" role="dialog" aria-modal="true" aria-labelledby="cacheDialogTitle">
+      <h2 id="cacheDialogTitle">页面缓存与退出保护</h2>
+      <p>灵境会缓存页面中尚未提交的非敏感输入。密码、API Key 和文件选择不会进入页面缓存。</p>
+      <label class="cache-toggle"><input type="checkbox" id="exitProtectionToggle"><span><strong>页面数据变化后，离开时请求确认</strong><br>浏览器会显示自己的标准提示文字；没有修改时不会打扰。</span></label>
+      <div class="cache-list" id="pageCacheList"></div>
+      <div class="cache-actions"><button class="secondary-btn" id="clearPageCachesBtn" type="button">清空全部缓存</button><button class="primary-btn" id="closeCacheBtn" type="button">完成</button></div>
+    </section>
+  </div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script>
   (() => {
@@ -117,6 +142,8 @@
     const STORAGE_KEY = 'dp0';
     const CURRENT_PROVIDER_KEY = 'dcp0';
     const LEGACY_SECRET_KEYS = new Set(['dp49', 'dk30']);
+    const GLOBAL_STORAGE_SETTINGS_KEY = 'dreamscape_global_storage_v1';
+    const PAGE_CACHE_KEY = 'dreamscape_page_cache_v1';
     const PROVIDERS = {
       deepseek:{name:'DeepSeek',icon:'🟢',models:['deepseek-v4-pro','deepseek-v4-flash'],info:'推理与高速模型'},
       openai:{name:'OpenAI',icon:'🟣',models:['gpt-5.6-sol','gpt-5.6-terra','gpt-5.6-luna','gpt-5.5-latest'],info:'GPT 多档模型'},
@@ -258,6 +285,37 @@
       $('storageSize').textContent = (chars * 2 / 1024).toFixed(1) + ' KB';
       $('storageTime').textContent = new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});
     }
+    function readObject(key) {
+      try { const value = JSON.parse(localStorage.getItem(key) || '{}'); return value && typeof value === 'object' ? value : {}; }
+      catch { return {}; }
+    }
+    function renderPageCaches() {
+      const settings = { exitProtection:true, ...readObject(GLOBAL_STORAGE_SETTINGS_KEY) };
+      $('exitProtectionToggle').checked = settings.exitProtection !== false;
+      const caches = readObject(PAGE_CACHE_KEY);
+      const list = $('pageCacheList');
+      list.innerHTML = '';
+      const entries = Object.entries(caches).sort((a,b) => String(b[1]?.updatedAt || '').localeCompare(String(a[1]?.updatedAt || '')));
+      if (!entries.length) {
+        const empty = document.createElement('div'); empty.className = 'cache-empty'; empty.textContent = '目前没有页面输入缓存'; list.appendChild(empty); return;
+      }
+      entries.forEach(([path, record]) => {
+        const item = document.createElement('div'); item.className = 'cache-item';
+        const info = document.createElement('div');
+        const title = document.createElement('strong'); title.textContent = record?.title || path;
+        const meta = document.createElement('span');
+        const time = record?.updatedAt ? new Date(record.updatedAt).toLocaleString('zh-CN') : '时间未知';
+        meta.textContent = `${path} · ${record?.fieldCount || 0} 项 · ${time}`;
+        const remove = document.createElement('button'); remove.className = 'cache-delete'; remove.type = 'button'; remove.textContent = '删除'; remove.dataset.cachePath = path;
+        info.append(title, meta); item.append(info, remove); list.appendChild(item);
+      });
+    }
+    function openPageCacheManager() {
+      renderPageCaches(); $('cacheOverlay').classList.add('open'); $('cacheOverlay').setAttribute('aria-hidden','false');
+    }
+    function closePageCacheManager() {
+      $('cacheOverlay').classList.remove('open'); $('cacheOverlay').setAttribute('aria-hidden','true');
+    }
     let toastTimer;
     function showToast(message, isError=false) {
       const toast = $('toast'); toast.textContent = message; toast.style.background = isError ? '#a93350' : '#27283a'; toast.classList.add('show');
@@ -281,9 +339,16 @@
     $('exportDataBtn').addEventListener('click', downloadBackup);
     $('chooseImportBtn').addEventListener('click', () => $('importFile').click());
     $('importFile').addEventListener('change', async event => { const file = event.target.files?.[0]; event.target.value = ''; try { await importBackup(file); } catch (error) { $('importStatus').className = 'status-box error'; $('importStatus').textContent = '导入失败：' + (error.message || '文件格式错误'); } });
+    $('pageCacheBtn').addEventListener('click', openPageCacheManager);
+    $('closeCacheBtn').addEventListener('click', closePageCacheManager);
+    $('cacheOverlay').addEventListener('click', event => { if (event.target === $('cacheOverlay')) closePageCacheManager(); });
+    $('exitProtectionToggle').addEventListener('change', event => { localStorage.setItem(GLOBAL_STORAGE_SETTINGS_KEY, JSON.stringify({ exitProtection:event.target.checked })); showToast(event.target.checked ? '退出保护已开启' : '退出保护已关闭'); });
+    $('pageCacheList').addEventListener('click', event => { const path = event.target.dataset.cachePath; if (!path) return; const caches = readObject(PAGE_CACHE_KEY); delete caches[path]; localStorage.setItem(PAGE_CACHE_KEY, JSON.stringify(caches)); renderPageCaches(); updateStorageStats(); });
+    $('clearPageCachesBtn').addEventListener('click', () => { if (!confirm('确定清空全部页面输入缓存吗？')) return; localStorage.removeItem(PAGE_CACHE_KEY); renderPageCaches(); updateStorageStats(); showToast('页面缓存已清空'); });
     loadConfig(); renderProviders(); updateStorageStats();
   })();
   </script>
+  <script src="global-storage.js"></script>
 </body>
 </html>
 
