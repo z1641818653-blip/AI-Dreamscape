@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="AI 鐏靛鍏ㄥ眬 API 閰嶇疆涓庢湰鏈烘暟鎹浠?>
+  <title>鍏ㄥ眬閰嶇疆 路 AI 鐏靛</title>
+  <style>
+    :root{color-scheme:light;--bg:#f6f6fc;--surface:rgba(255,255,255,.9);--surface-soft:#f7f7fc;--text:#202235;--muted:#6c7188;--line:rgba(103,94,196,.14);--primary:#6558e8;--primary-2:#9468e7;--primary-soft:#efedff;--success:#207548;--warning:#846218;--danger:#b43a55;--shadow:0 18px 48px rgba(52,47,111,.09);--radius:22px;--max:1160px}
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{margin:0;min-height:100vh;background:radial-gradient(circle at 8% 8%,rgba(121,105,239,.12),transparent 28%),radial-gradient(circle at 92% 6%,rgba(225,134,198,.1),transparent 25%),linear-gradient(180deg,#fbfbff,var(--bg));color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;line-height:1.6}
+    button,input,select{font:inherit}
+    button{cursor:pointer}
+    .shell{width:min(calc(100% - 32px),var(--max));margin:0 auto}
+    header{position:sticky;top:0;z-index:20;background:rgba(250,250,255,.82);border-bottom:1px solid var(--line);backdrop-filter:blur(18px)}
+    .nav{min-height:68px;display:flex;align-items:center;justify-content:space-between;gap:18px}
+    .brand{display:flex;align-items:center;gap:11px;color:inherit;font-weight:760;text-decoration:none}
+    .brand-mark{display:grid;place-items:center;width:38px;height:38px;border-radius:12px;background:linear-gradient(135deg,#7568f3,#a16ee8 70%,#df87c8);color:#fff;box-shadow:0 9px 24px rgba(101,88,232,.25)}
+    .back{color:var(--primary);font-size:14px;font-weight:700;text-decoration:none}
+    main{padding:52px 0 70px}
+    .hero{display:flex;align-items:flex-end;justify-content:space-between;gap:28px;margin-bottom:28px}
+    .eyebrow{display:inline-flex;align-items:center;gap:7px;padding:6px 11px;border-radius:999px;background:var(--primary-soft);color:var(--primary);font-size:12px;font-weight:750}
+    h1{margin:14px 0 8px;font-size:clamp(32px,5vw,48px);line-height:1.14;letter-spacing:-.035em}
+    .lead{max-width:720px;margin:0;color:var(--muted)}
+    .local-note{max-width:310px;padding:14px 16px;border:1px solid rgba(211,162,56,.18);border-radius:15px;background:#fffaf0;color:#755611;font-size:12px}
+    .tabs{display:flex;gap:8px;margin:0 0 20px;padding:5px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.72);width:max-content;max-width:100%}
+    .tab{border:0;border-radius:10px;background:transparent;color:var(--muted);padding:9px 15px;font-weight:700}
+    .tab.active{background:linear-gradient(135deg,var(--primary),var(--primary-2));color:#fff;box-shadow:0 7px 18px rgba(101,88,232,.22)}
+    .panel{display:none}
+    .panel.active{display:block}
+    .summary{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:18px 20px;margin-bottom:18px;border:1px solid var(--line);border-radius:17px;background:var(--surface);box-shadow:0 8px 26px rgba(52,47,111,.04)}
+    .summary strong{display:block}
+    .summary span{color:var(--muted);font-size:13px}
+    .save-all,.primary-btn{min-height:42px;padding:0 17px;border:0;border-radius:11px;background:linear-gradient(135deg,var(--primary),var(--primary-2));color:#fff;font-weight:750;box-shadow:0 8px 20px rgba(101,88,232,.22)}
+    .provider-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+    .provider-card{padding:20px;border:1px solid var(--line);border-radius:19px;background:var(--surface);box-shadow:0 8px 28px rgba(52,47,111,.045)}
+    .provider-head{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:15px}
+    .provider-name{display:flex;align-items:center;gap:10px;font-size:18px;font-weight:760}
+    .provider-icon{display:grid;place-items:center;width:38px;height:38px;border-radius:12px;background:var(--primary-soft)}
+    .state{padding:4px 9px;border-radius:999px;background:#f0f1f5;color:var(--muted);font-size:11px;font-weight:750}
+    .state.ready{background:#e9f8ef;color:var(--success)}
+    .field{display:grid;gap:7px;margin-top:13px}
+    .field label{font-size:12px;font-weight:730;color:#565b72}
+    .input-wrap{display:flex;gap:8px}
+    input,select{width:100%;min-height:43px;padding:0 12px;border:1px solid rgba(103,94,196,.19);border-radius:11px;background:#fff;color:var(--text);outline:none}
+    input:focus,select:focus{border-color:rgba(101,88,232,.55);box-shadow:0 0 0 3px rgba(101,88,232,.1)}
+    .reveal{flex:0 0 auto;min-width:70px;border:1px solid var(--line);border-radius:11px;background:var(--surface-soft);color:var(--primary);font-weight:700}
+    .provider-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;color:var(--muted);font-size:12px}
+    .default-btn{border:0;background:transparent;color:var(--primary);font-weight:730}
+    .default-btn.active{color:var(--success)}
+    .data-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+    .data-card{padding:24px;border:1px solid var(--line);border-radius:20px;background:var(--surface);box-shadow:var(--shadow)}
+    .data-card h2{margin:0 0 7px;font-size:21px}
+    .data-card p{margin:0 0 18px;color:var(--muted);font-size:14px}
+    .check{display:flex;align-items:flex-start;gap:10px;margin:17px 0;color:#53586f;font-size:13px}
+    .check input{width:17px;min-height:auto;margin-top:3px;accent-color:var(--primary)}
+    .secondary-btn{min-height:42px;padding:0 16px;border:1px solid var(--line);border-radius:11px;background:#fff;color:var(--primary);font-weight:750}
+    .file-input{display:none}
+    .storage-list{margin:18px 0 0;padding:0;list-style:none;display:grid;gap:9px}
+    .storage-list li{display:flex;justify-content:space-between;gap:18px;padding-bottom:9px;border-bottom:1px solid var(--line);color:var(--muted);font-size:13px}
+    .storage-list strong{color:var(--text)}
+    .status-box{min-height:24px;margin-top:13px;color:var(--muted);font-size:13px}
+    .status-box.success{color:var(--success)}
+    .status-box.error{color:var(--danger)}
+    .toast{position:fixed;left:50%;bottom:28px;z-index:50;transform:translate(-50%,18px);padding:11px 16px;border-radius:12px;background:#27283a;color:#fff;box-shadow:0 12px 32px rgba(25,24,46,.25);font-size:13px;opacity:0;pointer-events:none;transition:.2s ease}
+    .toast.show{opacity:1;transform:translate(-50%,0)}
+    footer{padding:28px 0 44px;text-align:center;color:var(--muted);font-size:12px}
+    @media(max-width:780px){main{padding-top:32px}.hero{align-items:flex-start;flex-direction:column}.local-note{max-width:none}.provider-grid,.data-grid{grid-template-columns:1fr}.summary{align-items:flex-start;flex-direction:column}.save-all{width:100%}.tabs{width:100%}.tab{flex:1;padding-inline:10px}.nav{min-height:62px}}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="shell nav">
+      <a class="brand" href="index.html"><span class="brand-mark">鐏?/span><span>AI 鐏靛</span></a>
+      <a class="back" href="index.html">鈫?杩斿洖棣栭〉</a>
+    </div>
+  </header>
+  <main class="shell">
+    <section class="hero">
+      <div><span class="eyebrow">鉁?鍏ㄧ珯绠＄悊</span><h1>鍏ㄥ眬閰嶇疆</h1><p class="lead">闆嗕腑绠＄悊鎵€鏈夋ā鍨嬫湇鍔★紝骞朵负褰撳墠娴忚鍣ㄤ腑鐨勭伒澧冩暟鎹缓绔嬪彲鎭㈠鐨勬湰鍦板浠姐€?/p></div>
+      <div class="local-note">馃攼 API Key 涓庢暟鎹彧淇濆瓨鍦ㄥ綋鍓嶆祻瑙堝櫒銆侭ase64 浠呯敤浜庡吋瀹规棫鐗堝瓨鍌紝涓嶄唬琛ㄥ姞瀵嗭紝璇峰嬁鍦ㄥ叕鍏辫澶囦繚瀛樺瘑閽ャ€?/div>
+    </section>
+    <div class="tabs" role="tablist" aria-label="閰嶇疆鍒嗙被">
+      <button class="tab active" type="button" role="tab" aria-selected="true" data-panel="apiPanel">API 閰嶇疆</button>
+      <button class="tab" type="button" role="tab" aria-selected="false" data-panel="dataPanel">鏁版嵁澶囦唤</button>
+    </div>
+    <section class="panel active" id="apiPanel" role="tabpanel">
+      <div class="summary"><div><strong id="apiSummary">姝ｅ湪璇诲彇閰嶇疆鈥?/strong><span>淇濆瓨鍚庯紝AI 宸ヤ綔鍙般€佽亰澶╁鍜屾祦绋嬫爲浼氬叡浜繖浜涜缃€?/span></div><button class="save-all" id="saveApiBtn" type="button">淇濆瓨鍏ㄩ儴閰嶇疆</button></div>
+      <div class="provider-grid" id="providerGrid"></div>
+    </section>
+    <section class="panel" id="dataPanel" role="tabpanel">
+      <div class="data-grid">
+        <article class="data-card">
+          <h2>瀵煎嚭鏈満鏁版嵁</h2>
+          <p>澶囦唤褰撳墠绔欑偣淇濆瓨鐨勫璇濄€佹埧闂淬€佹祦绋嬪拰鍋忓ソ璁剧疆銆傞粯璁ょЩ闄?API Key銆?/p>
+          <label class="check"><input type="checkbox" id="includeKeys"><span><strong>鍦ㄥ浠戒腑鍖呭惈 API Key</strong><br>浠呭湪鍙俊璁惧闂磋縼绉绘椂鍚敤锛岀敓鎴愮殑 JSON 灏嗗寘鍚晱鎰熶俊鎭€?/span></label>
+          <button class="primary-btn" id="exportDataBtn" type="button">涓嬭浇鏁版嵁澶囦唤</button>
+          <div class="status-box" id="exportStatus" aria-live="polite"></div>
+        </article>
+        <article class="data-card">
+          <h2>鎭㈠鏈満鏁版嵁</h2>
+          <p>閫夋嫨鐢辨湰椤电敓鎴愮殑 JSON銆傚鍏ラ噰鐢ㄥ悎骞舵柟寮忥紝鍚屽悕椤圭洰浼氳鐩栵紝鍏朵粬鐜版湁鏁版嵁淇濈暀銆?/p>
+          <input class="file-input" id="importFile" type="file" accept="application/json,.json">
+          <button class="secondary-btn" id="chooseImportBtn" type="button">閫夋嫨澶囦唤鏂囦欢</button>
+          <div class="status-box" id="importStatus" aria-live="polite"></div>
+          <ul class="storage-list"><li><span>宸蹭繚瀛橀」鐩?/span><strong id="storageCount">0</strong></li><li><span>浼扮畻鍗犵敤</span><strong id="storageSize">0 KB</strong></li><li><span>鏈€杩戣鍙?/span><strong id="storageTime">鈥?/strong></li></ul>
+        </article>
+      </div>
+    </section>
+  </main>
+  <footer class="shell">AI 鐏靛 路 閰嶇疆涓庢暟鎹潎鐢变綘鐨勬祻瑙堝櫒鎺岀</footer>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script>
+  (() => {
+    'use strict';
+    const STORAGE_KEY = 'dp0';
+    const CURRENT_PROVIDER_KEY = 'dcp0';
+    const LEGACY_SECRET_KEYS = new Set(['dp49', 'dk30']);
+    const PROVIDERS = {
+      deepseek:{name:'DeepSeek',icon:'馃煝',models:['deepseek-v4-pro','deepseek-v4-flash'],info:'鎺ㄧ悊涓庨珮閫熸ā鍨?},
+      openai:{name:'OpenAI',icon:'馃煟',models:['gpt-5.6-sol','gpt-5.6-terra','gpt-5.6-luna','gpt-5.5-latest'],info:'GPT 澶氭。妯″瀷'},
+      claude:{name:'Claude',icon:'馃煚',models:['claude-opus-4-6','claude-sonnet-4-6','claude-haiku-4-5'],info:'Opus銆丼onnet 涓?Haiku'},
+      gemini:{name:'Gemini',icon:'馃數',models:['gemini-3.5-flash','gemini-3.5-pro','gemini-omni-flash'],info:'Gemini 涓庡叏妯℃€佹ā鍨?},
+      qwen:{name:'鍗冮棶',icon:'馃敶',models:['qwen3.7-max','qwen3.7-plus','qwen3.7-flash'],info:'閫氫箟鍗冮棶绯诲垪'}
+    };
+    const $ = id => document.getElementById(id);
+    const state = { providers:{}, currentProvider:'deepseek' };
+
+    function decodeKey(value) {
+      if (!value) return '';
+      try { return decodeURIComponent(atob(value)); } catch { return ''; }
+    }
+    function encodeKey(value) {
+      if (!value) return '';
+      try { return btoa(encodeURIComponent(value.trim())); } catch { return ''; }
+    }
+    function loadConfig() {
+      Object.entries(PROVIDERS).forEach(([key, provider]) => {
+        state.providers[key] = { apiKey:'', model:provider.models[0] };
+      });
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+        Object.entries(PROVIDERS).forEach(([key, provider]) => {
+          const item = saved[key] || {};
+          state.providers[key].apiKey = decodeKey(item.apiKey);
+          state.providers[key].model = provider.models.includes(item.model) ? item.model : provider.models[0];
+        });
+      } catch {}
+      const current = localStorage.getItem(CURRENT_PROVIDER_KEY);
+      if (current && PROVIDERS[current]) state.currentProvider = current;
+    }
+    function renderProviders() {
+      const grid = $('providerGrid');
+      grid.innerHTML = '';
+      Object.entries(PROVIDERS).forEach(([key, provider]) => {
+        const config = state.providers[key];
+        const card = document.createElement('article');
+        card.className = 'provider-card';
+        card.dataset.provider = key;
+        card.innerHTML = `<div class="provider-head"><div class="provider-name"><span class="provider-icon">${provider.icon}</span><span>${provider.name}</span></div><span class="state ${config.apiKey ? 'ready' : ''}" data-state>${config.apiKey ? '宸查厤缃? : '鏈厤缃?}</span></div><div class="field"><label for="key-${key}">API Key</label><div class="input-wrap"><input id="key-${key}" data-key type="password" autocomplete="off" spellcheck="false" placeholder="杈撳叆 ${provider.name} API Key"><button class="reveal" data-reveal type="button">鏄剧ず</button></div></div><div class="field"><label for="model-${key}">榛樿妯″瀷</label><select id="model-${key}" data-model>${provider.models.map(model => `<option value="${model}">${model}</option>`).join('')}</select></div><div class="provider-foot"><span>${provider.info}</span><button class="default-btn ${state.currentProvider === key ? 'active' : ''}" data-default type="button">${state.currentProvider === key ? '鉁?褰撳墠榛樿' : '璁句负榛樿'}</button></div>`;
+        card.querySelector('[data-key]').value = config.apiKey;
+        card.querySelector('[data-model]').value = config.model;
+        grid.appendChild(card);
+      });
+      updateSummary();
+    }
+    function collectForm() {
+      document.querySelectorAll('.provider-card').forEach(card => {
+        const key = card.dataset.provider;
+        state.providers[key] = { apiKey:card.querySelector('[data-key]').value.trim(), model:card.querySelector('[data-model]').value };
+      });
+    }
+    function saveConfig() {
+      collectForm();
+      const payload = {};
+      Object.keys(PROVIDERS).forEach(key => { payload[key] = { apiKey:encodeKey(state.providers[key].apiKey), model:state.providers[key].model }; });
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+        localStorage.setItem(CURRENT_PROVIDER_KEY, state.currentProvider);
+        renderProviders();
+        showToast('鍏ㄥ眬 API 閰嶇疆宸蹭繚瀛?);
+      } catch (error) { showToast('淇濆瓨澶辫触锛? + (error.message || '娴忚鍣ㄥ瓨鍌ㄤ笉鍙敤'), true); }
+      updateStorageStats();
+    }
+    function updateSummary() {
+      const count = Object.values(state.providers).filter(item => item.apiKey).length;
+      $('apiSummary').textContent = `宸查厤缃?${count} / ${Object.keys(PROVIDERS).length} 涓ā鍨嬫湇鍔;
+    }
+    function sanitizedStorage(includeKeys) {
+      const result = {};
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (!key) continue;
+        if (LEGACY_SECRET_KEYS.has(key)) {
+          if (includeKeys) result[key] = localStorage.getItem(key) || '';
+          continue;
+        }
+        if (key === STORAGE_KEY && !includeKeys) {
+          try {
+            const providers = JSON.parse(localStorage.getItem(key) || '{}');
+            Object.values(providers).forEach(item => { if (item && typeof item === 'object') item.apiKey = ''; });
+            result[key] = JSON.stringify(providers);
+          } catch { result[key] = '{}'; }
+          continue;
+        }
+        result[key] = localStorage.getItem(key) || '';
+      }
+      return result;
+    }
+    function downloadBackup() {
+      const includeKeys = $('includeKeys').checked;
+      if (includeKeys && !confirm('澶囦唤灏嗗寘鍚彲鐩存帴浣跨敤鐨?API Key銆傜‘瀹氱户缁悧锛?)) return;
+      const payload = { schemaVersion:1, kind:'ai-dreamscape-browser-backup', createdAt:new Date().toISOString(), includesApiKeys:includeKeys, storage:sanitizedStorage(includeKeys) };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const date = new Date().toISOString().slice(0,10);
+      link.href = url; link.download = `ai-dreamscape-backup-${date}.json`; link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      $('exportStatus').className = 'status-box success';
+      $('exportStatus').textContent = `宸茬敓鎴?${Object.keys(payload.storage).length} 椤瑰浠?{includeKeys ? '锛堝寘鍚?API Key锛? : '锛堜笉鍚?API Key锛?}`;
+    }
+    async function importBackup(file) {
+      const status = $('importStatus');
+      status.className = 'status-box'; status.textContent = '姝ｅ湪妫€鏌ユ枃浠垛€?;
+      if (!file || file.size > 12 * 1024 * 1024) throw new Error('鏂囦欢涓虹┖鎴栬秴杩?12 MB');
+      const payload = JSON.parse(await file.text());
+      if (payload?.kind !== 'ai-dreamscape-browser-backup' || payload.schemaVersion !== 1 || !payload.storage || Array.isArray(payload.storage) || typeof payload.storage !== 'object') throw new Error('涓嶆槸鏈夋晥鐨?AI 鐏靛澶囦唤鏂囦欢');
+      const entries = Object.entries(payload.storage);
+      if (entries.length > 500 || entries.some(([key,value]) => !key || key.length > 200 || typeof value !== 'string')) throw new Error('澶囦唤鍐呭瓒呭嚭鍏佽鑼冨洿');
+      const warning = payload.includesApiKeys ? '\n璇ュ浠藉寘鍚?API Key銆? : '';
+      if (!confirm(`灏嗗悎骞舵仮澶?${entries.length} 椤规暟鎹紝鍚屽悕鏁版嵁浼氳瑕嗙洊銆?{warning}\n纭畾缁х画鍚楋紵`)) { status.textContent = '宸插彇娑堝鍏?; return; }
+      entries.forEach(([key,value]) => localStorage.setItem(key, value));
+      loadConfig(); renderProviders(); updateStorageStats();
+      status.className = 'status-box success'; status.textContent = `宸叉仮澶?${entries.length} 椤规暟鎹甡;
+      showToast('鏁版嵁鎭㈠瀹屾垚');
+    }
+    function updateStorageStats() {
+      let chars = 0;
+      for (let i = 0; i < localStorage.length; i++) { const key = localStorage.key(i) || ''; chars += key.length + (localStorage.getItem(key) || '').length; }
+      $('storageCount').textContent = String(localStorage.length);
+      $('storageSize').textContent = (chars * 2 / 1024).toFixed(1) + ' KB';
+      $('storageTime').textContent = new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});
+    }
+    let toastTimer;
+    function showToast(message, isError=false) {
+      const toast = $('toast'); toast.textContent = message; toast.style.background = isError ? '#a93350' : '#27283a'; toast.classList.add('show');
+      clearTimeout(toastTimer); toastTimer = setTimeout(() => toast.classList.remove('show'), 2600);
+    }
+    document.querySelectorAll('.tab').forEach(tab => tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(item => { const active = item === tab; item.classList.toggle('active', active); item.setAttribute('aria-selected', String(active)); });
+      document.querySelectorAll('.panel').forEach(panel => panel.classList.toggle('active', panel.id === tab.dataset.panel));
+      if (tab.dataset.panel === 'dataPanel') updateStorageStats();
+    }));
+    $('providerGrid').addEventListener('click', event => {
+      const card = event.target.closest('.provider-card'); if (!card) return;
+      if (event.target.matches('[data-reveal]')) { const input = card.querySelector('[data-key]'); const hidden = input.type === 'password'; input.type = hidden ? 'text' : 'password'; event.target.textContent = hidden ? '闅愯棌' : '鏄剧ず'; }
+      if (event.target.matches('[data-default]')) { state.currentProvider = card.dataset.provider; collectForm(); renderProviders(); }
+    });
+    $('providerGrid').addEventListener('input', event => {
+      if (!event.target.matches('[data-key]')) return;
+      const card = event.target.closest('.provider-card'); const ready = Boolean(event.target.value.trim()); const badge = card.querySelector('[data-state]'); badge.textContent = ready ? '寰呬繚瀛? : '鏈厤缃?; badge.classList.toggle('ready', ready); collectForm(); updateSummary();
+    });
+    $('saveApiBtn').addEventListener('click', saveConfig);
+    $('exportDataBtn').addEventListener('click', downloadBackup);
+    $('chooseImportBtn').addEventListener('click', () => $('importFile').click());
+    $('importFile').addEventListener('change', async event => { const file = event.target.files?.[0]; event.target.value = ''; try { await importBackup(file); } catch (error) { $('importStatus').className = 'status-box error'; $('importStatus').textContent = '瀵煎叆澶辫触锛? + (error.message || '鏂囦欢鏍煎紡閿欒'); } });
+    loadConfig(); renderProviders(); updateStorageStats();
+  })();
+  </script>
+</body>
+</html>
+
