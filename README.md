@@ -11,6 +11,7 @@ https://z1641818653-blip.github.io/AI-Dreamscape/index.html
 | 页面 | 用途 | 当前状态 |
 | --- | --- | --- |
 | `index.html` | 工具入口 | 已上线 |
+| `settings.html` | 全局 API 配置与本机数据备份 | 功能分支测试中 |
 | `chat.html` | 多模型聊天工作台 | v4.2.2 稳定维护版 |
 | `chatroom.html` | 多 AI 聊天室 | 可用 |
 | `mdtest.html` | Markdown 与公式测试 | 可用 |
@@ -45,7 +46,7 @@ docs(index): 更新工具状态说明
 
 ## 数据与 API Key
 
-对话记录和 API Key 主要保存在当前浏览器中。纯前端不等于绝对安全：不要在公共设备保存密钥，不要把 API Key 写入 HTML、提交记录、截图或导出文件，并建议定期更换密钥。
+对话记录和 API Key 主要保存在当前浏览器中。`settings.html` 集中管理各模型服务，并支持全站浏览器数据备份与恢复；备份默认移除 API Key。纯前端不等于绝对安全：不要在公共设备保存密钥，不要把 API Key 写入 HTML、提交记录或截图，并建议定期更换密钥。
 
 ## 恢复原则
 
