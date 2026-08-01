@@ -23,6 +23,9 @@
     .brand{display:flex;align-items:center;gap:11px;font-weight:760;letter-spacing:-.02em;text-decoration:none}
     .brand-mark{display:grid;place-items:center;width:38px;height:38px;border-radius:12px;background:linear-gradient(135deg,#7568f3,#a16ee8 70%,#df87c8);color:#fff;box-shadow:0 9px 24px rgba(101,88,232,.27)}
     .nav-note{font-size:13px;color:var(--muted)}
+    .nav-actions{display:flex;align-items:center;gap:16px}
+    .nav-settings{display:inline-flex;align-items:center;min-height:38px;padding:0 13px;border:1px solid var(--line);border-radius:11px;background:rgba(255,255,255,.72);color:var(--primary);font-size:13px;font-weight:700;text-decoration:none;transition:transform .18s ease,border-color .18s ease}
+    .nav-settings:hover{transform:translateY(-1px);border-color:rgba(101,88,232,.35)}
     main{padding:76px 0 56px}
     .hero{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(280px,.65fr);gap:34px;align-items:stretch}
     .hero-copy,.status{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);backdrop-filter:blur(16px)}
@@ -86,7 +89,7 @@
   <header>
     <div class="shell nav">
       <a class="brand" href="index.html"><span class="brand-mark">灵</span><span>AI 灵境</span></a>
-      <span class="nav-note">对话 · 共创 · 表达</span>
+      <div class="nav-actions"><span class="nav-note">对话 · 共创 · 表达</span><a class="nav-settings" href="settings.html">⚙ 全局配置</a></div>
     </div>
   </header>
 
@@ -163,5 +166,6 @@
   </main>
 
   <footer class="shell">AI 灵境 · 愿每一次探索，都有新的回响</footer>
+<script src="global-storage.js"></script>
 </body>
 </html>

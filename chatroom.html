@@ -590,6 +590,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
   </div>
 </div>
 
+<script src="model-selector.js"></script>
 <script>
 (function() {
   if (typeof marked !== 'undefined') marked.setOptions({ breaks: true, gfm: true });
@@ -618,7 +619,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     claude: {
       name: 'Claude',
       icon: '🟠',
-      models: ['claude-fable-5', 'claude-opus-5', 'claude-sonnet-5', 'claude-haiku-4-5'],
+      models: ['claude-opus-4-6', 'claude-sonnet-4-6', 'claude-haiku-4-5'],
       endpoint: 'https://api.anthropic.com/v1/messages',
       streamFormat: 'anthropic',
       authHeader: (key) => ({
@@ -788,10 +789,11 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
       'o3-mini': 'gpt-5.6-sol'
     },
     claude: {
-      'claude-sonnet-4-20250514': 'claude-sonnet-5',
-      'claude-3-5-haiku-20241022': 'claude-haiku-4-5',
-      'claude-opus-4-6': 'claude-opus-5',
-      'claude-sonnet-4-6': 'claude-sonnet-5'
+      'claude-fable-5': 'claude-sonnet-4-6',
+      'claude-opus-5': 'claude-opus-4-6',
+      'claude-sonnet-5': 'claude-sonnet-4-6',
+      'claude-sonnet-4-20250514': 'claude-sonnet-4-6',
+      'claude-3-5-haiku-20241022': 'claude-haiku-4-5'
     },
     gemini: {
       'gemini-2.5-flash': 'gemini-3.5-flash',
@@ -1466,17 +1468,9 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
               <label>角色提示</label>
               <textarea data-idx="${i}" class="ai-prompt" ${disabledAttr} placeholder="例：你是一个毒舌点评师...">${esc(p.prompt)}</textarea>
             </div>
-            <div class="ai-card-row">
-              <div class="ai-card-field" style="flex:1">
-                <label>提供商</label>
-                <select class="ai-provider" data-idx="${i}" ${disabledAttr}>
-                  ${Object.entries(PROVIDERS).map(([k, v]) => `<option value="${k}" ${k === p.provider ? 'selected' : ''}>${v.icon} ${v.name}</option>`).join('')}
-                </select>
-              </div>
-              <div class="ai-card-field" style="flex:1">
-                <label>模型</label>
-                <select class="ai-model" data-idx="${i}" ${disabledAttr}></select>
-              </div>
+            <div class="ai-card-field">
+              <label>模型配置</label>
+              <div class="ai-role-model-selector" data-model-selector="${i}"></div>
             </div>
             <div class="ai-card-field">
               <label>温度: <span class="temp-val" data-idx="${i}">${p.temp}</span></label>
@@ -1505,31 +1499,23 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
         saveRoom(room, false);
       });
 
-      if (!isHuman) {
-        const provSel = card.querySelector('.ai-provider');
-        const modelSel = card.querySelector('.ai-model');
-        function updateModels() {
-          const prov = PROVIDERS[provSel.value];
-          const curModel = room.participants[i]?.model;
-          const valid = curModel && prov.models.includes(curModel);
-          modelSel.innerHTML = prov.models.map(m => `<option value="${m}" ${m === (valid ? curModel : prov.models[0]) ? 'selected' : ''}>${m}</option>`).join('');
-          if (!valid) room.participants[i].model = prov.models[0];
-        }
-        updateModels();
+       if (!isHuman) {
+        const selectorHost = card.querySelector('.ai-role-model-selector');
+        DreamscapeModelSelector.mount(selectorHost, {
+          compact: true,
+          persist: false,
+          disabled: locked,
+          provider: p.provider,
+          model: p.model,
+          onChange(value) {
+            if (room.participants[i]?.locked) return;
+            room.participants[i].provider = value.provider;
+            room.participants[i].model = value.model;
+            saveRoom(room);
+          }
+        });
 
         if (!locked) {
-          provSel.addEventListener('change', () => {
-            if (room.participants[i]?.locked) return;
-            room.participants[i].provider = provSel.value;
-            room.participants[i].model = PROVIDERS[provSel.value].models[0];
-            updateModels();
-            saveRoom(room);
-          });
-          modelSel.addEventListener('change', () => {
-            if (room.participants[i]?.locked) return;
-            room.participants[i].model = modelSel.value;
-            saveRoom(room);
-          });
           card.querySelector('.ai-prompt').addEventListener('input', (e) => {
             if (room.participants[i]?.locked) return;
             room.participants[i].prompt = e.target.value;
@@ -1988,7 +1974,7 @@ ${transcript}
     if (room.messages.length === 0) { showToast('请先发送一条消息', 'warning'); return; }
     const hasConfiguredParticipant = aiParticipants.some(participant => getApiKey(participant.provider));
     if (!hasConfiguredParticipant) {
-      showToast('请先在 AI 工作台设置至少一个参与模型的 API Key', 'error');
+      showToast('请先在全局配置中设置至少一个参与模型的 API Key', 'error');
       return;
     }
 
@@ -2449,5 +2435,6 @@ ${transcript}
   },{passive:true});
 })();
 </script>
+<script src="global-storage.js"></script>
 </body>
 </html>

@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="AI 灵境全局 API 配置与本机数据备份">
+  <title>全局配置 · AI 灵境</title>
+  <style>
+    :root{color-scheme:light;--bg:#f6f6fc;--surface:rgba(255,255,255,.9);--surface-soft:#f7f7fc;--text:#202235;--muted:#6c7188;--line:rgba(103,94,196,.14);--primary:#6558e8;--primary-2:#9468e7;--primary-soft:#efedff;--success:#207548;--warning:#846218;--danger:#b43a55;--shadow:0 18px 48px rgba(52,47,111,.09);--radius:22px;--max:1160px}
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{margin:0;min-height:100vh;background:radial-gradient(circle at 8% 8%,rgba(121,105,239,.12),transparent 28%),radial-gradient(circle at 92% 6%,rgba(225,134,198,.1),transparent 25%),linear-gradient(180deg,#fbfbff,var(--bg));color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;line-height:1.6}
+    button,input,select{font:inherit}
+    button{cursor:pointer}
+    .shell{width:min(calc(100% - 32px),var(--max));margin:0 auto}
+    header{position:sticky;top:0;z-index:20;background:rgba(250,250,255,.82);border-bottom:1px solid var(--line);backdrop-filter:blur(18px)}
+    .nav{min-height:68px;display:flex;align-items:center;justify-content:space-between;gap:18px}
+    .brand{display:flex;align-items:center;gap:11px;color:inherit;font-weight:760;text-decoration:none}
+    .brand-mark{display:grid;place-items:center;width:38px;height:38px;border-radius:12px;background:linear-gradient(135deg,#7568f3,#a16ee8 70%,#df87c8);color:#fff;box-shadow:0 9px 24px rgba(101,88,232,.25)}
+    .back{color:var(--primary);font-size:14px;font-weight:700;text-decoration:none}
+    main{padding:52px 0 70px}
+    .hero{display:flex;align-items:flex-end;justify-content:space-between;gap:28px;margin-bottom:28px}
+    .eyebrow{display:inline-flex;align-items:center;gap:7px;padding:6px 11px;border-radius:999px;background:var(--primary-soft);color:var(--primary);font-size:12px;font-weight:750}
+    h1{margin:14px 0 8px;font-size:clamp(32px,5vw,48px);line-height:1.14;letter-spacing:-.035em}
+    .lead{max-width:720px;margin:0;color:var(--muted)}
+    .local-note{max-width:310px;padding:14px 16px;border:1px solid rgba(211,162,56,.18);border-radius:15px;background:#fffaf0;color:#755611;font-size:12px}
+    .tabs{display:flex;gap:8px;margin:0 0 20px;padding:5px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.72);width:max-content;max-width:100%}
+    .tab{border:0;border-radius:10px;background:transparent;color:var(--muted);padding:9px 15px;font-weight:700}
+    .tab.active{background:linear-gradient(135deg,var(--primary),var(--primary-2));color:#fff;box-shadow:0 7px 18px rgba(101,88,232,.22)}
+    .panel{display:none}
+    .panel.active{display:block}
+    .summary{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:18px 20px;margin-bottom:18px;border:1px solid var(--line);border-radius:17px;background:var(--surface);box-shadow:0 8px 26px rgba(52,47,111,.04)}
+    .summary strong{display:block}
+    .summary span{color:var(--muted);font-size:13px}
+    .save-all,.primary-btn{min-height:42px;padding:0 17px;border:0;border-radius:11px;background:linear-gradient(135deg,var(--primary),var(--primary-2));color:#fff;font-weight:750;box-shadow:0 8px 20px rgba(101,88,232,.22)}
+    .provider-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    .provider-card{padding:16px;border:1px solid var(--line);border-radius:16px;background:var(--surface);box-shadow:0 6px 22px rgba(52,47,111,.04)}
+    .provider-head{display:flex;align-items:center;justify-content:space-between;gap:11px;margin-bottom:11px}
+    .provider-name{display:flex;align-items:center;gap:8px;font-size:16px;font-weight:750}
+    .provider-icon{display:grid;place-items:center;width:32px;height:32px;border-radius:10px;background:var(--primary-soft)}
+    .state{padding:4px 9px;border-radius:999px;background:#f0f1f5;color:var(--muted);font-size:11px;font-weight:750}
+    .state.ready{background:#e9f8ef;color:var(--success)}
+    .field{display:grid;gap:5px;margin-top:10px}
+    .field label{font-size:11px;font-weight:700;color:#565b72}
+    .input-wrap{display:flex;gap:7px}
+    input,select{width:100%;min-height:36px;padding:0 10px;border:1px solid rgba(103,94,196,.19);border-radius:9px;background:#fff;color:var(--text);font-size:12px;outline:none}
+    input:focus,select:focus{border-color:rgba(101,88,232,.55);box-shadow:0 0 0 3px rgba(101,88,232,.1)}
+    .reveal{flex:0 0 auto;min-width:70px;border:1px solid var(--line);border-radius:11px;background:var(--surface-soft);color:var(--primary);font-weight:700}
+    .provider-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;color:var(--muted);font-size:12px}
+    .default-btn{border:0;background:transparent;color:var(--primary);font-weight:730}
+    .default-btn.active{color:var(--success)}
+    .data-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+    .data-card{padding:24px;border:1px solid var(--line);border-radius:20px;background:var(--surface);box-shadow:var(--shadow)}
+    .data-card h2{margin:0 0 7px;font-size:21px}
+    .data-card p{margin:0 0 18px;color:var(--muted);font-size:14px}
+    .check{display:flex;align-items:flex-start;gap:10px;margin:17px 0;color:#53586f;font-size:13px}
+    .check input{width:17px;min-height:auto;margin-top:3px;accent-color:var(--primary)}
+    .secondary-btn{min-height:42px;padding:0 16px;border:1px solid var(--line);border-radius:11px;background:#fff;color:var(--primary);font-weight:750}
+    .file-input{display:none}
+    .storage-list{margin:18px 0 0;padding:0;list-style:none;display:grid;gap:9px}
+    .storage-list li{display:flex;justify-content:space-between;gap:18px;padding-bottom:9px;border-bottom:1px solid var(--line);color:var(--muted);font-size:13px}
+    .storage-list strong{color:var(--text)}
+    .status-box{min-height:24px;margin-top:13px;color:var(--muted);font-size:13px}
+    .status-box.success{color:var(--success)}
+    .status-box.error{color:var(--danger)}
+    .cache-manage{width:100%;margin-top:16px}
+    .cache-overlay{position:fixed;inset:0;z-index:45;display:none;place-items:center;padding:18px;background:rgba(28,27,48,.46);backdrop-filter:blur(8px)}
+    .cache-overlay.open{display:grid}
+    .cache-dialog{width:min(100%,660px);max-height:min(82vh,720px);overflow:auto;padding:24px;border:1px solid var(--line);border-radius:20px;background:#fff;box-shadow:0 28px 70px rgba(26,24,57,.25)}
+    .cache-dialog h2{margin:0 0 6px}
+    .cache-dialog>p{margin:0 0 18px;color:var(--muted);font-size:13px}
+    .cache-toggle{display:flex;align-items:flex-start;gap:10px;padding:14px;border:1px solid var(--line);border-radius:13px;background:var(--surface-soft);font-size:13px}
+    .cache-toggle input{width:18px;min-height:auto;margin-top:3px;accent-color:var(--primary)}
+    .cache-list{display:grid;gap:10px;margin-top:16px}
+    .cache-empty{padding:18px;border:1px dashed var(--line);border-radius:12px;color:var(--muted);text-align:center;font-size:13px}
+    .cache-item{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:13px 14px;border:1px solid var(--line);border-radius:12px}
+    .cache-item strong,.cache-item span{display:block}
+    .cache-item span{color:var(--muted);font-size:11px}
+    .cache-delete{flex:0 0 auto;border:0;background:transparent;color:var(--danger);font-weight:700}
+    .cache-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}
+    .toast{position:fixed;left:50%;bottom:28px;z-index:50;transform:translate(-50%,18px);padding:11px 16px;border-radius:12px;background:#27283a;color:#fff;box-shadow:0 12px 32px rgba(25,24,46,.25);font-size:13px;opacity:0;pointer-events:none;transition:.2s ease}
+    .toast.show{opacity:1;transform:translate(-50%,0)}
+    footer{padding:28px 0 44px;text-align:center;color:var(--muted);font-size:12px}
+    @media(max-width:780px){main{padding-top:32px}.hero{align-items:flex-start;flex-direction:column}.local-note{max-width:none}.provider-grid,.data-grid{grid-template-columns:1fr}.summary{align-items:flex-start;flex-direction:column}.save-all{width:100%}.tabs{width:100%}.tab{flex:1;padding-inline:10px}.nav{min-height:62px}}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="shell nav">
+      <a class="brand" href="index.html"><span class="brand-mark">灵</span><span>AI 灵境</span></a>
+      <a class="back" href="index.html">← 返回首页</a>
+    </div>
+  </header>
+  <main class="shell">
+    <section class="hero">
+      <div><span class="eyebrow">✦ 全站管理</span><h1>全局配置</h1><p class="lead">集中管理所有模型服务，并为当前浏览器中的灵境数据建立可恢复的本地备份。</p></div>
+      <div class="local-note">🔐 API Key 与数据只保存在当前浏览器。Base64 仅用于兼容旧版存储，不代表加密，请勿在公共设备保存密钥。</div>
+    </section>
+    <div class="tabs" role="tablist" aria-label="配置分类">
+      <button class="tab active" type="button" role="tab" aria-selected="true" data-panel="apiPanel">API 配置</button>
+      <button class="tab" type="button" role="tab" aria-selected="false" data-panel="dataPanel">数据备份</button>
+    </div>
+    <section class="panel active" id="apiPanel" role="tabpanel">
+      <div class="summary"><div><strong id="apiSummary">正在读取配置…</strong><span>保存后，AI 工作台、聊天室和流程树会共享这些设置。</span></div><button class="save-all" id="saveApiBtn" type="button">保存全部配置</button></div>
+      <div class="provider-grid" id="providerGrid"></div>
+    </section>
+    <section class="panel" id="dataPanel" role="tabpanel">
+      <div class="data-grid">
+        <article class="data-card">
+          <h2>导出本机数据</h2>
+          <p>备份当前站点保存的对话、房间、流程和偏好设置。默认移除 API Key。</p>
+          <label class="check"><input type="checkbox" id="includeKeys"><span><strong>在备份中包含 API Key</strong><br>仅在可信设备间迁移时启用，生成的 JSON 将包含敏感信息。</span></label>
+          <button class="primary-btn" id="exportDataBtn" type="button">下载数据备份</button>
+          <div class="status-box" id="exportStatus" aria-live="polite"></div>
+        </article>
+        <article class="data-card">
+          <h2>恢复本机数据</h2>
+          <p>选择由本页生成的 JSON。导入采用合并方式，同名项目会覆盖，其他现有数据保留。</p>
+          <input class="file-input" id="importFile" type="file" accept="application/json,.json">
+          <button class="secondary-btn" id="chooseImportBtn" type="button">选择备份文件</button>
+          <div class="status-box" id="importStatus" aria-live="polite"></div>
+          <ul class="storage-list"><li><span>已保存项目</span><strong id="storageCount">0</strong></li><li><span>估算占用</span><strong id="storageSize">0 KB</strong></li><li><span>最近读取</span><strong id="storageTime">—</strong></li></ul>
+          <button class="secondary-btn cache-manage" id="pageCacheBtn" type="button">管理页面缓存与退出保护</button>
+        </article>
+      </div>
+    </section>
+  </main>
+  <footer class="shell">AI 灵境 · 配置与数据均由你的浏览器掌管</footer>
+  <div class="cache-overlay" id="cacheOverlay" aria-hidden="true">
+    <section class="cache-dialog" role="dialog" aria-modal="true" aria-labelledby="cacheDialogTitle">
+      <h2 id="cacheDialogTitle">页面缓存与退出保护</h2>
+      <p>灵境会缓存页面中尚未提交的非敏感输入。密码、API Key 和文件选择不会进入页面缓存。</p>
+      <label class="cache-toggle"><input type="checkbox" id="exitProtectionToggle"><span><strong>页面数据变化后，离开时请求确认</strong><br>浏览器会显示自己的标准提示文字；没有修改时不会打扰。</span></label>
+      <div class="cache-list" id="pageCacheList"></div>
+      <div class="cache-actions"><button class="secondary-btn" id="clearPageCachesBtn" type="button">清空全部缓存</button><button class="primary-btn" id="closeCacheBtn" type="button">完成</button></div>
+    </section>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script>
+  (() => {
+    'use strict';
+    const STORAGE_KEY = 'dp0';
+    const CURRENT_PROVIDER_KEY = 'dcp0';
+    const LEGACY_SECRET_KEYS = new Set(['dp49', 'dk30']);
+    const GLOBAL_STORAGE_SETTINGS_KEY = 'dreamscape_global_storage_v1';
+    const PAGE_CACHE_KEY = 'dreamscape_page_cache_v1';
+    const PROVIDERS = {
+      deepseek:{name:'DeepSeek',icon:'🟢',models:['deepseek-v4-pro','deepseek-v4-flash'],info:'推理与高速模型'},
+      openai:{name:'OpenAI',icon:'🟣',models:['gpt-5.6-sol','gpt-5.6-terra','gpt-5.6-luna','gpt-5.5-latest'],info:'GPT 多档模型'},
+      claude:{name:'Claude',icon:'🟠',models:['claude-opus-4-6','claude-sonnet-4-6','claude-haiku-4-5'],info:'Opus、Sonnet 与 Haiku'},
+      gemini:{name:'Gemini',icon:'🔵',models:['gemini-3.5-flash','gemini-3.5-pro','gemini-omni-flash'],info:'Gemini 与全模态模型'},
+      qwen:{name:'千问',icon:'🔴',models:['qwen3.7-max','qwen3.7-plus','qwen3.7-flash'],info:'通义千问系列'}
+    };
+    const $ = id => document.getElementById(id);
+    const state = { providers:{}, currentProvider:'deepseek' };
+
+    function decodeKey(value) {
+      if (!value) return '';
+      try { return decodeURIComponent(atob(value)); } catch { return ''; }
+    }
+    function encodeKey(value) {
+      if (!value) return '';
+      try { return btoa(encodeURIComponent(value.trim())); } catch { return ''; }
+    }
+    function loadConfig() {
+      Object.entries(PROVIDERS).forEach(([key, provider]) => {
+        state.providers[key] = { apiKey:'', model:provider.models[0] };
+      });
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+        Object.entries(PROVIDERS).forEach(([key, provider]) => {
+          const item = saved[key] || {};
+          state.providers[key].apiKey = decodeKey(item.apiKey);
+          state.providers[key].model = provider.models.includes(item.model) ? item.model : provider.models[0];
+        });
+      } catch {}
+      const current = localStorage.getItem(CURRENT_PROVIDER_KEY);
+      if (current && PROVIDERS[current]) state.currentProvider = current;
+    }
+    function renderProviders() {
+      const grid = $('providerGrid');
+      grid.innerHTML = '';
+      Object.entries(PROVIDERS).forEach(([key, provider]) => {
+        const config = state.providers[key];
+        const card = document.createElement('article');
+        card.className = 'provider-card';
+        card.dataset.provider = key;
+        card.innerHTML = `<div class="provider-head"><div class="provider-name"><span class="provider-icon">${provider.icon}</span><span>${provider.name}</span></div><span class="state ${config.apiKey ? 'ready' : ''}" data-state>${config.apiKey ? '已配置' : '未配置'}</span></div><div class="field"><label for="key-${key}">API Key</label><div class="input-wrap"><input id="key-${key}" data-key type="password" autocomplete="off" spellcheck="false" placeholder="输入 ${provider.name} API Key"><button class="reveal" data-reveal type="button">显示</button></div></div><div class="field"><label for="model-${key}">默认模型</label><select id="model-${key}" data-model>${provider.models.map(model => `<option value="${model}">${model}</option>`).join('')}</select></div><div class="provider-foot"><span>${provider.info}</span><button class="default-btn ${state.currentProvider === key ? 'active' : ''}" data-default type="button">${state.currentProvider === key ? '✓ 当前默认' : '设为默认'}</button></div>`;
+        card.querySelector('[data-key]').value = config.apiKey;
+        card.querySelector('[data-model]').value = config.model;
+        grid.appendChild(card);
+      });
+      updateSummary();
+    }
+    function collectForm() {
+      document.querySelectorAll('.provider-card').forEach(card => {
+        const key = card.dataset.provider;
+        state.providers[key] = { apiKey:card.querySelector('[data-key]').value.trim(), model:card.querySelector('[data-model]').value };
+      });
+    }
+    function saveConfig() {
+      collectForm();
+      const payload = {};
+      Object.keys(PROVIDERS).forEach(key => { payload[key] = { apiKey:encodeKey(state.providers[key].apiKey), model:state.providers[key].model }; });
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+        localStorage.setItem(CURRENT_PROVIDER_KEY, state.currentProvider);
+        renderProviders();
+        showToast('全局 API 配置已保存');
+      } catch (error) { showToast('保存失败：' + (error.message || '浏览器存储不可用'), true); }
+      updateStorageStats();
+    }
+    function updateSummary() {
+      const count = Object.values(state.providers).filter(item => item.apiKey).length;
+      $('apiSummary').textContent = `已配置 ${count} / ${Object.keys(PROVIDERS).length} 个模型服务`;
+    }
+    function sanitizedStorage(includeKeys) {
+      const result = {};
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (!key) continue;
+        if (LEGACY_SECRET_KEYS.has(key)) {
+          if (includeKeys) result[key] = localStorage.getItem(key) || '';
+          continue;
+        }
+        if (key === STORAGE_KEY && !includeKeys) {
+          try {
+            const providers = JSON.parse(localStorage.getItem(key) || '{}');
+            Object.values(providers).forEach(item => { if (item && typeof item === 'object') item.apiKey = ''; });
+            result[key] = JSON.stringify(providers);
+          } catch { result[key] = '{}'; }
+          continue;
+        }
+        result[key] = localStorage.getItem(key) || '';
+      }
+      return result;
+    }
+    function downloadBackup() {
+      const includeKeys = $('includeKeys').checked;
+      if (includeKeys && !confirm('备份将包含可直接使用的 API Key。确定继续吗？')) return;
+      const payload = { schemaVersion:1, kind:'ai-dreamscape-browser-backup', createdAt:new Date().toISOString(), includesApiKeys:includeKeys, storage:sanitizedStorage(includeKeys) };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const date = new Date().toISOString().slice(0,10);
+      link.href = url; link.download = `ai-dreamscape-backup-${date}.json`; link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      $('exportStatus').className = 'status-box success';
+      $('exportStatus').textContent = `已生成 ${Object.keys(payload.storage).length} 项备份${includeKeys ? '（包含 API Key）' : '（不含 API Key）'}`;
+    }
+    async function importBackup(file) {
+      const status = $('importStatus');
+      status.className = 'status-box'; status.textContent = '正在检查文件…';
+      if (!file || file.size > 12 * 1024 * 1024) throw new Error('文件为空或超过 12 MB');
+      const payload = JSON.parse(await file.text());
+      if (payload?.kind !== 'ai-dreamscape-browser-backup' || payload.schemaVersion !== 1 || !payload.storage || Array.isArray(payload.storage) || typeof payload.storage !== 'object') throw new Error('不是有效的 AI 灵境备份文件');
+      const entries = Object.entries(payload.storage);
+      if (entries.length > 500 || entries.some(([key,value]) => !key || key.length > 200 || typeof value !== 'string')) throw new Error('备份内容超出允许范围');
+      const warning = payload.includesApiKeys ? '\n该备份包含 API Key。' : '';
+      if (!confirm(`将合并恢复 ${entries.length} 项数据，同名数据会被覆盖。${warning}\n确定继续吗？`)) { status.textContent = '已取消导入'; return; }
+      entries.forEach(([key,value]) => {
+        if (key === STORAGE_KEY && !payload.includesApiKeys) {
+          try {
+            const incoming = JSON.parse(value);
+            const current = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+            Object.keys(incoming).forEach(providerKey => {
+              if (incoming[providerKey] && typeof incoming[providerKey] === 'object') {
+                incoming[providerKey].apiKey = current?.[providerKey]?.apiKey || '';
+              }
+            });
+            localStorage.setItem(key, JSON.stringify(incoming));
+            return;
+          } catch {}
+        }
+        localStorage.setItem(key, value);
+      });
+      loadConfig(); renderProviders(); updateStorageStats();
+      status.className = 'status-box success'; status.textContent = `已恢复 ${entries.length} 项数据`;
+      showToast('数据恢复完成');
+    }
+    function updateStorageStats() {
+      let chars = 0;
+      for (let i = 0; i < localStorage.length; i++) { const key = localStorage.key(i) || ''; chars += key.length + (localStorage.getItem(key) || '').length; }
+      $('storageCount').textContent = String(localStorage.length);
+      $('storageSize').textContent = (chars * 2 / 1024).toFixed(1) + ' KB';
+      $('storageTime').textContent = new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});
+    }
+    function readObject(key) {
+      try { const value = JSON.parse(localStorage.getItem(key) || '{}'); return value && typeof value === 'object' ? value : {}; }
+      catch { return {}; }
+    }
+    function renderPageCaches() {
+      const settings = { exitProtection:true, ...readObject(GLOBAL_STORAGE_SETTINGS_KEY) };
+      $('exitProtectionToggle').checked = settings.exitProtection !== false;
+      const caches = readObject(PAGE_CACHE_KEY);
+      const list = $('pageCacheList');
+      list.innerHTML = '';
+      const entries = Object.entries(caches).sort((a,b) => String(b[1]?.updatedAt || '').localeCompare(String(a[1]?.updatedAt || '')));
+      if (!entries.length) {
+        const empty = document.createElement('div'); empty.className = 'cache-empty'; empty.textContent = '目前没有页面输入缓存'; list.appendChild(empty); return;
+      }
+      entries.forEach(([path, record]) => {
+        const item = document.createElement('div'); item.className = 'cache-item';
+        const info = document.createElement('div');
+        const title = document.createElement('strong'); title.textContent = record?.title || path;
+        const meta = document.createElement('span');
+        const time = record?.updatedAt ? new Date(record.updatedAt).toLocaleString('zh-CN') : '时间未知';
+        meta.textContent = `${path} · ${record?.fieldCount || 0} 项 · ${time}`;
+        const remove = document.createElement('button'); remove.className = 'cache-delete'; remove.type = 'button'; remove.textContent = '删除'; remove.dataset.cachePath = path;
+        info.append(title, meta); item.append(info, remove); list.appendChild(item);
+      });
+    }
+    function openPageCacheManager() {
+      renderPageCaches(); $('cacheOverlay').classList.add('open'); $('cacheOverlay').setAttribute('aria-hidden','false');
+    }
+    function closePageCacheManager() {
+      $('cacheOverlay').classList.remove('open'); $('cacheOverlay').setAttribute('aria-hidden','true');
+    }
+    let toastTimer;
+    function showToast(message, isError=false) {
+      const toast = $('toast'); toast.textContent = message; toast.style.background = isError ? '#a93350' : '#27283a'; toast.classList.add('show');
+      clearTimeout(toastTimer); toastTimer = setTimeout(() => toast.classList.remove('show'), 2600);
+    }
+    document.querySelectorAll('.tab').forEach(tab => tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(item => { const active = item === tab; item.classList.toggle('active', active); item.setAttribute('aria-selected', String(active)); });
+      document.querySelectorAll('.panel').forEach(panel => panel.classList.toggle('active', panel.id === tab.dataset.panel));
+      if (tab.dataset.panel === 'dataPanel') updateStorageStats();
+    }));
+    $('providerGrid').addEventListener('click', event => {
+      const card = event.target.closest('.provider-card'); if (!card) return;
+      if (event.target.matches('[data-reveal]')) { const input = card.querySelector('[data-key]'); const hidden = input.type === 'password'; input.type = hidden ? 'text' : 'password'; event.target.textContent = hidden ? '隐藏' : '显示'; }
+      if (event.target.matches('[data-default]')) { state.currentProvider = card.dataset.provider; collectForm(); renderProviders(); }
+    });
+    $('providerGrid').addEventListener('input', event => {
+      if (!event.target.matches('[data-key]')) return;
+      const card = event.target.closest('.provider-card'); const ready = Boolean(event.target.value.trim()); const badge = card.querySelector('[data-state]'); badge.textContent = ready ? '待保存' : '未配置'; badge.classList.toggle('ready', ready); collectForm(); updateSummary();
+    });
+    $('saveApiBtn').addEventListener('click', saveConfig);
+    $('exportDataBtn').addEventListener('click', downloadBackup);
+    $('chooseImportBtn').addEventListener('click', () => $('importFile').click());
+    $('importFile').addEventListener('change', async event => { const file = event.target.files?.[0]; event.target.value = ''; try { await importBackup(file); } catch (error) { $('importStatus').className = 'status-box error'; $('importStatus').textContent = '导入失败：' + (error.message || '文件格式错误'); } });
+    $('pageCacheBtn').addEventListener('click', openPageCacheManager);
+    $('closeCacheBtn').addEventListener('click', closePageCacheManager);
+    $('cacheOverlay').addEventListener('click', event => { if (event.target === $('cacheOverlay')) closePageCacheManager(); });
+    $('exitProtectionToggle').addEventListener('change', event => { localStorage.setItem(GLOBAL_STORAGE_SETTINGS_KEY, JSON.stringify({ exitProtection:event.target.checked })); showToast(event.target.checked ? '退出保护已开启' : '退出保护已关闭'); });
+    $('pageCacheList').addEventListener('click', event => { const path = event.target.dataset.cachePath; if (!path) return; const caches = readObject(PAGE_CACHE_KEY); delete caches[path]; localStorage.setItem(PAGE_CACHE_KEY, JSON.stringify(caches)); renderPageCaches(); updateStorageStats(); });
+    $('clearPageCachesBtn').addEventListener('click', () => { if (!confirm('确定清空全部页面输入缓存吗？')) return; localStorage.removeItem(PAGE_CACHE_KEY); renderPageCaches(); updateStorageStats(); showToast('页面缓存已清空'); });
+    loadConfig(); renderProviders(); updateStorageStats();
+  })();
+  </script>
+  <script src="global-storage.js"></script>
+</body>
+</html>
+

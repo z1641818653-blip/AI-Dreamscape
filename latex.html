@@ -91,39 +91,7 @@
         <button class="icon-btn" type="button" data-close="ai" aria-label="关闭 AI 辅助">×</button>
       </div>
 
-      <details class="ai-config-fold">
-        <summary>
-          <strong>模型设置</strong>
-          <span id="aiConfigSummary">DeepSeek · deepseek-v4-flash</span>
-        </summary>
-        <div class="ai-config">
-          <label>
-            <span>服务</span>
-            <select id="providerSelect">
-              <option value="deepseek">DeepSeek</option>
-              <option value="openai">OpenAI</option>
-              <option value="gemini">Gemini</option>
-              <option value="qwen">千问</option>
-            </select>
-          </label>
-          <label>
-            <span>模型</span>
-            <select id="modelInput" aria-label="模型选择"></select>
-          </label>
-          <input id="customModelInput" class="custom-model-input" type="text" autocomplete="off" placeholder="输入自定义模型 ID" hidden>
-          <details class="api-key-fold">
-            <summary>
-              <span>API Key</span>
-              <small>点击展开 · 仅本次保留</small>
-            </summary>
-            <div class="api-key-row">
-              <input id="apiKeyInput" aria-label="API Key" type="password" autocomplete="off" placeholder="输入当前服务的 API Key">
-              <button id="clearApiKeyBtn" type="button">清除</button>
-            </div>
-          </details>
-          <p>源码会发送给你选择的模型服务；Key 不写入长期存储。</p>
-        </div>
-      </details>
+      <div id="latexModelSelector"></div>
 
       <div class="ai-quick-actions" aria-label="AI 快捷操作">
         <button type="button" data-ai-action="diagnose"><span aria-hidden="true">✓</span>检查源码</button>
@@ -158,6 +126,8 @@
     <input type="hidden" name="return" value="pdf">
   </form>
 
+  <script src="model-selector.js"></script>
   <script src="assets/latexfix.js" defer></script>
+  <script src="global-storage.js"></script>
 </body>
 </html>
