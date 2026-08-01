@@ -136,8 +136,6 @@
     model: $('#modelInput'),
     customModel: $('#customModelInput'),
     aiConfigSummary: $('#aiConfigSummary'),
-    apiKey: $('#apiKeyInput'),
-    clearApiKeyBtn: $('#clearApiKeyBtn'),
     chatMessages: $('#chatMessages'),
     chatInput: $('#chatInput'),
     sendAiBtn: $('#sendAiBtn'),
@@ -152,11 +150,38 @@
     compileStartedAt: 0,
     aiController: null,
     aiHistory: [],
-    keys: {},
     models: {},
     saveTimer: null,
     outlineTimer: null
   };
+
+  function decodeStoredKey(value) {
+    if (!value) return '';
+    try { return decodeURIComponent(atob(value)); } catch { return ''; }
+  }
+
+  function getGlobalProviderConfig(providerKey) {
+    try {
+      const providers = JSON.parse(localStorage.getItem('dp0') || '{}');
+      return providers?.[providerKey] || {};
+    } catch {
+      return {};
+    }
+  }
+
+  function getGlobalApiKey(providerKey) {
+    return decodeStoredKey(getGlobalProviderConfig(providerKey).apiKey).trim();
+  }
+
+  function saveGlobalModel(providerKey, model) {
+    if (!providerKey || !model) return;
+    try {
+      const providers = JSON.parse(localStorage.getItem('dp0') || '{}');
+      const current = providers[providerKey] && typeof providers[providerKey] === 'object' ? providers[providerKey] : {};
+      providers[providerKey] = { ...current, model };
+      localStorage.setItem('dp0', JSON.stringify(providers));
+    } catch {}
+  }
 
   function normalizeTex(value) {
     return String(value || '')
@@ -545,12 +570,12 @@ ${el.editor.value}
   async function sendAi() {
     if (state.aiController) return;
     const prompt = el.chatInput.value.trim();
-    const key = el.apiKey.value.trim();
+    const key = getGlobalApiKey(el.provider.value);
     const provider = PROVIDERS[el.provider.value];
     const model = getSelectedModel();
     if (!prompt) return;
     if (!key) {
-      addMessage('assistant', '请先填写当前服务的 API Key。', { error: true });
+      addMessage('assistant', '当前服务尚未配置 API Key，请先前往全局配置。', { error: true });
       return;
     }
     if (!model) {
@@ -558,7 +583,6 @@ ${el.editor.value}
       return;
     }
 
-    state.keys[el.provider.value] = key;
     el.chatInput.value = '';
     addMessage('user', prompt);
     const loading = addMessage('assistant', '', { loading: true });
@@ -609,12 +633,11 @@ ${el.editor.value}
   function changeProvider(nextProvider) {
     const previous = el.provider.dataset.current;
     if (previous) {
-      state.keys[previous] = el.apiKey.value.trim();
       state.models[previous] = getSelectedModel();
     }
     el.provider.dataset.current = nextProvider;
     const available = PROVIDERS[nextProvider].models;
-    const preferred = state.models[nextProvider] || available[0];
+    const preferred = state.models[nextProvider] || getGlobalProviderConfig(nextProvider).model || available[0];
     el.model.replaceChildren();
     available.forEach(modelId => {
       const option = document.createElement('option');
@@ -635,7 +658,6 @@ ${el.editor.value}
       el.customModel.hidden = false;
       el.customModel.value = preferred;
     }
-    el.apiKey.value = state.keys[nextProvider] || '';
     updateAiConfigSummary();
   }
 
@@ -645,7 +667,8 @@ ${el.editor.value}
 
   function updateAiConfigSummary() {
     const providerName = el.provider.options[el.provider.selectedIndex]?.textContent || el.provider.value;
-    el.aiConfigSummary.textContent = `${providerName} · ${getSelectedModel() || '未设置模型'}`;
+    const apiState = getGlobalApiKey(el.provider.value) ? 'API 已配置' : '需前往全局配置';
+    el.aiConfigSummary.textContent = `${providerName} · ${getSelectedModel() || '未设置模型'} · ${apiState}`;
   }
 
   function runQuickAiAction(action) {
@@ -696,13 +719,14 @@ ${el.editor.value}
       const custom = el.model.value === '__custom__';
       el.customModel.hidden = !custom;
       if (custom) el.customModel.focus();
+      state.models[el.provider.value] = getSelectedModel();
+      saveGlobalModel(el.provider.value, getSelectedModel());
       updateAiConfigSummary();
     });
-    el.customModel.addEventListener('input', updateAiConfigSummary);
-    el.clearApiKeyBtn.addEventListener('click', () => {
-      state.keys[el.provider.value] = '';
-      el.apiKey.value = '';
-      el.apiKey.focus();
+    el.customModel.addEventListener('input', () => {
+      state.models[el.provider.value] = getSelectedModel();
+      saveGlobalModel(el.provider.value, getSelectedModel());
+      updateAiConfigSummary();
     });
     el.sendAiBtn.addEventListener('click', sendAi);
     el.cancelAiBtn.addEventListener('click', () => state.aiController?.abort('user'));
@@ -730,7 +754,8 @@ ${el.editor.value}
     el.editor.value = draft;
     el.engine.value = detectEngine(draft);
     snapshot(draft, '初始版本');
-    changeProvider('deepseek');
+    const globalProvider = localStorage.getItem('dcp0');
+    changeProvider(PROVIDERS[globalProvider] ? globalProvider : 'deepseek');
     renderOutline();
     bindEvents();
     syncDrawerState();
