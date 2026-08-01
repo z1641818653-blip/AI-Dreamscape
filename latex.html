@@ -111,17 +111,8 @@
             <select id="modelInput" aria-label="模型选择"></select>
           </label>
           <input id="customModelInput" class="custom-model-input" type="text" autocomplete="off" placeholder="输入自定义模型 ID" hidden>
-          <details class="api-key-fold">
-            <summary>
-              <span>API Key</span>
-              <small>点击展开 · 仅本次保留</small>
-            </summary>
-            <div class="api-key-row">
-              <input id="apiKeyInput" aria-label="API Key" type="password" autocomplete="off" placeholder="输入当前服务的 API Key">
-              <button id="clearApiKeyBtn" type="button">清除</button>
-            </div>
-          </details>
-          <p>源码会发送给你选择的模型服务；Key 不写入长期存储。</p>
+          <p><a href="settings.html" style="display:inline-flex;align-items:center;min-height:38px;padding:0 13px;border:1px solid var(--border);border-radius:10px;color:var(--primary);font-weight:700;text-decoration:none">⚙️ 前往全局配置管理 API Key</a></p>
+          <p>这里只选择服务与模型；API Key 由全局配置统一提供。</p>
         </div>
       </details>
 
@@ -159,5 +150,6 @@
   </form>
 
   <script src="assets/latexfix.js" defer></script>
+  <script src="global-storage.js"></script>
 </body>
 </html>
