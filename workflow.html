@@ -124,5 +124,6 @@
   if(content)content.addEventListener('scroll',function(){var best=null,dist=Infinity,top=content.getBoundingClientRect().top;links.forEach(function(link){var target=document.getElementById(link.dataset.target);if(!target)return;var d=Math.abs(target.getBoundingClientRect().top-top-8);if(d<dist){dist=d;best=link;}});links.forEach(function(x){x.classList.toggle('active',x===best)});},{passive:true});
 })();
 </script>
+<script src="global-storage.js"></script>
 </body>
 </html>
