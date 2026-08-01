@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="description" content="AI 鐏靛鍏ㄥ眬 API 閰嶇疆涓庢湰鏈烘暟鎹浠?>
-  <title>鍏ㄥ眬閰嶇疆 路 AI 鐏靛</title>
+  <meta name="description" content="AI 灵境全局 API 配置与本机数据备份">
+  <title>全局配置 · AI 灵境</title>
   <style>
     :root{color-scheme:light;--bg:#f6f6fc;--surface:rgba(255,255,255,.9);--surface-soft:#f7f7fc;--text:#202235;--muted:#6c7188;--line:rgba(103,94,196,.14);--primary:#6558e8;--primary-2:#9468e7;--primary-soft:#efedff;--success:#207548;--warning:#846218;--danger:#b43a55;--shadow:0 18px 48px rgba(52,47,111,.09);--radius:22px;--max:1160px}
     *{box-sizing:border-box}
@@ -72,44 +72,44 @@
 <body>
   <header>
     <div class="shell nav">
-      <a class="brand" href="index.html"><span class="brand-mark">鐏?/span><span>AI 鐏靛</span></a>
-      <a class="back" href="index.html">鈫?杩斿洖棣栭〉</a>
+      <a class="brand" href="index.html"><span class="brand-mark">灵</span><span>AI 灵境</span></a>
+      <a class="back" href="index.html">← 返回首页</a>
     </div>
   </header>
   <main class="shell">
     <section class="hero">
-      <div><span class="eyebrow">鉁?鍏ㄧ珯绠＄悊</span><h1>鍏ㄥ眬閰嶇疆</h1><p class="lead">闆嗕腑绠＄悊鎵€鏈夋ā鍨嬫湇鍔★紝骞朵负褰撳墠娴忚鍣ㄤ腑鐨勭伒澧冩暟鎹缓绔嬪彲鎭㈠鐨勬湰鍦板浠姐€?/p></div>
-      <div class="local-note">馃攼 API Key 涓庢暟鎹彧淇濆瓨鍦ㄥ綋鍓嶆祻瑙堝櫒銆侭ase64 浠呯敤浜庡吋瀹规棫鐗堝瓨鍌紝涓嶄唬琛ㄥ姞瀵嗭紝璇峰嬁鍦ㄥ叕鍏辫澶囦繚瀛樺瘑閽ャ€?/div>
+      <div><span class="eyebrow">✦ 全站管理</span><h1>全局配置</h1><p class="lead">集中管理所有模型服务，并为当前浏览器中的灵境数据建立可恢复的本地备份。</p></div>
+      <div class="local-note">🔐 API Key 与数据只保存在当前浏览器。Base64 仅用于兼容旧版存储，不代表加密，请勿在公共设备保存密钥。</div>
     </section>
-    <div class="tabs" role="tablist" aria-label="閰嶇疆鍒嗙被">
-      <button class="tab active" type="button" role="tab" aria-selected="true" data-panel="apiPanel">API 閰嶇疆</button>
-      <button class="tab" type="button" role="tab" aria-selected="false" data-panel="dataPanel">鏁版嵁澶囦唤</button>
+    <div class="tabs" role="tablist" aria-label="配置分类">
+      <button class="tab active" type="button" role="tab" aria-selected="true" data-panel="apiPanel">API 配置</button>
+      <button class="tab" type="button" role="tab" aria-selected="false" data-panel="dataPanel">数据备份</button>
     </div>
     <section class="panel active" id="apiPanel" role="tabpanel">
-      <div class="summary"><div><strong id="apiSummary">姝ｅ湪璇诲彇閰嶇疆鈥?/strong><span>淇濆瓨鍚庯紝AI 宸ヤ綔鍙般€佽亰澶╁鍜屾祦绋嬫爲浼氬叡浜繖浜涜缃€?/span></div><button class="save-all" id="saveApiBtn" type="button">淇濆瓨鍏ㄩ儴閰嶇疆</button></div>
+      <div class="summary"><div><strong id="apiSummary">正在读取配置…</strong><span>保存后，AI 工作台、聊天室和流程树会共享这些设置。</span></div><button class="save-all" id="saveApiBtn" type="button">保存全部配置</button></div>
       <div class="provider-grid" id="providerGrid"></div>
     </section>
     <section class="panel" id="dataPanel" role="tabpanel">
       <div class="data-grid">
         <article class="data-card">
-          <h2>瀵煎嚭鏈満鏁版嵁</h2>
-          <p>澶囦唤褰撳墠绔欑偣淇濆瓨鐨勫璇濄€佹埧闂淬€佹祦绋嬪拰鍋忓ソ璁剧疆銆傞粯璁ょЩ闄?API Key銆?/p>
-          <label class="check"><input type="checkbox" id="includeKeys"><span><strong>鍦ㄥ浠戒腑鍖呭惈 API Key</strong><br>浠呭湪鍙俊璁惧闂磋縼绉绘椂鍚敤锛岀敓鎴愮殑 JSON 灏嗗寘鍚晱鎰熶俊鎭€?/span></label>
-          <button class="primary-btn" id="exportDataBtn" type="button">涓嬭浇鏁版嵁澶囦唤</button>
+          <h2>导出本机数据</h2>
+          <p>备份当前站点保存的对话、房间、流程和偏好设置。默认移除 API Key。</p>
+          <label class="check"><input type="checkbox" id="includeKeys"><span><strong>在备份中包含 API Key</strong><br>仅在可信设备间迁移时启用，生成的 JSON 将包含敏感信息。</span></label>
+          <button class="primary-btn" id="exportDataBtn" type="button">下载数据备份</button>
           <div class="status-box" id="exportStatus" aria-live="polite"></div>
         </article>
         <article class="data-card">
-          <h2>鎭㈠鏈満鏁版嵁</h2>
-          <p>閫夋嫨鐢辨湰椤电敓鎴愮殑 JSON銆傚鍏ラ噰鐢ㄥ悎骞舵柟寮忥紝鍚屽悕椤圭洰浼氳鐩栵紝鍏朵粬鐜版湁鏁版嵁淇濈暀銆?/p>
+          <h2>恢复本机数据</h2>
+          <p>选择由本页生成的 JSON。导入采用合并方式，同名项目会覆盖，其他现有数据保留。</p>
           <input class="file-input" id="importFile" type="file" accept="application/json,.json">
-          <button class="secondary-btn" id="chooseImportBtn" type="button">閫夋嫨澶囦唤鏂囦欢</button>
+          <button class="secondary-btn" id="chooseImportBtn" type="button">选择备份文件</button>
           <div class="status-box" id="importStatus" aria-live="polite"></div>
-          <ul class="storage-list"><li><span>宸蹭繚瀛橀」鐩?/span><strong id="storageCount">0</strong></li><li><span>浼扮畻鍗犵敤</span><strong id="storageSize">0 KB</strong></li><li><span>鏈€杩戣鍙?/span><strong id="storageTime">鈥?/strong></li></ul>
+          <ul class="storage-list"><li><span>已保存项目</span><strong id="storageCount">0</strong></li><li><span>估算占用</span><strong id="storageSize">0 KB</strong></li><li><span>最近读取</span><strong id="storageTime">—</strong></li></ul>
         </article>
       </div>
     </section>
   </main>
-  <footer class="shell">AI 鐏靛 路 閰嶇疆涓庢暟鎹潎鐢变綘鐨勬祻瑙堝櫒鎺岀</footer>
+  <footer class="shell">AI 灵境 · 配置与数据均由你的浏览器掌管</footer>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script>
   (() => {
@@ -118,11 +118,11 @@
     const CURRENT_PROVIDER_KEY = 'dcp0';
     const LEGACY_SECRET_KEYS = new Set(['dp49', 'dk30']);
     const PROVIDERS = {
-      deepseek:{name:'DeepSeek',icon:'馃煝',models:['deepseek-v4-pro','deepseek-v4-flash'],info:'鎺ㄧ悊涓庨珮閫熸ā鍨?},
-      openai:{name:'OpenAI',icon:'馃煟',models:['gpt-5.6-sol','gpt-5.6-terra','gpt-5.6-luna','gpt-5.5-latest'],info:'GPT 澶氭。妯″瀷'},
-      claude:{name:'Claude',icon:'馃煚',models:['claude-opus-4-6','claude-sonnet-4-6','claude-haiku-4-5'],info:'Opus銆丼onnet 涓?Haiku'},
-      gemini:{name:'Gemini',icon:'馃數',models:['gemini-3.5-flash','gemini-3.5-pro','gemini-omni-flash'],info:'Gemini 涓庡叏妯℃€佹ā鍨?},
-      qwen:{name:'鍗冮棶',icon:'馃敶',models:['qwen3.7-max','qwen3.7-plus','qwen3.7-flash'],info:'閫氫箟鍗冮棶绯诲垪'}
+      deepseek:{name:'DeepSeek',icon:'🟢',models:['deepseek-v4-pro','deepseek-v4-flash'],info:'推理与高速模型'},
+      openai:{name:'OpenAI',icon:'🟣',models:['gpt-5.6-sol','gpt-5.6-terra','gpt-5.6-luna','gpt-5.5-latest'],info:'GPT 多档模型'},
+      claude:{name:'Claude',icon:'🟠',models:['claude-opus-4-6','claude-sonnet-4-6','claude-haiku-4-5'],info:'Opus、Sonnet 与 Haiku'},
+      gemini:{name:'Gemini',icon:'🔵',models:['gemini-3.5-flash','gemini-3.5-pro','gemini-omni-flash'],info:'Gemini 与全模态模型'},
+      qwen:{name:'千问',icon:'🔴',models:['qwen3.7-max','qwen3.7-plus','qwen3.7-flash'],info:'通义千问系列'}
     };
     const $ = id => document.getElementById(id);
     const state = { providers:{}, currentProvider:'deepseek' };
@@ -158,7 +158,7 @@
         const card = document.createElement('article');
         card.className = 'provider-card';
         card.dataset.provider = key;
-        card.innerHTML = `<div class="provider-head"><div class="provider-name"><span class="provider-icon">${provider.icon}</span><span>${provider.name}</span></div><span class="state ${config.apiKey ? 'ready' : ''}" data-state>${config.apiKey ? '宸查厤缃? : '鏈厤缃?}</span></div><div class="field"><label for="key-${key}">API Key</label><div class="input-wrap"><input id="key-${key}" data-key type="password" autocomplete="off" spellcheck="false" placeholder="杈撳叆 ${provider.name} API Key"><button class="reveal" data-reveal type="button">鏄剧ず</button></div></div><div class="field"><label for="model-${key}">榛樿妯″瀷</label><select id="model-${key}" data-model>${provider.models.map(model => `<option value="${model}">${model}</option>`).join('')}</select></div><div class="provider-foot"><span>${provider.info}</span><button class="default-btn ${state.currentProvider === key ? 'active' : ''}" data-default type="button">${state.currentProvider === key ? '鉁?褰撳墠榛樿' : '璁句负榛樿'}</button></div>`;
+        card.innerHTML = `<div class="provider-head"><div class="provider-name"><span class="provider-icon">${provider.icon}</span><span>${provider.name}</span></div><span class="state ${config.apiKey ? 'ready' : ''}" data-state>${config.apiKey ? '已配置' : '未配置'}</span></div><div class="field"><label for="key-${key}">API Key</label><div class="input-wrap"><input id="key-${key}" data-key type="password" autocomplete="off" spellcheck="false" placeholder="输入 ${provider.name} API Key"><button class="reveal" data-reveal type="button">显示</button></div></div><div class="field"><label for="model-${key}">默认模型</label><select id="model-${key}" data-model>${provider.models.map(model => `<option value="${model}">${model}</option>`).join('')}</select></div><div class="provider-foot"><span>${provider.info}</span><button class="default-btn ${state.currentProvider === key ? 'active' : ''}" data-default type="button">${state.currentProvider === key ? '✓ 当前默认' : '设为默认'}</button></div>`;
         card.querySelector('[data-key]').value = config.apiKey;
         card.querySelector('[data-model]').value = config.model;
         grid.appendChild(card);
@@ -179,13 +179,13 @@
         localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
         localStorage.setItem(CURRENT_PROVIDER_KEY, state.currentProvider);
         renderProviders();
-        showToast('鍏ㄥ眬 API 閰嶇疆宸蹭繚瀛?);
-      } catch (error) { showToast('淇濆瓨澶辫触锛? + (error.message || '娴忚鍣ㄥ瓨鍌ㄤ笉鍙敤'), true); }
+        showToast('全局 API 配置已保存');
+      } catch (error) { showToast('保存失败：' + (error.message || '浏览器存储不可用'), true); }
       updateStorageStats();
     }
     function updateSummary() {
       const count = Object.values(state.providers).filter(item => item.apiKey).length;
-      $('apiSummary').textContent = `宸查厤缃?${count} / ${Object.keys(PROVIDERS).length} 涓ā鍨嬫湇鍔;
+      $('apiSummary').textContent = `已配置 ${count} / ${Object.keys(PROVIDERS).length} 个模型服务`;
     }
     function sanitizedStorage(includeKeys) {
       const result = {};
@@ -210,7 +210,7 @@
     }
     function downloadBackup() {
       const includeKeys = $('includeKeys').checked;
-      if (includeKeys && !confirm('澶囦唤灏嗗寘鍚彲鐩存帴浣跨敤鐨?API Key銆傜‘瀹氱户缁悧锛?)) return;
+      if (includeKeys && !confirm('备份将包含可直接使用的 API Key。确定继续吗？')) return;
       const payload = { schemaVersion:1, kind:'ai-dreamscape-browser-backup', createdAt:new Date().toISOString(), includesApiKeys:includeKeys, storage:sanitizedStorage(includeKeys) };
       const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
       const url = URL.createObjectURL(blob);
@@ -219,22 +219,22 @@
       link.href = url; link.download = `ai-dreamscape-backup-${date}.json`; link.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
       $('exportStatus').className = 'status-box success';
-      $('exportStatus').textContent = `宸茬敓鎴?${Object.keys(payload.storage).length} 椤瑰浠?{includeKeys ? '锛堝寘鍚?API Key锛? : '锛堜笉鍚?API Key锛?}`;
+      $('exportStatus').textContent = `已生成 ${Object.keys(payload.storage).length} 项备份${includeKeys ? '（包含 API Key）' : '（不含 API Key）'}`;
     }
     async function importBackup(file) {
       const status = $('importStatus');
-      status.className = 'status-box'; status.textContent = '姝ｅ湪妫€鏌ユ枃浠垛€?;
-      if (!file || file.size > 12 * 1024 * 1024) throw new Error('鏂囦欢涓虹┖鎴栬秴杩?12 MB');
+      status.className = 'status-box'; status.textContent = '正在检查文件…';
+      if (!file || file.size > 12 * 1024 * 1024) throw new Error('文件为空或超过 12 MB');
       const payload = JSON.parse(await file.text());
-      if (payload?.kind !== 'ai-dreamscape-browser-backup' || payload.schemaVersion !== 1 || !payload.storage || Array.isArray(payload.storage) || typeof payload.storage !== 'object') throw new Error('涓嶆槸鏈夋晥鐨?AI 鐏靛澶囦唤鏂囦欢');
+      if (payload?.kind !== 'ai-dreamscape-browser-backup' || payload.schemaVersion !== 1 || !payload.storage || Array.isArray(payload.storage) || typeof payload.storage !== 'object') throw new Error('不是有效的 AI 灵境备份文件');
       const entries = Object.entries(payload.storage);
-      if (entries.length > 500 || entries.some(([key,value]) => !key || key.length > 200 || typeof value !== 'string')) throw new Error('澶囦唤鍐呭瓒呭嚭鍏佽鑼冨洿');
-      const warning = payload.includesApiKeys ? '\n璇ュ浠藉寘鍚?API Key銆? : '';
-      if (!confirm(`灏嗗悎骞舵仮澶?${entries.length} 椤规暟鎹紝鍚屽悕鏁版嵁浼氳瑕嗙洊銆?{warning}\n纭畾缁х画鍚楋紵`)) { status.textContent = '宸插彇娑堝鍏?; return; }
+      if (entries.length > 500 || entries.some(([key,value]) => !key || key.length > 200 || typeof value !== 'string')) throw new Error('备份内容超出允许范围');
+      const warning = payload.includesApiKeys ? '\n该备份包含 API Key。' : '';
+      if (!confirm(`将合并恢复 ${entries.length} 项数据，同名数据会被覆盖。${warning}\n确定继续吗？`)) { status.textContent = '已取消导入'; return; }
       entries.forEach(([key,value]) => localStorage.setItem(key, value));
       loadConfig(); renderProviders(); updateStorageStats();
-      status.className = 'status-box success'; status.textContent = `宸叉仮澶?${entries.length} 椤规暟鎹甡;
-      showToast('鏁版嵁鎭㈠瀹屾垚');
+      status.className = 'status-box success'; status.textContent = `已恢复 ${entries.length} 项数据`;
+      showToast('数据恢复完成');
     }
     function updateStorageStats() {
       let chars = 0;
@@ -255,17 +255,17 @@
     }));
     $('providerGrid').addEventListener('click', event => {
       const card = event.target.closest('.provider-card'); if (!card) return;
-      if (event.target.matches('[data-reveal]')) { const input = card.querySelector('[data-key]'); const hidden = input.type === 'password'; input.type = hidden ? 'text' : 'password'; event.target.textContent = hidden ? '闅愯棌' : '鏄剧ず'; }
+      if (event.target.matches('[data-reveal]')) { const input = card.querySelector('[data-key]'); const hidden = input.type === 'password'; input.type = hidden ? 'text' : 'password'; event.target.textContent = hidden ? '隐藏' : '显示'; }
       if (event.target.matches('[data-default]')) { state.currentProvider = card.dataset.provider; collectForm(); renderProviders(); }
     });
     $('providerGrid').addEventListener('input', event => {
       if (!event.target.matches('[data-key]')) return;
-      const card = event.target.closest('.provider-card'); const ready = Boolean(event.target.value.trim()); const badge = card.querySelector('[data-state]'); badge.textContent = ready ? '寰呬繚瀛? : '鏈厤缃?; badge.classList.toggle('ready', ready); collectForm(); updateSummary();
+      const card = event.target.closest('.provider-card'); const ready = Boolean(event.target.value.trim()); const badge = card.querySelector('[data-state]'); badge.textContent = ready ? '待保存' : '未配置'; badge.classList.toggle('ready', ready); collectForm(); updateSummary();
     });
     $('saveApiBtn').addEventListener('click', saveConfig);
     $('exportDataBtn').addEventListener('click', downloadBackup);
     $('chooseImportBtn').addEventListener('click', () => $('importFile').click());
-    $('importFile').addEventListener('change', async event => { const file = event.target.files?.[0]; event.target.value = ''; try { await importBackup(file); } catch (error) { $('importStatus').className = 'status-box error'; $('importStatus').textContent = '瀵煎叆澶辫触锛? + (error.message || '鏂囦欢鏍煎紡閿欒'); } });
+    $('importFile').addEventListener('change', async event => { const file = event.target.files?.[0]; event.target.value = ''; try { await importBackup(file); } catch (error) { $('importStatus').className = 'status-box error'; $('importStatus').textContent = '导入失败：' + (error.message || '文件格式错误'); } });
     loadConfig(); renderProviders(); updateStorageStats();
   })();
   </script>
