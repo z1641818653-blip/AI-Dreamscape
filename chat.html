@@ -866,7 +866,7 @@
     <div class="sidebar-section"><h3>📋 Prompt <button id="modifyPromptBtn" class="lock-btn"><span id="modifyIcon">🔒</span> 修改</button></h3><textarea id="promptTextarea" class="prompt-textarea" disabled>你是一个专业的AI助手，请用中文回答。回答简洁准确，代码使用Markdown格式。</textarea><button id="confirmPromptBtn" class="confirm-btn" disabled>✅ 确定绑定</button><span id="promptStatus" style="font-size:10px;color:var(--text-secondary);margin-top:4px;display:block;text-align:center;"></span></div>
     <div class="theme-toggle"><button id="themeToggleBtn">🌙 暗色模式</button></div>
     <div class="font-size-selector"><label>界面</label><button class="font-size-btn" data-size="12">紧凑</button><button class="font-size-btn active" data-size="14">标准</button><button class="font-size-btn" data-size="16">舒适</button></div>
-    <div class="sidebar-section"><h4>🤖 模型选择</h4><div class="provider-list" id="providerList"></div><select id="modelSelect" class="model-select"></select><a class="api-lock-btn locked" href="settings.html" style="display:block;text-align:center;text-decoration:none">⚙️ 前往全局配置管理 API Key</a><div class="provider-info" id="providerInfo"></div></div>
+    <div class="sidebar-section"><h4>🤖 模型选择</h4><div id="chatModelSelector"></div></div>
     <div class="sidebar-footer">v4.2.3 · 稳定维护版</div>
   </div>
   <div class="main-content">
@@ -948,11 +948,12 @@
 </div>
 
 <div id="toastContainer" style="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:9999;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none;"></div>
+<script src="model-selector.js"></script>
 <script>
 (function() {
   if (typeof marked !== 'undefined') marked.setOptions({ breaks: true, gfm: true });
   const $ = id => document.getElementById(id);
-  const E = {sl:$('sidebarToggleLeft'),sbL:$('sidebarLeft'),sr:$('sidebarToggleRight'),sbR:$('sidebarRight'),mp:$('modifyPromptBtn'),pt:$('promptTextarea'),cp:$('confirmPromptBtn'),ps:$('promptStatus'),ms:$('modelSelect'),ib:$('importBtn'),pl:$('providerList'),pi:$('providerInfo'),cs:$('ctxSelect'),ts:$('tokSelect'),tl:$('tokLockBtn'),temp:$('tempSelect'),tt:$('themeToggleBtn'),sbb:$('scrollBottomBtn'),ui:$('userInput'),mc:$('messagesContainer'),cc:$('chatContainer'),snd:$('sendRequestBtn'),stp:$('stopRequestBtn'),clrI:$('clearInputBtn'),reasoningT:$('reasoningToggleBtn'),clrC:$('clearChatBtn'),rs:$('requestStatus'),nc:$('newConversationBtn'),cl:$('conversationList'),ct:$('currentConvTitle'),jl:$('jumpList'),sb:$('searchBar'),si:$('searchInput'),sc:$('searchCount'),sp:$('searchPrev'),sn:$('searchNext'),sx:$('searchClose'),tsb:$('toggleSearchBtn'),eo:$('exportOverlay'),et:$('exportTextBtn'),ea:$('exportAIBtn'),ec:$('exportCancelBtn'),uo:$('updateOverlay'),uc:$('updateCloseBtn'),emo:$('editModalOverlay'),emt:$('editModalTextarea'),emc:$('editModalCancel'),emf:$('editModalConfirm'),emd:$('editModalDelete'),gsb:$('globalSearchBar'),gsi:$('globalSearchInput'),gsr:$('globalSearchResults'),gsc:$('globalSearchClose'),eaBtn:$('exportAllBtn'),cmpT:$('compareToggleBtn'),cmpA:$('compareArea'),cmpPL:$('compareProviderList'),fsBtns:document.querySelectorAll('.font-size-btn'),ttE:$('totalTokenEstimate'),tc:$('toastContainer')};
+  const E = {sl:$('sidebarToggleLeft'),sbL:$('sidebarLeft'),sr:$('sidebarToggleRight'),sbR:$('sidebarRight'),mp:$('modifyPromptBtn'),pt:$('promptTextarea'),cp:$('confirmPromptBtn'),ps:$('promptStatus'),modelHost:$('chatModelSelector'),ib:$('importBtn'),cs:$('ctxSelect'),ts:$('tokSelect'),tl:$('tokLockBtn'),temp:$('tempSelect'),tt:$('themeToggleBtn'),sbb:$('scrollBottomBtn'),ui:$('userInput'),mc:$('messagesContainer'),cc:$('chatContainer'),snd:$('sendRequestBtn'),stp:$('stopRequestBtn'),clrI:$('clearInputBtn'),reasoningT:$('reasoningToggleBtn'),clrC:$('clearChatBtn'),rs:$('requestStatus'),nc:$('newConversationBtn'),cl:$('conversationList'),ct:$('currentConvTitle'),jl:$('jumpList'),sb:$('searchBar'),si:$('searchInput'),sc:$('searchCount'),sp:$('searchPrev'),sn:$('searchNext'),sx:$('searchClose'),tsb:$('toggleSearchBtn'),eo:$('exportOverlay'),et:$('exportTextBtn'),ea:$('exportAIBtn'),ec:$('exportCancelBtn'),uo:$('updateOverlay'),uc:$('updateCloseBtn'),emo:$('editModalOverlay'),emt:$('editModalTextarea'),emc:$('editModalCancel'),emf:$('editModalConfirm'),emd:$('editModalDelete'),gsb:$('globalSearchBar'),gsi:$('globalSearchInput'),gsr:$('globalSearchResults'),gsc:$('globalSearchClose'),eaBtn:$('exportAllBtn'),cmpT:$('compareToggleBtn'),cmpA:$('compareArea'),cmpPL:$('compareProviderList'),fsBtns:document.querySelectorAll('.font-size-btn'),ttE:$('totalTokenEstimate'),tc:$('toastContainer')};
 
   // ============ Toast Notifications ============
   function showToast(message, type) {
@@ -1406,7 +1407,7 @@
     const targetKey = PROVIDERS[providerKey] ? providerKey : S.currentProvider;
     if (targetKey !== S.currentProvider) {
       S.currentProvider = targetKey;
-      renderProviders();
+      sharedModelSelector?.setValue({ provider: targetKey, model: S.providers[targetKey]?.model });
     }
     const provider = PROVIDERS[targetKey];
     save();
@@ -1422,11 +1423,21 @@
     return key;
   }
 
-  function renderProviders() { E.pl.innerHTML=''; Object.entries(PROVIDERS).forEach(([key,p])=>{const chip=document.createElement('span');chip.className=`provider-chip ${key===S.currentProvider?'active':''}`;chip.textContent=`${p.icon} ${p.name}`;chip.addEventListener('click',()=>{if(key!==S.currentProvider){S.currentProvider=key;save();renderProviders();}});E.pl.appendChild(chip);});updateProviderUI(); }
-  function updateProviderUI() { const p=getCurrentProvider();const cfg=getCurrentProviderConfig();E.ms.innerHTML='';p.models.forEach(m=>{const opt=document.createElement('option');opt.value=m;opt.textContent=m;if(m===cfg.model)opt.selected=true;E.ms.appendChild(opt);});const hasKey=cfg.apiKey&&cfg.apiKey.trim().length>0;E.pi.innerHTML=hasKey?`<span>✅ ${p.name} 已配置</span> · ${p.info}`:`⚠️ ${p.name} 未配置 · <a href="settings.html">前往全局配置</a>`; }
+  let sharedModelSelector = null;
+  function initModelSelector() {
+    sharedModelSelector = DreamscapeModelSelector.mount(E.modelHost, {
+      provider: S.currentProvider,
+      model: S.providers[S.currentProvider]?.model,
+      onChange(value) {
+        S.currentProvider = value.provider;
+        if (!S.providers[value.provider]) S.providers[value.provider] = { apiKey:'', model:value.model };
+        S.providers[value.provider].model = value.model;
+        save();
+      }
+    });
+  }
   function updateTokUI() { E.ts.disabled=!S.tke; if(S.tke){E.tl.classList.add('active');E.tl.innerHTML='✏️';}else{E.tl.classList.remove('active');E.tl.innerHTML='🔒';} }
   function toggleTokLock() { if(S.tke){S.maxTokens=parseInt(E.ts.value);S.tke=false;}else{S.tke=true;}save();updateTokUI(); }
-  E.ms.addEventListener('change',()=>{getCurrentProviderConfig().model=E.ms.value;save();});
   E.cs.addEventListener('change',()=>{S.ctxLimit=parseInt(E.cs.value);save();});
   E.ts.addEventListener('change',()=>{if(!S.tke){S.maxTokens=parseInt(E.ts.value);save();}});
   E.tl.addEventListener('click',toggleTokLock);
@@ -1465,7 +1476,7 @@
     save();
   }
   function toggleTheme() { S.dm = !S.dm; applyTheme(); save(); }
-  function init() { if(S.cs.length===0){S.cs.push({id:Date.now().toString(),title:'新对话',prompt:'你是一个专业的AI助手，请用中文回答。回答简洁准确，代码使用Markdown格式。',messages:[],history:[],createdAt:new Date().toISOString()});S.cid=S.cs[0].id;save();}applyTheme();applyReasoningVisibility();renderProviders();renderCL();loadC();updateSB();updateTokUI();checkVersion();renderCompareProviders();initFontSize();updateTotalTokenEstimate(); }
+  function init() { if(S.cs.length===0){S.cs.push({id:Date.now().toString(),title:'新对话',prompt:'你是一个专业的AI助手，请用中文回答。回答简洁准确，代码使用Markdown格式。',messages:[],history:[],createdAt:new Date().toISOString()});S.cid=S.cs[0].id;save();}applyTheme();applyReasoningVisibility();initModelSelector();renderCL();loadC();updateSB();updateTokUI();checkVersion();renderCompareProviders();initFontSize();updateTotalTokenEstimate(); }
   function gC(){return S.cs.find(c=>c.id===S.cid);}
   function createC(){const c={id:Date.now().toString(),title:'新对话',prompt:'你是一个专业的AI助手，请用中文回答。回答简洁准确，代码使用Markdown格式。',messages:[],history:[],createdAt:new Date().toISOString()};S.cs.unshift(c);S.cid=c.id;save();renderCL();loadC();}
   function deleteC(id){if(S.cs.length<=1){showToast('至少保留一个对话','warning');return;}S.cs=S.cs.filter(c=>c.id!==id);if(S.cid===id){S.cid=S.cs[0].id;loadC();}save();renderCL();}
@@ -1910,32 +1921,17 @@ S.pe=false;updatePromptUI();setTimeout(function(){if(typeof MathJax!=='undefined
     S.compareEntries.forEach((entry, idx) => {
       const row = document.createElement('div');
       row.style.cssText = 'display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap;';
-      const providerSelect = document.createElement('select');
-      providerSelect.style.cssText = baseStyle;
-      Object.entries(PROVIDERS).forEach(([key, p]) => {
-        const opt = document.createElement('option');
-        opt.value = key;
-        opt.textContent = `${p.icon} ${p.name}`;
-        if (key === entry.providerKey) opt.selected = true;
-        providerSelect.appendChild(opt);
-      });
-      providerSelect.addEventListener('change', function() {
-        S.compareEntries[idx].providerKey = this.value;
-        S.compareEntries[idx].model = PROVIDERS[this.value].models[0];
-        renderCompareProviders();
-      });
-      const modelSelect = document.createElement('select');
-      modelSelect.style.cssText = baseStyle;
-      const cp = PROVIDERS[entry.providerKey];
-      cp.models.forEach(m => {
-        const opt = document.createElement('option');
-        opt.value = m;
-        opt.textContent = m;
-        if (m === entry.model) opt.selected = true;
-        modelSelect.appendChild(opt);
-      });
-      modelSelect.addEventListener('change', function() {
-        S.compareEntries[idx].model = this.value;
+      const selectorHost = document.createElement('div');
+      selectorHost.style.flex = '1';
+      DreamscapeModelSelector.mount(selectorHost, {
+        compact: true,
+        persist: false,
+        provider: entry.providerKey,
+        model: entry.model,
+        onChange(value) {
+          S.compareEntries[idx].providerKey = value.provider;
+          S.compareEntries[idx].model = value.model;
+        }
       });
       const removeBtn = document.createElement('button');
       removeBtn.textContent = '✕';
@@ -1946,8 +1942,7 @@ S.pe=false;updatePromptUI();setTimeout(function(){if(typeof MathJax!=='undefined
         S.compareEntries.splice(idx, 1);
         renderCompareProviders();
       });
-      row.appendChild(providerSelect);
-      row.appendChild(modelSelect);
+      row.appendChild(selectorHost);
       row.appendChild(removeBtn);
       E.cmpPL.appendChild(row);
     });
