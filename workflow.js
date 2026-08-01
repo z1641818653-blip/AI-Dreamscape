@@ -44,19 +44,15 @@ function readSharedDeepSeekConfig() {
   return result;
 }
 
-function persistSharedDeepSeekConfig(apiKey, model) {
-  localStorage.setItem('dk30', apiKey || '');
+function persistSharedDeepSeekModel(model) {
   try {
-    var raw = localStorage.getItem('dp0');
-    if (!raw) return;
-    var stored = JSON.parse(raw);
-    if (!stored || typeof stored !== 'object' || Array.isArray(stored)) return;
+    var stored = JSON.parse(localStorage.getItem('dp0') || '{}');
+    if (!stored || typeof stored !== 'object' || Array.isArray(stored)) stored = {};
     if (!stored.deepseek || typeof stored.deepseek !== 'object') stored.deepseek = {};
-    stored.deepseek.apiKey = apiKey ? btoa(encodeURIComponent(apiKey)) : '';
     if (model) stored.deepseek.model = model;
     localStorage.setItem('dp0', JSON.stringify(stored));
   } catch (err) {
-    console.warn('同步 AI 工作台 DeepSeek 配置失败:', err);
+    console.warn('同步全局 DeepSeek 模型失败:', err);
   }
 }
 
@@ -796,7 +792,8 @@ async function runExecutionQueue(nodes, options) {
   if (isRunning) { showToast('正在执行中', 'warning'); return; }
   var wf = getActiveWorkflow();
   if (!wf || !nodes || !nodes.length) return;
-  if (!providerState.apiKey) { showToast('请先设置 API Key', 'warning'); return; }
+  providerState.apiKey = readSharedDeepSeekConfig().apiKey || '';
+  if (!providerState.apiKey) { showToast('请先前往全局配置设置 DeepSeek API Key', 'warning'); return; }
   var provider = PROVIDERS[providerState.provider];
   if (!provider) { showToast('当前 Provider 不可用', 'error'); return; }
 
@@ -1093,11 +1090,7 @@ function renderSettings() {
         }).join('') +
       '</select>' +
     '</div>' +
-    '<div class="form-group">' +
-      '<label class="form-label">API Key</label>' +
-      '<input class="form-input" id="inpApiKey" type="password" value="' + esc(p.apiKey) + '">' +
-    '</div>' +
-    '<p class="settings-note">与 AI 工作台共享本机 DeepSeek 配置；密钥不会写入流程导出文件。</p>' +
+    '<p class="settings-note"><a href="settings.html">⚙️ 前往全局配置管理 API Key</a><br>这里只保留模型选择，执行时读取全局 DeepSeek 配置。</p>' +
     '<div class="settings-actions">' +
       '<button class="btn btn-sm" id="btnExport">📤 导出流程</button>' +
       '<button class="btn btn-sm" id="btnImport">📥 导入流程</button>' +
@@ -1107,15 +1100,10 @@ function renderSettings() {
   document.getElementById('selModel').addEventListener('change', function() {
     providerState.model = this.value;
     normalizeDeepSeekProviderState();
-    persistSharedDeepSeekConfig(providerState.apiKey, providerState.model);
+    persistSharedDeepSeekModel(providerState.model);
     markAllWorkflowOutputsStale();
     saveState();
     renderAll();
-  });
-  document.getElementById('inpApiKey').addEventListener('change', function() {
-    providerState.apiKey = this.value;
-    persistSharedDeepSeekConfig(providerState.apiKey, providerState.model);
-    saveState();
   });
   document.getElementById('btnExport').addEventListener('click', function() {
     try {
@@ -1948,16 +1936,10 @@ function loadState() {
     if (prov && typeof prov === 'object' && !Array.isArray(prov)) {
       if (typeof prov.provider === 'string' && prov.provider) providerState.provider = prov.provider;
       if (typeof prov.model === 'string') providerState.model = prov.model;
-      if (typeof prov.apiKey === 'string') providerState.apiKey = prov.apiKey;
     }
 
-    const dp49 = localStorage.getItem('dp49');
     const sharedDeepSeek = readSharedDeepSeekConfig();
-    if (dp49) {
-      try { providerState.apiKey = atob(dp49); } catch(e) { providerState.apiKey = sharedDeepSeek.apiKey || providerState.apiKey || ''; }
-    } else if (sharedDeepSeek.apiKey) {
-      providerState.apiKey = sharedDeepSeek.apiKey;
-    }
+    providerState.apiKey = sharedDeepSeek.apiKey || '';
     if ((!prov || typeof prov.model !== 'string') && sharedDeepSeek.model) providerState.model = sharedDeepSeek.model;
     normalizeDeepSeekProviderState();
 
