@@ -16,26 +16,26 @@
     const style = document.createElement('style');
     style.id = 'dreamscape-model-selector-styles';
     style.textContent = `
-      .ds-model-selector{--ds-primary:var(--primary,var(--accent-blue,#6558e8));--ds-border:var(--border,var(--border-color,rgba(103,94,196,.2)));--ds-surface:var(--surface,var(--bg-secondary,#fff));--ds-text:var(--text,var(--text-primary,#202235));--ds-muted:var(--text2,var(--text-secondary,#6c7188));display:grid;gap:10px;color:var(--ds-text)}
-      .ds-model-selector details{border:1px solid var(--ds-border);border-radius:12px;background:var(--ds-surface);overflow:hidden}
-      .ds-model-selector summary{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 13px;cursor:pointer;font-weight:750;list-style:none}
+      .ds-model-selector{--ds-primary:var(--primary,var(--accent-blue,#6558e8));--ds-border:var(--border,var(--border-color,rgba(103,94,196,.2)));--ds-surface:var(--surface,var(--bg-secondary,#fff));--ds-text:var(--text,var(--text-primary,#202235));--ds-muted:var(--text2,var(--text-secondary,#6c7188));display:grid;gap:8px;color:var(--ds-text)}
+      .ds-model-selector details{border:1px solid var(--ds-border);border-radius:10px;background:var(--ds-surface);overflow:hidden}
+      .ds-model-selector summary{min-height:36px;display:flex;align-items:center;justify-content:space-between;gap:9px;padding:7px 10px;cursor:pointer;font-size:12px;font-weight:700;list-style:none}
       .ds-model-selector summary::-webkit-details-marker{display:none}
       .ds-model-selector summary::after{content:'▾';color:var(--ds-primary);transition:transform .18s ease}
       .ds-model-selector details[open] summary::after{transform:rotate(180deg)}
-      .ds-model-selector-body{display:grid;gap:10px;padding:0 13px 13px}
+      .ds-model-selector-body{display:grid;gap:8px;padding:0 10px 10px}
       .ds-model-selector:not(.is-collapsible) .ds-model-selector-body{padding:0}
-      .ds-model-selector-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:9px}
-      .ds-model-field{display:grid;gap:5px;min-width:0}
-      .ds-model-field label{font-size:11px;font-weight:730;color:var(--ds-muted)}
-      .ds-model-field select{width:100%;min-height:40px;padding:0 10px;border:1px solid var(--ds-border);border-radius:9px;background:var(--ds-surface);color:var(--ds-text);font:inherit;outline:none}
+      .ds-model-selector-row{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:7px}
+      .ds-model-field{display:grid;gap:4px;min-width:0}
+      .ds-model-field label{font-size:10px;font-weight:700;color:var(--ds-muted)}
+      .ds-model-field select{width:100%;height:34px;min-height:34px;padding:0 8px;border:1px solid var(--ds-border);border-radius:8px;background:var(--ds-surface);color:var(--ds-text);font-size:12px;outline:none}
       .ds-model-field select:focus{border-color:var(--ds-primary);box-shadow:0 0 0 3px color-mix(in srgb,var(--ds-primary) 14%,transparent)}
-      .ds-model-selector-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:11px;color:var(--ds-muted)}
+      .ds-model-selector-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:10px;line-height:1.4;color:var(--ds-muted)}
       .ds-model-api-state.is-ready{color:#207548}
       .ds-model-settings{color:var(--ds-primary);font-weight:730;text-decoration:none;white-space:nowrap}
-      .ds-model-selector.is-compact{gap:7px}
-      .ds-model-selector.is-compact .ds-model-selector-row{grid-template-columns:1fr}
-      .ds-model-selector.is-compact .ds-model-selector-foot{align-items:flex-start;flex-direction:column}
-      @media(max-width:640px){.ds-model-selector-row{grid-template-columns:1fr}}
+      .ds-model-selector.is-compact{gap:6px}
+      .ds-model-selector.is-compact .ds-model-selector-row{grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr)}
+      .ds-model-selector.is-compact .ds-model-selector-foot{gap:6px}
+      @media(max-width:420px){.ds-model-selector-row{grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr)}}
     `;
     document.head.appendChild(style);
   }
