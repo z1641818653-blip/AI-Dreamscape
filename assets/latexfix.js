@@ -132,10 +132,7 @@
     aiPanel: $('#aiPanel'),
     aiToggle: $('#aiToggle'),
     backdrop: $('#drawerBackdrop'),
-    provider: $('#providerSelect'),
-    model: $('#modelInput'),
-    customModel: $('#customModelInput'),
-    aiConfigSummary: $('#aiConfigSummary'),
+    modelHost: $('#latexModelSelector'),
     chatMessages: $('#chatMessages'),
     chatInput: $('#chatInput'),
     sendAiBtn: $('#sendAiBtn'),
@@ -150,7 +147,7 @@
     compileStartedAt: 0,
     aiController: null,
     aiHistory: [],
-    models: {},
+    aiSelection: { provider:'deepseek', model:'deepseek-v4-flash' },
     saveTimer: null,
     outlineTimer: null
   };
@@ -570,9 +567,10 @@ ${el.editor.value}
   async function sendAi() {
     if (state.aiController) return;
     const prompt = el.chatInput.value.trim();
-    const key = getGlobalApiKey(el.provider.value);
-    const provider = PROVIDERS[el.provider.value];
-    const model = getSelectedModel();
+    const providerKey = state.aiSelection.provider;
+    const key = getGlobalApiKey(providerKey);
+    const provider = PROVIDERS[providerKey];
+    const model = state.aiSelection.model;
     if (!prompt) return;
     if (!key) {
       addMessage('assistant', '当前服务尚未配置 API Key，请先前往全局配置。', { error: true });
@@ -630,45 +628,20 @@ ${el.editor.value}
     }
   }
 
-  function changeProvider(nextProvider) {
-    const previous = el.provider.dataset.current;
-    if (previous) {
-      state.models[previous] = getSelectedModel();
-    }
-    el.provider.dataset.current = nextProvider;
-    const available = PROVIDERS[nextProvider].models;
-    const preferred = state.models[nextProvider] || getGlobalProviderConfig(nextProvider).model || available[0];
-    el.model.replaceChildren();
-    available.forEach(modelId => {
-      const option = document.createElement('option');
-      option.value = modelId;
-      option.textContent = modelId;
-      el.model.append(option);
+  function initModelSelector() {
+    const globalProvider = localStorage.getItem('dcp0');
+    state.aiSelection.provider = PROVIDERS[globalProvider] ? globalProvider : 'deepseek';
+    state.aiSelection.model = getGlobalProviderConfig(state.aiSelection.provider).model || PROVIDERS[state.aiSelection.provider].models[0];
+    DreamscapeModelSelector.mount(el.modelHost, {
+      providers: Object.keys(PROVIDERS),
+      collapsible: true,
+      title: '模型设置',
+      provider: state.aiSelection.provider,
+      model: state.aiSelection.model,
+      onChange(value) {
+        state.aiSelection = { provider:value.provider, model:value.model };
+      }
     });
-    const customOption = document.createElement('option');
-    customOption.value = '__custom__';
-    customOption.textContent = '自定义模型…';
-    el.model.append(customOption);
-    if (available.includes(preferred)) {
-      el.model.value = preferred;
-      el.customModel.hidden = true;
-      el.customModel.value = '';
-    } else {
-      el.model.value = '__custom__';
-      el.customModel.hidden = false;
-      el.customModel.value = preferred;
-    }
-    updateAiConfigSummary();
-  }
-
-  function getSelectedModel() {
-    return el.model.value === '__custom__' ? el.customModel.value.trim() : el.model.value;
-  }
-
-  function updateAiConfigSummary() {
-    const providerName = el.provider.options[el.provider.selectedIndex]?.textContent || el.provider.value;
-    const apiState = getGlobalApiKey(el.provider.value) ? 'API 已配置' : '需前往全局配置';
-    el.aiConfigSummary.textContent = `${providerName} · ${getSelectedModel() || '未设置模型'} · ${apiState}`;
   }
 
   function runQuickAiAction(action) {
@@ -714,20 +687,6 @@ ${el.editor.value}
     el.aiToggle.addEventListener('click', () => toggleDrawer('ai'));
     $$('[data-close]').forEach(button => button.addEventListener('click', () => toggleDrawer(button.dataset.close)));
     el.backdrop.addEventListener('click', closeDrawers);
-    el.provider.addEventListener('change', () => changeProvider(el.provider.value));
-    el.model.addEventListener('change', () => {
-      const custom = el.model.value === '__custom__';
-      el.customModel.hidden = !custom;
-      if (custom) el.customModel.focus();
-      state.models[el.provider.value] = getSelectedModel();
-      saveGlobalModel(el.provider.value, getSelectedModel());
-      updateAiConfigSummary();
-    });
-    el.customModel.addEventListener('input', () => {
-      state.models[el.provider.value] = getSelectedModel();
-      saveGlobalModel(el.provider.value, getSelectedModel());
-      updateAiConfigSummary();
-    });
     el.sendAiBtn.addEventListener('click', sendAi);
     el.cancelAiBtn.addEventListener('click', () => state.aiController?.abort('user'));
     $$('.ai-quick-actions [data-ai-action]').forEach(button => {
@@ -754,8 +713,7 @@ ${el.editor.value}
     el.editor.value = draft;
     el.engine.value = detectEngine(draft);
     snapshot(draft, '初始版本');
-    const globalProvider = localStorage.getItem('dcp0');
-    changeProvider(PROVIDERS[globalProvider] ? globalProvider : 'deepseek');
+    initModelSelector();
     renderOutline();
     bindEvents();
     syncDrawerState();
