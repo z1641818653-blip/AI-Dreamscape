@@ -632,7 +632,7 @@ ${el.editor.value}
     const globalProvider = localStorage.getItem('dcp0');
     state.aiSelection.provider = PROVIDERS[globalProvider] ? globalProvider : 'deepseek';
     state.aiSelection.model = getGlobalProviderConfig(state.aiSelection.provider).model || PROVIDERS[state.aiSelection.provider].models[0];
-    DreamscapeModelSelector.mount(el.modelHost, {
+    const modelSelector = DreamscapeModelSelector.mount(el.modelHost, {
       providers: Object.keys(PROVIDERS),
       collapsible: true,
       title: '模型设置',
@@ -642,6 +642,7 @@ ${el.editor.value}
         state.aiSelection = { provider:value.provider, model:value.model };
       }
     });
+    state.aiSelection = modelSelector.getValue();
   }
 
   function runQuickAiAction(action) {
