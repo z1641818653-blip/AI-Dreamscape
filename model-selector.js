@@ -113,7 +113,7 @@
       option.value = key; option.textContent = `${PROVIDERS[key].icon} ${PROVIDERS[key].name}`; providerSelect.append(option);
     });
     providerSelect.value = provider;
-    providerSelect.disabled = allowed.length === 1 && opts.lockSingleProvider !== false;
+    providerSelect.disabled = opts.disabled === true || (allowed.length === 1 && opts.lockSingleProvider !== false);
     providerField.append(providerLabel, providerSelect);
 
     const modelField = document.createElement('div');
@@ -122,6 +122,7 @@
     modelLabel.textContent = '模型';
     const modelSelect = document.createElement('select');
     modelSelect.setAttribute('aria-label', '模型');
+    modelSelect.disabled = opts.disabled === true;
     modelField.append(modelLabel, modelSelect);
     row.append(providerField, modelField);
 
