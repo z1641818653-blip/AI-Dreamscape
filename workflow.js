@@ -1078,32 +1078,26 @@ function renderSettings() {
   const p = providerState;
   normalizeDeepSeekProviderState();
   body.innerHTML =
-    '<div class="form-group">' +
-      '<label class="form-label">Provider</label>' +
-      '<input class="form-input" value="DeepSeek" disabled title="当前流程树仅启用 DeepSeek">' +
-    '</div>' +
-    '<div class="form-group">' +
-      '<label class="form-label">Model</label>' +
-      '<select class="form-select" id="selModel">' +
-        DEEPSEEK_MODELS.map(function(item) {
-          return '<option value="' + item.id + '"' + (p.model === item.id ? ' selected' : '') + '>' + item.label + '</option>';
-        }).join('') +
-      '</select>' +
-    '</div>' +
-    '<p class="settings-note"><a href="settings.html">⚙️ 前往全局配置管理 API Key</a><br>这里只保留模型选择，执行时读取全局 DeepSeek 配置。</p>' +
+    '<div id="workflowModelSelector"></div>' +
     '<div class="settings-actions">' +
       '<button class="btn btn-sm" id="btnExport">📤 导出流程</button>' +
       '<button class="btn btn-sm" id="btnImport">📥 导入流程</button>' +
     '</div>' +
     '<input class="visually-hidden" type="file" id="importInput" accept=".json">';
 
-  document.getElementById('selModel').addEventListener('change', function() {
-    providerState.model = this.value;
-    normalizeDeepSeekProviderState();
-    persistSharedDeepSeekModel(providerState.model);
-    markAllWorkflowOutputsStale();
-    saveState();
-    renderAll();
+  DreamscapeModelSelector.mount(document.getElementById('workflowModelSelector'), {
+    providers: ['deepseek'],
+    provider: 'deepseek',
+    model: providerState.model,
+    onChange: function(value) {
+      if (providerState.model === value.model) return;
+      providerState.model = value.model;
+      normalizeDeepSeekProviderState();
+      persistSharedDeepSeekModel(providerState.model);
+      markAllWorkflowOutputsStale();
+      saveState();
+      renderAll();
+    }
   });
   document.getElementById('btnExport').addEventListener('click', function() {
     try {
