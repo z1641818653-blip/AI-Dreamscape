@@ -1515,10 +1515,15 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     const provider = PROVIDERS[roleCreatorState.provider];
     const modelLabel = (provider?.name || roleCreatorState.provider) + ' / ' + roleCreatorState.model;
     const parseCodes = ['EMPTY_RESPONSE', 'MISSING_JSON', 'INVALID_JSON', 'INVALID_CARD', 'MISSING_FIELDS'];
-    const stage = parseCodes.includes(error?.code) ? '角色卡解析' : 'API 请求或流式响应';
+    const outputCodes = ['NO_FINAL_CONTENT', 'EMPTY_API_CONTENT'];
+    const stage = parseCodes.includes(error?.code)
+      ? '角色卡解析'
+      : outputCodes.includes(error?.code) ? '模型最终输出' : 'API 请求或响应';
     const hint = parseCodes.includes(error?.code)
       ? '模型没有严格按角色卡格式输出。可以直接重试；右侧已有内容不会丢失。'
-      : '请检查该服务商的 API Key、模型可用性、账户额度和网络状态后重试。';
+      : outputCodes.includes(error?.code)
+        ? '请求已经成功，但模型没有给出可用的最终答案。可以重试或切换模型；右侧已有内容不会丢失。'
+        : '请检查该服务商的 API Key、模型可用性、账户额度和网络状态后重试。';
     const diagnostic = `模型：${modelLabel}\n阶段：${stage}\n原因：${error?.message || '未知错误'}${raw ? `\n\n原始返回：\n${raw}` : ''}`;
 
     status.className = 'role-creator-message assistant';
@@ -1638,7 +1643,7 @@ judge, fact_checker, moderator, summarizer, debater, counter_side, gentle, force
         model: roleCreatorState.model,
         temp: 0.35
       });
-      raw = await streamAI(participant, messages, null);
+      raw = await streamAI(participant, messages, null, null, { stream: false });
       roleCreatorState.history.push({ role: 'assistant', content: raw });
       const result = parseRoleCreatorResponse(raw);
       setRoleCreatorDraft(result);
@@ -2197,6 +2202,24 @@ judge, fact_checker, moderator, summarizer, debater, counter_side, gentle, force
     return payload.choices?.[0]?.delta?.content || '';
   }
 
+  function getReasoningLength(provider, payload) {
+    if (provider.streamFormat !== 'openai') return 0;
+    const delta = payload.choices?.[0]?.delta;
+    return String(delta?.reasoning_content || delta?.reasoning || '').length;
+  }
+
+  function assertFinalContent(content, data, providerName) {
+    if (content) return content;
+    const message = data?.choices?.[0]?.message;
+    const reasoningLength = String(message?.reasoning_content || message?.reasoning || '').length;
+    const finishReason = data?.choices?.[0]?.finish_reason;
+    const error = new Error(reasoningLength
+      ? `[${providerName}] 收到 ${reasoningLength} 字推理内容，但最终 content 为空${finishReason ? `（finish_reason: ${finishReason}）` : ''}`
+      : `[${providerName}] 响应成功，但最终 content 为空${finishReason ? `（finish_reason: ${finishReason}）` : ''}`);
+    error.code = reasoningLength ? 'NO_FINAL_CONTENT' : 'EMPTY_API_CONTENT';
+    throw error;
+  }
+
   function getApiError(text, status, providerName) {
     let message = 'HTTP ' + status;
     try {
@@ -2208,7 +2231,7 @@ judge, fact_checker, moderator, summarizer, debater, counter_side, gentle, force
     return '[' + providerName + '] ' + message;
   }
 
-  async function streamAI(participant, messages, signal, onUpdate) {
+  async function streamAI(participant, messages, signal, onUpdate, options) {
     const provider = PROVIDERS[participant.provider];
     if (!provider) throw new Error('未知提供商: ' + participant.provider);
 
@@ -2216,7 +2239,8 @@ judge, fact_checker, moderator, summarizer, debater, counter_side, gentle, force
     if (!apiKey) throw new Error(participant.name + ' 的 ' + provider.name + ' API Key 未设置');
 
     const body = provider.buildBody(participant.model, messages, 4000, participant.temp);
-    if (participant.provider !== 'gemini') body.stream = true;
+    const useStream = participant.provider === 'gemini' || options?.stream !== false;
+    if (participant.provider !== 'gemini') body.stream = useStream;
 
     const headers = { 'Content-Type': 'application/json', ...provider.authHeader(apiKey) };
     const url = typeof provider.endpoint === 'function'
@@ -2260,13 +2284,14 @@ judge, fact_checker, moderator, summarizer, debater, counter_side, gentle, force
         const data = await response.json();
         const content = provider.parseResponse(data) || '';
         if (content && onUpdate) onUpdate(content);
-        return content;
+        return assertFinalContent(content, data, provider.name);
       }
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
       let fullContent = '';
+      let reasoningLength = 0;
 
       const processLine = (line) => {
         const trimmed = line.trim();
@@ -2274,7 +2299,9 @@ judge, fact_checker, moderator, summarizer, debater, counter_side, gentle, force
         const dataText = trimmed.slice(5).trimStart();
         if (!dataText || dataText === '[DONE]') return;
         try {
-          const deltaText = getStreamText(provider, JSON.parse(dataText));
+          const payload = JSON.parse(dataText);
+          reasoningLength += getReasoningLength(provider, payload);
+          const deltaText = getStreamText(provider, payload);
           if (!deltaText) return;
           fullContent += deltaText;
           if (onUpdate) onUpdate(fullContent);
@@ -2293,6 +2320,13 @@ judge, fact_checker, moderator, summarizer, debater, counter_side, gentle, force
 
       buffer += decoder.decode();
       if (buffer) processLine(buffer);
+      if (!fullContent) {
+        const error = new Error(reasoningLength
+          ? `[${provider.name}] 流式响应包含 ${reasoningLength} 字推理内容，但没有最终 content`
+          : `[${provider.name}] 流式响应结束，但没有收到 content`);
+        error.code = reasoningLength ? 'NO_FINAL_CONTENT' : 'EMPTY_API_CONTENT';
+        throw error;
+      }
       return fullContent;
     } catch (error) {
       if (timedOut) {
