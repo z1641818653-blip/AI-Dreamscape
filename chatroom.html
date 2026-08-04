@@ -356,7 +356,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     <div class="tutorial-header">
       <div class="tutorial-header-copy">
         <h2 id="tutorialTitle">AI 聊天室教程</h2>
-        <p>从三人辩论到大型讨论赛：角色、目标、轮次与用户介入指南</p>
+        <p>先定议题，再创建角色：从第一次开局到多角色协作</p>
       </div>
       <button class="tutorial-close" id="tutorialCloseBtn" type="button" aria-label="关闭教程">×</button>
     </div>
@@ -364,8 +364,9 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
       <nav class="tutorial-toc" aria-label="教程目录">
         <div class="tutorial-toc-title">目录</div>
         <button class="tutorial-toc-link active" data-target="guide-start">快速开始</button>
-        <button class="tutorial-toc-link" data-target="guide-roles">角色设置</button>
         <button class="tutorial-toc-link" data-target="guide-room">房间设置</button>
+        <button class="tutorial-toc-link" data-target="guide-role-creator">AI 创建角色</button>
+        <button class="tutorial-toc-link" data-target="guide-roles">角色管理</button>
         <button class="tutorial-toc-link" data-target="guide-rounds">模式与轮次</button>
         <button class="tutorial-toc-link" data-target="guide-buttons">按钮说明</button>
         <button class="tutorial-toc-link" data-target="guide-user">用户如何参与</button>
@@ -377,39 +378,21 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
       <main class="tutorial-content" id="tutorialContent">
         <section class="tutorial-section" id="guide-start">
           <h2>这不是普通群聊</h2>
-          <p class="tutorial-lead">AI 聊天室是一张可以编排角色、立场、顺序和讨论目标的“多人思维桌”。你可以旁观 AI 自主讨论、随时插话，或者把自己加入固定发言顺序。</p>
-          <div class="tutorial-callout"><strong>第一次使用：</strong>在左侧加载“展示模板”。它包含三名角色、完整目标和 16 条示例记录，是理解页面最快的入口。</div>
+          <p class="tutorial-lead">AI 聊天室是一张可以编排议题、角色、立场和发言顺序的“多人思维桌”。新房间默认没有角色，你可以从零搭建，也可以先加载展示模板观察一场完整辩论。</p>
+          <div class="tutorial-callout"><strong>想先看效果：</strong>在左侧“历史聊天室”中加载展示模板。它包含三名角色、完整目标和 16 条示例记录，不会覆盖你已有的房间。</div>
           <h3>一分钟开局</h3>
           <ol>
-            <li>先设置讨论目标，并选择自由讨论、方案共创或正反辩论；目标也可以留空。</li>
-            <li>围绕议题添加至少两个 AI，手动填写或使用 AI 创建名称、标签和角色 Prompt。</li>
-            <li>新手建议先选择“固定 2～3 轮”。</li>
-            <li>点击“开始自动讨论”，或发送第一条问题触发讨论。</li>
+            <li>先填写讨论目标，并选择自由讨论、方案共创或正反辩论；只想随便聊时可以留空。</li>
+            <li>点击“AI 创建”，描述第一个角色；检查右侧的名称、Prompt、标签和温度后应用。</li>
+            <li>继续添加互补角色。辩论建议至少准备正方、AI 反方和裁判。</li>
+            <li>第一次建议选择“固定 2～3 轮”，便于观察效果和控制消耗。</li>
+            <li>发送第一条消息即可开局；也可以不发消息，直接点击“开始自动讨论”。</li>
           </ol>
-        </section>
-
-        <section class="tutorial-section" id="guide-roles">
-          <h2>角色设置</h2>
-          <div class="tutorial-table-wrap"><table class="tutorial-table">
-            <thead><tr><th>项目</th><th>作用</th><th>建议</th></tr></thead>
-            <tbody>
-              <tr><td>添加 AI</td><td>创建一个可配置模型、Prompt 和温度的角色。</td><td>每个角色应有不可替代的任务。</td></tr>
-              <tr><td>添加用户</td><td>把你加入固定发言顺序，只需要名字。</td><td>偶尔插话不必添加，使用“插入发言”即可。</td></tr>
-              <tr><td>名称</td><td>聊天显示名，也是其他角色点名回应的依据。</td><td>使用“正方一辩、风险审查员”等明确名称。</td></tr>
-              <tr><td>角色 Prompt</td><td>规定身份、立场、职责和互动规则。</td><td>留空仍可回答，但容易失去立场、变成泛泛而谈。</td></tr>
-              <tr><td>模型 / 提供商</td><td>每个角色可以使用不同模型。</td><td>强模型做裁判，快速模型做普通辩手。</td></tr>
-              <tr><td>温度</td><td>越低越稳定，越高越发散。</td><td>裁判 0.2～0.4；分析 0.5～0.7；辩手或创意角色 0.7～0.9。</td></tr>
-              <tr><td>发言开关</td><td>关闭后不进入队列、不响应点名，也不参与裁判选择。</td><td>用它手动控制辩论阶段，不会删除角色。</td></tr>
-              <tr><td>↑ / ↓</td><td>调整角色和用户的发言顺序。</td><td>主持或裁判通常放在一轮的最后。</td></tr>
-              <tr><td>展开 / 收起</td><td>显示或隐藏角色详细设置。</td><td>角色很多时收起已配置角色。</td></tr>
-              <tr><td>锁定</td><td>防止误改名称、Prompt、模型和温度。</td><td>锁定后仍可使用发言开关。</td></tr>
-              <tr><td>移除</td><td>从房间移除角色，旧消息仍保留。</td><td>只是暂时不让其发言时请用开关。</td></tr>
-            </tbody>
-          </table></div>
+          <p>如果发言顺序中的第一位是“用户”，你发送的开场消息会直接算作你的第一轮发言，不需要再发送一次。</p>
         </section>
 
         <section class="tutorial-section" id="guide-room">
-          <h2>房间设置与“留空”的作用</h2>
+          <h2>第一步：先确定房间议题</h2>
           <h3>房间名称</h3>
           <p>用于历史记录识别。建议按任务命名，例如“自由意志辩论”“产品风险评审”。</p>
           <h3>讨论目标</h3>
@@ -422,6 +405,50 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
             <li><strong>消息输入为空：</strong>不会发送；如果已经设置讨论目标，可以直接开始自动讨论。</li>
             <li><strong>API Key 为空：</strong>对应模型无法生成内容；API Key 不会写入导出文件。</li>
           </ul>
+        </section>
+
+        <section class="tutorial-section" id="guide-role-creator">
+          <h2>第二步：用 AI 创建角色</h2>
+          <p>点击左侧“AI 创建”打开角色共创页。左侧用自然语言描述或继续修改角色，右侧是最终会写入房间的角色卡。</p>
+          <ol>
+            <li>先说清楚想要的职责、立场和语气，例如“创建一个严格但不抢话的裁判”。</li>
+            <li>选择职责、表达和流程标签；AI 也会根据描述推荐标签。</li>
+            <li>检查并修改名称、可编辑 Prompt、模型和温度。AI 可以按你的要求调整温度，你也可以直接拖动滑块。</li>
+            <li>满意后点击“应用为新角色”。角色加入房间后，共创页会自动清空，方便继续创建下一个角色。</li>
+          </ol>
+          <h3>Prompt 和固定协议有什么区别</h3>
+          <div class="tutorial-grid">
+            <div class="tutorial-card"><strong>可编辑 Prompt</strong><p>描述角色身份、立场、分析方法和互动方式。AI 生成后仍可自由修改。</p></div>
+            <div class="tutorial-card"><strong>标签固定协议</strong><p>由标签自动生成，应用后每次发言都会作为系统提示生效，不占用也不覆盖可编辑 Prompt。</p></div>
+          </div>
+          <p>创建完成后，展开角色并点击“查看标签固定协议”，可以确认协议内容。固定协议不建议修改，但标签可以按需要组合。</p>
+          <div class="tutorial-callout"><strong>裁判标签：</strong>选择“裁判”会自动配合“阶段总结”和“最终裁决”。裁判在普通讨论阶段不能提前宣布胜负，只有进入最终裁决阶段才按固定格式输出结论。</div>
+          <h3>让 AI 写反方</h3>
+          <p>先创建并应用正方，再创建第二个角色并选择“AI反方”。保持“结合当前聊天室目标和已有角色生成”开启，AI 会读取当前议题和已有正方 Prompt，生成针对同一议题、立场相反的角色，而不是随意编一个反对者。</p>
+          <p>“轻度嘲讽、逻辑攻击、强硬”等表达标签只改变表达与攻击方式，不允许用人格攻击代替论证。</p>
+          <h3>创建失败时</h3>
+          <p>错误卡会显示模型、失败阶段和具体原因。先点击“复制诊断信息”保存完整信息；模型最终输出为空时可以重试或切换模型，API 请求失败时再检查全局配置中的 Key、模型权限和额度。失败不会清空右侧已经编辑的角色内容。</p>
+        </section>
+
+        <section class="tutorial-section" id="guide-roles">
+          <h2>第三步：管理角色和发言顺序</h2>
+          <div class="tutorial-table-wrap"><table class="tutorial-table">
+            <thead><tr><th>项目</th><th>作用</th><th>建议</th></tr></thead>
+            <tbody>
+              <tr><td>手动添加</td><td>直接创建一个可配置模型、Prompt 和温度的基础 AI。</td><td>已有完整角色设定时使用。</td></tr>
+              <tr><td>AI 创建</td><td>通过对话、标签和当前房间上下文生成完整角色卡。</td><td>需要新立场、裁判或 AI 反方时使用。</td></tr>
+              <tr><td>添加用户</td><td>把你加入固定发言顺序，只需要名字。</td><td>偶尔插话不必添加，使用“插入发言”即可。</td></tr>
+              <tr><td>名称</td><td>聊天显示名，也是其他角色点名回应的依据。</td><td>使用“正方一辩、风险审查员”等明确名称。</td></tr>
+              <tr><td>角色 Prompt</td><td>规定身份、立场、职责和互动规则。</td><td>每个角色都应有不可替代的任务。</td></tr>
+              <tr><td>模型 / 提供商</td><td>每个角色可以使用不同模型。</td><td>强模型做综合判断，快速模型做普通发言。</td></tr>
+              <tr><td>温度</td><td>越低越稳定，越高越发散。</td><td>裁判 0.2～0.4；分析 0.5～0.7；辩手或创意角色 0.7～0.9。</td></tr>
+              <tr><td>发言开关</td><td>关闭后不进入队列、不响应点名，也不参与裁判选择。</td><td>用它手动控制辩论阶段，不会删除角色。</td></tr>
+              <tr><td>↑ / ↓</td><td>调整角色和用户的发言顺序。</td><td>主持或裁判通常放在一轮的最后。</td></tr>
+              <tr><td>展开 / 收起</td><td>显示或隐藏角色详细设置、标签和固定协议。</td><td>角色很多时收起已配置角色。</td></tr>
+              <tr><td>锁定</td><td>防止误改名称、Prompt、模型和温度。</td><td>锁定后仍可使用发言开关。</td></tr>
+              <tr><td>移除</td><td>从房间移除角色，旧消息仍保留。</td><td>只是暂时不让其发言时请用开关。</td></tr>
+            </tbody>
+          </table></div>
         </section>
 
         <section class="tutorial-section" id="guide-rounds">
