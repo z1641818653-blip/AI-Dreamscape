@@ -48,6 +48,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .add-ai-btn{width:100%;padding:5px;border-radius:12px;border:1px dashed var(--border);background:transparent;color:var(--text2);font-size:11px;cursor:pointer;transition:all .2s cubic-bezier(.34,1.56,.64,1);font-weight:600;margin-top:2px}
 .add-ai-btn:hover{border-color:var(--primary);color:var(--primary);background:rgba(124,92,252,.08)}
 .add-role-row{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.add-role-row.three{grid-template-columns:repeat(3,minmax(0,1fr))}
 .human-card{border-color:rgba(16,185,129,.35);background:rgba(16,185,129,.04)}
 .human-badge{font-size:9px;color:#10b981;border:1px solid rgba(16,185,129,.35);border-radius:10px;padding:1px 6px;white-space:nowrap}
 .participant-order-btn{width:22px;height:22px;border:1px solid var(--border);background:transparent;color:var(--text2);border-radius:7px;cursor:pointer;font-size:11px}
@@ -267,6 +268,63 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
   .tutorial-grid{grid-template-columns:1fr}
 }
 
+/* AI role co-creator */
+.role-creator-overlay{position:fixed;inset:0;z-index:10000;display:none;align-items:center;justify-content:center;padding:22px;background:rgba(18,13,28,.68);backdrop-filter:blur(8px)}
+.role-creator-overlay.open{display:flex}
+.role-creator-dialog{width:min(1180px,97vw);height:min(820px,94vh);display:flex;flex-direction:column;overflow:hidden;border:1px solid var(--border);border-radius:22px;background:var(--surface);box-shadow:0 28px 90px rgba(0,0,0,.34)}
+.role-creator-header{display:flex;align-items:center;gap:12px;padding:16px 18px;border-bottom:1px solid var(--border)}
+.role-creator-header-copy{flex:1;min-width:0}
+.role-creator-header h2{font-size:18px;margin-bottom:3px}
+.role-creator-header p{font-size:11px;color:var(--text2)}
+.role-creator-close{width:34px;height:34px;border:1px solid var(--border);border-radius:10px;background:transparent;color:var(--text2);font-size:20px;cursor:pointer}
+.role-creator-layout{display:grid;grid-template-columns:minmax(0,1.12fr) minmax(360px,.88fr);min-height:0;flex:1}
+.role-creator-chat{display:flex;flex-direction:column;min-height:0;border-right:1px solid var(--border)}
+.role-creator-messages{flex:1;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:10px}
+.role-creator-empty{margin:auto;max-width:430px;text-align:center;color:var(--text2);line-height:1.75}
+.role-creator-message{max-width:86%;padding:10px 13px;border-radius:14px;line-height:1.65;font-size:13px;white-space:pre-wrap}
+.role-creator-message.user{align-self:flex-end;background:linear-gradient(135deg,#7c5cfc,#6a4de8);color:#fff;border-bottom-right-radius:4px}
+.role-creator-message.assistant{align-self:flex-start;background:var(--surface-hover);border:1px solid var(--border);border-bottom-left-radius:4px}
+.role-creator-message.status{align-self:center;padding:6px 12px;color:var(--text2);font-size:11px;background:transparent}
+.role-creator-compose{padding:12px;border-top:1px solid var(--border)}
+.role-creator-compose-row{display:flex;gap:8px;align-items:flex-end}
+.role-creator-compose textarea{flex:1;min-height:64px;max-height:130px;resize:vertical;padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:rgba(0,0,0,.04);color:var(--text);font:13px/1.55 inherit;outline:none}
+.role-creator-compose textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-glow)}
+.role-creator-send{padding:9px 17px;border:0;border-radius:14px;background:linear-gradient(135deg,#7c5cfc,#6a4de8);color:#fff;font-weight:700;cursor:pointer}
+.role-creator-send:disabled{opacity:.5;cursor:not-allowed}
+.role-creator-panel{min-height:0;overflow-y:auto;padding:16px 18px 82px;position:relative}
+.role-creator-section{margin-bottom:15px}
+.role-creator-section-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;font-size:12px;font-weight:800}
+.role-creator-help{font-size:10px;color:var(--text2);font-weight:500}
+.role-creator-field{margin-bottom:9px}
+.role-creator-field label{display:block;margin-bottom:4px;font-size:10px;font-weight:700;color:var(--text2)}
+.role-creator-field input,.role-creator-field textarea{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:10px;background:rgba(0,0,0,.04);color:var(--text);font:12px/1.55 inherit;outline:none}
+.role-creator-field textarea{min-height:180px;resize:vertical}
+.role-tag-group{display:flex;flex-wrap:wrap;gap:6px}
+.role-tag{padding:5px 9px;border:1px solid var(--border);border-radius:12px;background:transparent;color:var(--text2);font-size:10px;font-weight:700;cursor:pointer}
+.role-tag:hover{border-color:rgba(124,92,252,.45);color:var(--primary)}
+.role-tag.active{border-color:var(--primary);background:var(--primary-glow);color:var(--primary)}
+.role-fixed-protocol{min-height:90px;padding:10px;border:1px dashed rgba(124,92,252,.35);border-radius:11px;background:rgba(124,92,252,.045);color:var(--text2);font:11px/1.65 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap}
+.role-creator-model{min-height:34px}
+.role-creator-temp{display:flex;align-items:center;gap:8px}
+.role-creator-temp input{flex:1}
+.role-creator-temp output{min-width:32px;font-size:11px;color:var(--text2);text-align:right}
+.role-creator-context{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--text2)}
+.role-creator-actions{position:absolute;left:0;right:0;bottom:0;display:flex;justify-content:flex-end;gap:8px;padding:12px 18px;border-top:1px solid var(--border);background:var(--surface);backdrop-filter:blur(12px)}
+.role-creator-secondary,.role-creator-apply{padding:8px 15px;border-radius:14px;font-size:11px;font-weight:700;cursor:pointer}
+.role-creator-secondary{border:1px solid var(--border);background:transparent;color:var(--text2)}
+.role-creator-apply{border:0;background:linear-gradient(135deg,#7c5cfc,#6a4de8);color:#fff}
+.role-tag-badges{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px}
+.role-tag-badge{padding:2px 6px;border-radius:8px;background:var(--primary-glow);color:var(--primary);font-size:9px;font-weight:700}
+@media(max-width:760px){
+  .add-role-row.three{grid-template-columns:1fr 1fr}
+  #openRoleCreatorBtn{grid-column:1/-1}
+  .role-creator-overlay{padding:0}
+  .role-creator-dialog{width:100vw;height:100vh;max-height:none;border:0;border-radius:0}
+  .role-creator-layout{display:flex;flex-direction:column;overflow-y:auto}
+  .role-creator-chat{min-height:46vh;border-right:0;border-bottom:1px solid var(--border)}
+  .role-creator-panel{overflow:visible;padding-bottom:86px}
+}
+
 </style>
 </head>
 <body>
@@ -451,6 +509,93 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
   </div>
 </div>
 
+<div class="role-creator-overlay" id="roleCreatorOverlay" aria-hidden="true">
+  <div class="role-creator-dialog" role="dialog" aria-modal="true" aria-labelledby="roleCreatorTitle">
+    <div class="role-creator-header">
+      <div class="role-creator-header-copy">
+        <h2 id="roleCreatorTitle">✨ AI 角色共创</h2>
+        <p>用对话逐步完善角色；右侧固定协议由标签生成，可编辑 Prompt 由你最终决定。</p>
+      </div>
+      <button class="role-creator-close" id="roleCreatorCloseBtn" type="button" aria-label="关闭角色共创">×</button>
+    </div>
+    <div class="role-creator-layout">
+      <section class="role-creator-chat">
+        <div class="role-creator-messages" id="roleCreatorMessages">
+          <div class="role-creator-empty" id="roleCreatorEmpty">描述你想创建的角色，例如：<br>“创建一个严格但不抢话的裁判，只在最后给出明确结论。”</div>
+        </div>
+        <div class="role-creator-compose">
+          <div class="role-creator-compose-row">
+            <textarea id="roleCreatorInput" placeholder="描述角色，或继续提出修改要求……"></textarea>
+            <button class="role-creator-send" id="roleCreatorSendBtn" type="button">生成 / 修改</button>
+          </div>
+        </div>
+      </section>
+      <section class="role-creator-panel">
+        <div class="role-creator-section">
+          <div class="role-creator-section-title">职责标签 <span class="role-creator-help">可多选</span></div>
+          <div class="role-tag-group" id="roleDutyTags">
+            <button class="role-tag" type="button" data-tag="judge">裁判</button>
+            <button class="role-tag" type="button" data-tag="fact_checker">事实核查员</button>
+            <button class="role-tag" type="button" data-tag="moderator">主持人</button>
+            <button class="role-tag" type="button" data-tag="summarizer">总结者</button>
+            <button class="role-tag" type="button" data-tag="debater">辩手</button>
+          </div>
+        </div>
+        <div class="role-creator-section">
+          <div class="role-creator-section-title">表达标签</div>
+          <div class="role-tag-group" id="roleStyleTags">
+            <button class="role-tag" type="button" data-tag="gentle">温和</button>
+            <button class="role-tag" type="button" data-tag="forceful">强硬</button>
+            <button class="role-tag" type="button" data-tag="concise">简洁</button>
+            <button class="role-tag" type="button" data-tag="light_taunt">轻度嘲讽</button>
+            <button class="role-tag" type="button" data-tag="logic_attack">逻辑攻击</button>
+          </div>
+        </div>
+        <div class="role-creator-section">
+          <div class="role-creator-section-title">流程标签</div>
+          <div class="role-tag-group" id="roleFlowTags">
+            <button class="role-tag" type="button" data-tag="stage_summary">阶段总结</button>
+            <button class="role-tag" type="button" data-tag="final_verdict">最终裁决</button>
+            <button class="role-tag" type="button" data-tag="last_appearance">最后出现</button>
+            <button class="role-tag" type="button" data-tag="suggest_end">建议结束</button>
+          </div>
+        </div>
+        <div class="role-creator-section">
+          <div class="role-creator-section-title">固定协议 <span class="role-creator-help">由标签生成，不建议修改</span></div>
+          <div class="role-fixed-protocol" id="roleFixedProtocol">尚未选择标签。</div>
+        </div>
+        <div class="role-creator-section">
+          <div class="role-creator-section-title">角色内容</div>
+          <div class="role-creator-field">
+            <label for="roleCreatorName">名称</label>
+            <input id="roleCreatorName" type="text" maxlength="80" placeholder="角色名称">
+          </div>
+          <div class="role-creator-field">
+            <label for="roleCreatorPrompt">可编辑 Prompt</label>
+            <textarea id="roleCreatorPrompt" maxlength="20000" placeholder="AI 生成后仍可自行修改"></textarea>
+          </div>
+          <div class="role-creator-field">
+            <label>生成模型 / 角色模型</label>
+            <div class="role-creator-model" id="roleCreatorModelSelector"></div>
+          </div>
+          <div class="role-creator-field">
+            <label for="roleCreatorTemp">温度</label>
+            <div class="role-creator-temp">
+              <input id="roleCreatorTemp" type="range" min="0" max="1" step="0.05" value="0.7">
+              <output id="roleCreatorTempValue">0.70</output>
+            </div>
+          </div>
+          <label class="role-creator-context"><input id="roleCreatorUseContext" type="checkbox" checked>结合当前聊天室目标和已有角色生成</label>
+        </div>
+        <div class="role-creator-actions">
+          <button class="role-creator-secondary" id="roleCreatorResetBtn" type="button">重新开始</button>
+          <button class="role-creator-apply" id="roleCreatorApplyBtn" type="button">应用为新角色</button>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
 <div class="app-layout">
   <div class="sidebar" id="sidebar">
     <div class="sidebar-section" style="padding:10px 12px">
@@ -462,8 +607,9 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
         <div class="sidebar-section">
       <h3>💬 参与角色</h3>
       <div id="aiList"></div>
-      <div class="add-role-row">
-        <button id="addAiBtn" class="add-ai-btn">➕ 添加 AI</button>
+      <div class="add-role-row three">
+        <button id="addAiBtn" class="add-ai-btn">➕ 手动添加</button>
+        <button id="openRoleCreatorBtn" class="add-ai-btn">✨ AI 创建</button>
         <button id="addHumanBtn" class="add-ai-btn">🙋 添加用户</button>
       </div>
     </div>
@@ -777,6 +923,27 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     { name: '温柔姐', prompt: '你是一个温柔体贴的心理咨询师，说话温暖包容，善于鼓励他人。', provider: 'deepseek', model: 'deepseek-chat', temp: 0.7, collapsed: false, locked: false }
   ];
 
+  const ROLE_TAGS = {
+    judge: { label: '裁判', protocol: '你是裁判。讨论阶段只观察论证质量、总结争议并指出逻辑漏洞；在系统明确要求最终裁决前，不得宣布胜负或自行终止讨论。' },
+    fact_checker: { label: '事实核查员', protocol: '区分可验证事实、推论与价值判断。缺少可靠依据时标记“待验证”，不得把模型记忆表述为已经完成外部核查。' },
+    moderator: { label: '主持人', protocol: '负责维持议题边界、衔接发言和指出尚未回应的问题，不代替辩手完成立论。' },
+    summarizer: { label: '总结者', protocol: '优先压缩重复信息，明确列出共识、分歧、证据缺口和下一步，不引入无关新议题。' },
+    debater: { label: '辩手', protocol: '必须保持清晰立场，并直接回应其他角色的具体论点；不得只重复自身主张。' },
+    gentle: { label: '温和', protocol: '表达保持克制、尊重和低压，不使用羞辱性语言。' },
+    forceful: { label: '强硬', protocol: '表达可以直接有力，但论证强度不能替代证据，也不得攻击人格。' },
+    concise: { label: '简洁', protocol: '优先给出结论和关键理由，避免重复、铺垫过长和无信息量总结。' },
+    light_taunt: { label: '轻度嘲讽', protocol: '仅可针对回避、重复或逻辑失守进行短促调侃；禁止攻击现实身份、人格、身体或其他无关特征，嘲讽不得替代论证。' },
+    logic_attack: { label: '逻辑攻击', protocol: '优先定位前提缺失、概念偷换、自相矛盾和推理跳跃，并说明这些问题如何影响结论。' },
+    stage_summary: { label: '阶段总结', protocol: '阶段总结只报告当前进展，不得把阶段性优势写成最终胜负。' },
+    final_verdict: { label: '最终裁决', protocol: '只有收到系统的“最终裁决阶段”指令后才能输出最终判断；最终输出必须包含【胜方】【败方】【判定标准】【关键胜因】【主要失守】【双方值得保留的观点】。' },
+    last_appearance: { label: '最后出现', protocol: '你的职责适合在其他角色完成本轮发言后执行；如果上下文仍不完整，应明确指出缺少的信息。' },
+    suggest_end: { label: '建议结束', protocol: '你只能建议讨论是否已经充分，不得在普通发言中输出结束控制标记，也不得把自己的建议视为系统已经结束。' }
+  };
+
+  function getRoleTagLabels(tags) {
+    return (Array.isArray(tags) ? tags : []).map(tag => ROLE_TAGS[tag]?.label).filter(Boolean);
+  }
+
   const MODEL_MIGRATIONS = {
     deepseek: {
       'deepseek-chat': 'deepseek-v4-flash',
@@ -828,6 +995,8 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
       ...source,
       type: 'ai',
       enabled: source.enabled !== false,
+      roleTags: Array.isArray(source.roleTags) ? source.roleTags.map(String).slice(0, 20) : [],
+      fixedProtocol: String(source.fixedProtocol || '').slice(0, 12000),
       provider,
       model,
       temp: Number.isFinite(Number(source.temp)) ? Number(source.temp) : 0.7,
@@ -1056,6 +1225,8 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
       name: participant.name || 'AI',
       enabled: participant.enabled !== false,
       prompt: participant.prompt || '',
+      roleTags: Array.isArray(participant.roleTags) ? participant.roleTags : [],
+      fixedProtocol: participant.fixedProtocol || '',
       provider: participant.provider || 'deepseek',
       model: participant.model || '',
       temp: Number.isFinite(Number(participant.temp)) ? Number(participant.temp) : 0.7,
@@ -1133,6 +1304,8 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
       name: String(source.name || 'AI').slice(0, 80),
       enabled: source.enabled !== false,
       prompt: String(source.prompt || '').slice(0, 20000),
+      roleTags: Array.isArray(source.roleTags) ? source.roleTags.map(String).slice(0, 20) : [],
+      fixedProtocol: String(source.fixedProtocol || '').slice(0, 12000),
       provider: String(source.provider || 'deepseek'),
       model: String(source.model || ''),
       temp: Number(source.temp),
@@ -1220,6 +1393,211 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     interjectionRequested: false,
     waitingForHuman: null
   };
+
+  const roleCreatorState = {
+    history: [],
+    selectedTags: new Set(),
+    provider: 'deepseek',
+    model: 'deepseek-v4-flash',
+    busy: false,
+    selectorMounted: false
+  };
+
+  function compileRoleFixedProtocol() {
+    return Array.from(roleCreatorState.selectedTags)
+      .map(tag => ROLE_TAGS[tag]?.protocol)
+      .filter(Boolean)
+      .map((protocol, index) => (index + 1) + '. ' + protocol)
+      .join('\n');
+  }
+
+  function updateRoleCreatorProtocol() {
+    const protocol = compileRoleFixedProtocol();
+    document.getElementById('roleFixedProtocol').textContent = protocol || '尚未选择标签。';
+  }
+
+  function addRoleCreatorMessage(role, content, className) {
+    const area = document.getElementById('roleCreatorMessages');
+    document.getElementById('roleCreatorEmpty')?.remove();
+    const item = document.createElement('div');
+    item.className = 'role-creator-message ' + (className || role);
+    item.textContent = content;
+    area.appendChild(item);
+    area.scrollTop = area.scrollHeight;
+    return item;
+  }
+
+  function getRoleCreatorDraft() {
+    return {
+      name: document.getElementById('roleCreatorName').value.trim(),
+      prompt: document.getElementById('roleCreatorPrompt').value.trim(),
+      temp: Number(document.getElementById('roleCreatorTemp').value),
+      tags: Array.from(roleCreatorState.selectedTags)
+    };
+  }
+
+  function setRoleCreatorDraft(draft) {
+    if (!draft || typeof draft !== 'object') return;
+    if (typeof draft.name === 'string') document.getElementById('roleCreatorName').value = draft.name.slice(0, 80);
+    if (typeof draft.prompt === 'string') document.getElementById('roleCreatorPrompt').value = draft.prompt.slice(0, 20000);
+    if (Number.isFinite(Number(draft.temp))) {
+      const temp = Math.min(1, Math.max(0, Number(draft.temp)));
+      document.getElementById('roleCreatorTemp').value = temp;
+      document.getElementById('roleCreatorTempValue').textContent = temp.toFixed(2);
+    }
+  }
+
+  function parseRoleCreatorResponse(raw) {
+    const text = String(raw || '').trim();
+    const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+    const source = fenced ? fenced[1].trim() : text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1);
+    if (!source) throw new Error('AI 未返回角色卡数据');
+    const parsed = JSON.parse(source);
+    if (!parsed || typeof parsed !== 'object') throw new Error('角色卡格式不正确');
+    return parsed;
+  }
+
+  function getRoleCreatorContext() {
+    if (!document.getElementById('roleCreatorUseContext').checked || !state.room) return '不读取当前聊天室，创建通用角色。';
+    const existing = state.room.participants.map(participant => participant.name).join('、') || '暂无';
+    return `当前聊天室名称：${state.room.name || 'AI 聊天室'}\n协作模式：${state.room.collaborationMode || 'free'}\n讨论目标：${getDiscussionGoal(state.room)}\n已有角色：${existing}`;
+  }
+
+  function buildRoleCreatorMessages(userText) {
+    const draft = getRoleCreatorDraft();
+    const tags = draft.tags.map(tag => ROLE_TAGS[tag]?.label).filter(Boolean);
+    const system = `你是“AI 角色共创助手”，负责为多角色 AI 聊天室设计一个角色。
+
+用户会连续提出创建或修改要求。你必须继承当前角色卡，只修改用户要求的部分，不得每轮重新创造无关角色。
+
+当前标签：${tags.length ? tags.join('、') : '未选择'}
+标签固定协议由程序管理，你只生成可编辑的人设 Prompt，不要把固定协议复制进 prompt。
+
+当前角色卡：
+${JSON.stringify(draft, null, 2)}
+
+聊天室上下文：
+${getRoleCreatorContext()}
+
+Prompt 应覆盖身份、职责、立场或观察角度、分析方法、互动规则和边界；适合多人讨论，避免空泛人物传记。
+
+只输出一个合法 JSON 对象，不要使用 Markdown 代码块，不要输出 JSON 之外的文字：
+{"message":"不超过120字的修改说明","name":"角色名称","prompt":"完整可编辑Prompt","temp":0.7}`;
+    const history = roleCreatorState.history.slice(-12).map(message => ({ role: message.role, content: message.content }));
+    return [
+      { role: 'system', content: system },
+      ...history,
+      { role: 'user', content: userText }
+    ];
+  }
+
+  async function runRoleCreator() {
+    if (roleCreatorState.busy) return;
+    const input = document.getElementById('roleCreatorInput');
+    const userText = input.value.trim();
+    if (!userText) return;
+    if (!getApiKey(roleCreatorState.provider)) {
+      showToast('请先在全局配置中设置 ' + (PROVIDERS[roleCreatorState.provider]?.name || roleCreatorState.provider) + ' API Key', 'error');
+      return;
+    }
+
+    input.value = '';
+    addRoleCreatorMessage('user', userText);
+    const messages = buildRoleCreatorMessages(userText);
+    roleCreatorState.history.push({ role: 'user', content: userText });
+    roleCreatorState.busy = true;
+    document.getElementById('roleCreatorSendBtn').disabled = true;
+    const status = addRoleCreatorMessage('assistant', '正在生成角色卡……', 'status');
+
+    try {
+      const participant = normalizeParticipant({
+        type: 'ai',
+        name: '角色共创助手',
+        prompt: '',
+        provider: roleCreatorState.provider,
+        model: roleCreatorState.model,
+        temp: 0.35
+      });
+      const raw = await streamAI(participant, messages, null);
+      roleCreatorState.history.push({ role: 'assistant', content: raw });
+      const result = parseRoleCreatorResponse(raw);
+      setRoleCreatorDraft(result);
+      status.className = 'role-creator-message assistant';
+      status.textContent = String(result.message || '角色卡已更新，你可以继续修改或直接应用。');
+    } catch (error) {
+      status.className = 'role-creator-message assistant';
+      status.textContent = '生成失败：' + (error?.message || '返回格式无法解析') + '。你可以重试，右侧已有内容不会丢失。';
+    } finally {
+      roleCreatorState.busy = false;
+      document.getElementById('roleCreatorSendBtn').disabled = false;
+    }
+  }
+
+  function resetRoleCreator(showNotice) {
+    roleCreatorState.history = [];
+    roleCreatorState.selectedTags.clear();
+    document.querySelectorAll('#roleCreatorOverlay .role-tag').forEach(button => button.classList.remove('active'));
+    document.getElementById('roleCreatorName').value = '';
+    document.getElementById('roleCreatorPrompt').value = '';
+    document.getElementById('roleCreatorTemp').value = '0.7';
+    document.getElementById('roleCreatorTempValue').textContent = '0.70';
+    document.getElementById('roleCreatorMessages').innerHTML = '<div class="role-creator-empty" id="roleCreatorEmpty">描述你想创建的角色，例如：<br>“创建一个严格但不抢话的裁判，只在最后给出明确结论。”</div>';
+    updateRoleCreatorProtocol();
+    if (showNotice) showToast('已清空角色共创草稿', 'info');
+  }
+
+  function openRoleCreator() {
+    if (!state.room) { showToast('请先创建房间', 'warning'); return; }
+    if (state.isDiscussing) { showToast('请先停止讨论再创建角色', 'warning'); return; }
+    const overlay = document.getElementById('roleCreatorOverlay');
+    overlay.classList.add('open');
+    overlay.setAttribute('aria-hidden', 'false');
+    if (!roleCreatorState.selectorMounted) {
+      DreamscapeModelSelector.mount(document.getElementById('roleCreatorModelSelector'), {
+        compact: true,
+        persist: false,
+        provider: roleCreatorState.provider,
+        model: roleCreatorState.model,
+        onChange(value) {
+          roleCreatorState.provider = value.provider;
+          roleCreatorState.model = value.model;
+        }
+      });
+      roleCreatorState.selectorMounted = true;
+    }
+    setTimeout(() => document.getElementById('roleCreatorInput').focus(), 50);
+  }
+
+  function closeRoleCreator() {
+    const overlay = document.getElementById('roleCreatorOverlay');
+    overlay.classList.remove('open');
+    overlay.setAttribute('aria-hidden', 'true');
+  }
+
+  function applyCreatedRole() {
+    if (!state.room) return;
+    const draft = getRoleCreatorDraft();
+    if (!draft.name) { showToast('请先填写角色名称', 'warning'); return; }
+    if (!draft.prompt) { showToast('请先生成或填写角色 Prompt', 'warning'); return; }
+    const participant = normalizeParticipant({
+      type: 'ai',
+      name: draft.name,
+      prompt: draft.prompt,
+      roleTags: draft.tags,
+      fixedProtocol: compileRoleFixedProtocol(),
+      provider: roleCreatorState.provider,
+      model: roleCreatorState.model,
+      temp: draft.temp,
+      enabled: true,
+      collapsed: false,
+      locked: false
+    });
+    state.room.participants.push(participant);
+    saveRoom(state.room);
+    renderSidebar();
+    closeRoleCreator();
+    showToast('✅ 已创建角色：' + participant.name, 'success');
+  }
 
   function showTypingIndicator(name, color) {
     const container = document.getElementById('typingIndicators');
@@ -1450,6 +1828,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
           </div>
         `;
       } else {
+        const tagBadges = getRoleTagLabels(p.roleTags).map(label => `<span class="role-tag-badge">${esc(label)}</span>`).join('');
         card.innerHTML = `
           <div class="ai-card-header">
             <div class="ai-avatar" style="background:${color}">${esc(p.name[0] || '?')}</div>
@@ -1460,6 +1839,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
             <button class="ai-header-btn" data-idx="${i}" data-action="toggle" title="${collapsed ? '展开' : '折叠'}">${collapsed ? '▶' : '▼'}</button>
           </div>
           <div class="ai-card-body" style="${collapsed ? 'display:none' : ''}">
+            ${tagBadges ? `<div class="role-tag-badges">${tagBadges}</div>` : ''}
             <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
               <button class="ai-lock-btn ${locked ? 'locked' : ''}" data-idx="${i}" data-action="lock" style="flex:1">${locked ? '已锁定' : '未锁定'}</button>
               <button class="remove-btn" data-idx="${i}" style="flex:1">✕ 移除</button>
@@ -1850,6 +2230,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     const goal = getDiscussionGoal(room);
     const collaborationPrompt = COLLABORATION_PROMPTS[room.collaborationMode] || COLLABORATION_PROMPTS.free;
     const roundPrompt = buildRoundPrompt(room, participant, round, totalRounds);
+    const fixedProtocol = String(participant.fixedProtocol || '').trim();
 
     return `你正在参加一个多角色 AI 讨论。
 
@@ -1869,6 +2250,8 @@ ${goal}
 
 【你的身份与职责】
 ${participant.prompt}
+
+${fixedProtocol ? `【标签固定协议】\n${fixedProtocol}\n` : ''}
 
 ${collaborationPrompt}
 
@@ -2183,6 +2566,7 @@ ${transcript}
       state.room.participants.push(normalizeParticipant({type:'ai',name:'新 AI',prompt:'你是一个有用的AI助手。',provider:'deepseek',model:'deepseek-chat',temp:0.7}));
       renderSidebar(); saveRoom(state.room); return;
     }
+    if (t.id === 'openRoleCreatorBtn') { openRoleCreator(); return; }
     if (t.id === 'addHumanBtn') {
       if (!state.room) { showToast('请先创建房间','warning'); return; }
       if (getHumanParticipant(state.room)) { showToast('房间中已经有一个用户角色', 'warning'); return; }
@@ -2367,6 +2751,52 @@ ${transcript}
   });
   document.getElementById('chatInput').addEventListener('input', function() {
     this.style.height='auto'; this.style.height=Math.min(this.scrollHeight,100)+'px';
+  });
+
+  document.getElementById('roleCreatorCloseBtn').addEventListener('click', closeRoleCreator);
+  document.getElementById('roleCreatorOverlay').addEventListener('click', event => {
+    if (event.target.id === 'roleCreatorOverlay') closeRoleCreator();
+  });
+  document.getElementById('roleCreatorSendBtn').addEventListener('click', runRoleCreator);
+  document.getElementById('roleCreatorApplyBtn').addEventListener('click', applyCreatedRole);
+  document.getElementById('roleCreatorResetBtn').addEventListener('click', () => resetRoleCreator(true));
+  document.getElementById('roleCreatorInput').addEventListener('keydown', event => {
+    if (event.isComposing || event.keyCode === 229) return;
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      runRoleCreator();
+    }
+  });
+  document.getElementById('roleCreatorTemp').addEventListener('input', event => {
+    document.getElementById('roleCreatorTempValue').textContent = Number(event.target.value).toFixed(2);
+  });
+  document.getElementById('roleCreatorOverlay').addEventListener('click', event => {
+    const button = event.target.closest('.role-tag');
+    if (!button) return;
+    const tag = button.dataset.tag;
+    const exclusives = { gentle: 'forceful', forceful: 'gentle', judge: 'debater', debater: 'judge' };
+    if (roleCreatorState.selectedTags.has(tag)) {
+      roleCreatorState.selectedTags.delete(tag);
+      button.classList.remove('active');
+    } else {
+      const exclusive = exclusives[tag];
+      if (exclusive) {
+        roleCreatorState.selectedTags.delete(exclusive);
+        document.querySelector(`#roleCreatorOverlay .role-tag[data-tag="${exclusive}"]`)?.classList.remove('active');
+      }
+      roleCreatorState.selectedTags.add(tag);
+      button.classList.add('active');
+      if (tag === 'judge') {
+        ['stage_summary', 'final_verdict'].forEach(recommended => {
+          roleCreatorState.selectedTags.add(recommended);
+          document.querySelector(`#roleCreatorOverlay .role-tag[data-tag="${recommended}"]`)?.classList.add('active');
+        });
+      }
+    }
+    updateRoleCreatorProtocol();
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && document.getElementById('roleCreatorOverlay').classList.contains('open')) closeRoleCreator();
   });
 
   function init() {
