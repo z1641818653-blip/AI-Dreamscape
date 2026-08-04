@@ -47,6 +47,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .temp-slider-wrap .temp-val{font-size:10px;color:var(--text2);min-width:22px;text-align:right;font-variant-numeric:tabular-nums}
 .add-ai-btn{width:100%;padding:5px;border-radius:12px;border:1px dashed var(--border);background:transparent;color:var(--text2);font-size:11px;cursor:pointer;transition:all .2s cubic-bezier(.34,1.56,.64,1);font-weight:600;margin-top:2px}
 .add-ai-btn:hover{border-color:var(--primary);color:var(--primary);background:rgba(124,92,252,.08)}
+.empty-role-list{margin-bottom:7px;padding:10px;border:1px dashed var(--border);border-radius:11px;color:var(--text2);font-size:10px;line-height:1.55;text-align:center}
 .add-role-row{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .add-role-row.three{grid-template-columns:repeat(3,minmax(0,1fr))}
 .human-card{border-color:rgba(16,185,129,.35);background:rgba(16,185,129,.04)}
@@ -373,8 +374,8 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
           <div class="tutorial-callout"><strong>第一次使用：</strong>在左侧加载“展示模板”。它包含三名角色、完整目标和 16 条示例记录，是理解页面最快的入口。</div>
           <h3>一分钟开局</h3>
           <ol>
-            <li>添加至少两个 AI，填写名称和角色 Prompt。</li>
-            <li>设置讨论目标，并选择自由讨论、方案共创或正反辩论。</li>
+            <li>先设置讨论目标，并选择自由讨论、方案共创或正反辩论；目标也可以留空。</li>
+            <li>围绕议题添加至少两个 AI，手动填写或使用 AI 创建名称、标签和角色 Prompt。</li>
             <li>新手建议先选择“固定 2～3 轮”。</li>
             <li>点击“开始自动讨论”，或发送第一条问题触发讨论。</li>
           </ol>
@@ -543,6 +544,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
             <button class="role-tag" type="button" data-tag="moderator">主持人</button>
             <button class="role-tag" type="button" data-tag="summarizer">总结者</button>
             <button class="role-tag" type="button" data-tag="debater">辩手</button>
+            <button class="role-tag" type="button" data-tag="counter_side">AI反方</button>
           </div>
         </div>
         <div class="role-creator-section">
@@ -609,16 +611,6 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
         <button class="chatroom-shortcut" id="openTutorialBtn" type="button">聊天室教程</button>
       </div>
     </div>
-        <div class="sidebar-section">
-      <h3>💬 参与角色</h3>
-      <div id="aiList" data-no-page-cache></div>
-      <div class="add-role-row three">
-        <button id="addAiBtn" class="add-ai-btn">➕ 手动添加</button>
-        <button id="openRoleCreatorBtn" class="add-ai-btn">✨ AI 创建</button>
-        <button id="addHumanBtn" class="add-ai-btn">🙋 添加用户</button>
-      </div>
-    </div>
-
     <div class="sidebar-section">
       <h3>⚙️ 房间设置</h3>
       <div class="setting-row">
@@ -628,7 +620,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
       <div class="setting-row stacked">
         <label for="discussionGoalInput">讨论目标</label>
         <textarea id="discussionGoalInput" rows="3" placeholder="留空时自动使用第一条用户消息"></textarea>
-        <span class="setting-help">所有角色将围绕这个目标推进，而不只是回答最近一句话。</span>
+        <span class="setting-help">建议先确定议题再创建角色；留空可自由讨论，也可自动使用第一条用户消息。</span>
       </div>
       <div class="setting-row">
         <label>协作模式</label>
@@ -659,6 +651,16 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
       <div class="setting-row">
         <input type="checkbox" id="autoStartCheck" checked>
         <span class="chk-label">发送消息后 AI 自动讨论</span>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <h3>💬 参与角色</h3>
+      <div id="aiList" data-no-page-cache></div>
+      <div class="add-role-row three">
+        <button id="addAiBtn" class="add-ai-btn">➕ 手动添加</button>
+        <button id="openRoleCreatorBtn" class="add-ai-btn">✨ AI 创建</button>
+        <button id="addHumanBtn" class="add-ai-btn">🙋 添加用户</button>
       </div>
     </div>
 
@@ -922,11 +924,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     return getHumanParticipant(room)?.name || '你';
   }
 
-  const DEFAULTS = [
-    { name: '理性派', prompt: '你是一个理性冷静的分析师，逻辑严密，喜欢用数据和事实说话。', provider: 'deepseek', model: 'deepseek-chat', temp: 0.5, collapsed: false, locked: false },
-    { name: '毒舌君', prompt: '你是一个毒舌吐槽专家，说话一针见血，幽默讽刺，但观点有道理。', provider: 'openai', model: 'gpt-4o-mini', temp: 0.9, collapsed: false, locked: false },
-    { name: '温柔姐', prompt: '你是一个温柔体贴的心理咨询师，说话温暖包容，善于鼓励他人。', provider: 'deepseek', model: 'deepseek-chat', temp: 0.7, collapsed: false, locked: false }
-  ];
+  const DEFAULTS = [];
 
   const ROLE_TAGS = {
     judge: { label: '裁判', protocol: '你是裁判。讨论阶段只观察论证质量、总结争议并指出逻辑漏洞；在系统明确要求最终裁决前，不得宣布胜负或自行终止讨论。' },
@@ -934,6 +932,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     moderator: { label: '主持人', protocol: '负责维持议题边界、衔接发言和指出尚未回应的问题，不代替辩手完成立论。' },
     summarizer: { label: '总结者', protocol: '优先压缩重复信息，明确列出共识、分歧、证据缺口和下一步，不引入无关新议题。' },
     debater: { label: '辩手', protocol: '必须保持清晰立场，并直接回应其他角色的具体论点；不得只重复自身主张。' },
+    counter_side: { label: 'AI反方', protocol: '以当前房间中用户已经设计的正方角色为主要参照，构造立场清晰、论证完整且有针对性的反方。必须回应正方的真实核心主张，禁止把对方弱化成容易攻击的稻草人。' },
     gentle: { label: '温和', protocol: '表达保持克制、尊重和低压，不使用羞辱性语言。' },
     forceful: { label: '强硬', protocol: '表达可以直接有力，但论证强度不能替代证据，也不得攻击人格。' },
     concise: { label: '简洁', protocol: '优先给出结论和关键理由，避免重复、铺垫过长和无信息量总结。' },
@@ -1344,9 +1343,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     const isFull = payload.kind === 'ai-dreamscape-chatroom-full';
     let source = isTemplate ? payload.template : isFull ? payload.room : payload;
     if (!source || typeof source !== 'object') throw new Error('文件缺少房间配置');
-    if (!Array.isArray(source.participants) || source.participants.length === 0) {
-      throw new Error('文件中没有有效的参与角色');
-    }
+    if (!Array.isArray(source.participants)) throw new Error('文件中缺少参与角色列表');
     if (source.participants.length > 30) throw new Error('参与角色超过 30 个，无法导入');
 
     const allowedRounds = [1, 2, 3, 5, 10];
@@ -1455,8 +1452,11 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
       roleCreatorState.selectedTags = new Set(nextTags);
       if (roleCreatorState.selectedTags.has('judge')) {
         roleCreatorState.selectedTags.delete('debater');
+        roleCreatorState.selectedTags.delete('counter_side');
         roleCreatorState.selectedTags.add('stage_summary');
         roleCreatorState.selectedTags.add('final_verdict');
+      } else if (roleCreatorState.selectedTags.has('counter_side')) {
+        roleCreatorState.selectedTags.add('debater');
       }
       if (roleCreatorState.selectedTags.has('gentle') && roleCreatorState.selectedTags.has('forceful')) {
         roleCreatorState.selectedTags.delete('gentle');
@@ -1480,8 +1480,15 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 
   function getRoleCreatorContext() {
     if (!document.getElementById('roleCreatorUseContext').checked || !state.room) return '不读取当前聊天室，创建通用角色。';
-    const existing = state.room.participants.map(participant => participant.name).join('、') || '暂无';
-    return `当前聊天室名称：${state.room.name || 'AI 聊天室'}\n协作模式：${state.room.collaborationMode || 'free'}\n讨论目标：${getDiscussionGoal(state.room)}\n已有角色：${existing}`;
+    const configuredGoal = String(state.room.discussionGoal || '').trim();
+    const firstUserMessage = state.room.messages.find(message => message.role === 'user')?.content;
+    const goal = configuredGoal || firstUserMessage || '未设置（自由讨论）';
+    const existing = state.room.participants
+      .filter(participant => participant.type !== 'human')
+      .slice(0, 10)
+      .map(participant => `【${participant.name || '未命名角色'}】\n${String(participant.prompt || '未填写 Prompt').slice(0, 1600)}`)
+      .join('\n\n') || '暂无；如果要生成 AI 反方，请让用户先创建正方，或在对话中提供正方内容。';
+    return `当前聊天室名称：${state.room.name || 'AI 聊天室'}\n协作模式：${state.room.collaborationMode || 'free'}\n讨论目标：${goal}\n已有 AI 角色及 Prompt：\n${existing}`;
   }
 
   function buildRoleCreatorMessages(userText) {
@@ -1502,8 +1509,12 @@ ${getRoleCreatorContext()}
 
 Prompt 应覆盖身份、职责、立场或观察角度、分析方法、互动规则和边界；适合多人讨论，避免空泛人物传记。
 
+温度是角色卡的一部分，必须随用户要求同步修改，不能只在 message 或 Prompt 中描述。用户给出明确数值时采用该数值并限制在 0～1；未明确时可参考：裁判/事实核查 0.25～0.45，稳定分析 0.45～0.65，辩手 0.65～0.85，高发散创意角色 0.8～0.95。
+
+选择 counter_side（AI反方）时，必须读取“已有 AI 角色及 Prompt”中的正方内容，生成与其议题相同、立场相反且论证强度对称的角色；如果现有角色超过一个且无法确认谁是正方，应在 message 中向用户说明需要指定参照角色，不要自行混合多个立场。
+
 你还要从以下标识符中选择适合的标签；不要创造列表以外的标签：
-judge, fact_checker, moderator, summarizer, debater, gentle, forceful, concise, light_taunt, logic_attack, stage_summary, final_verdict, last_appearance, suggest_end
+judge, fact_checker, moderator, summarizer, debater, counter_side, gentle, forceful, concise, light_taunt, logic_attack, stage_summary, final_verdict, last_appearance, suggest_end
 如果角色是裁判，至少选择 judge、stage_summary、final_verdict。
 
 只输出一个合法 JSON 对象，不要使用 Markdown 代码块，不要输出 JSON 之外的文字：
@@ -1831,6 +1842,9 @@ judge, fact_checker, moderator, summarizer, debater, gentle, forceful, concise, 
 
     const list = document.getElementById('aiList');
     list.innerHTML = '';
+    if (room.participants.length === 0) {
+      list.innerHTML = '<div class="empty-role-list">当前没有参与角色。可以先设置房间议题，再手动添加或使用 AI 创建。</div>';
+    }
     room.participants.forEach((p, i) => {
       const color = COLORS[i % COLORS.length];
       const isHuman = p.type === 'human';
@@ -1957,7 +1971,6 @@ judge, fact_checker, moderator, summarizer, debater, gentle, forceful, concise, 
 
       card.querySelector('.remove-btn')?.addEventListener('click', (e) => {
         e.stopPropagation();
-        if (room.participants.length <= 1) { showToast('至少保留一个参与角色', 'warning'); return; }
         showConfirm('确定移除「' + room.participants[i].name + '」吗？', function() {
           room.participants.splice(i, 1);
           saveRoom(room);
@@ -2805,18 +2818,21 @@ ${transcript}
     const button = event.target.closest('.role-tag');
     if (!button) return;
     const tag = button.dataset.tag;
-    const exclusives = { gentle: 'forceful', forceful: 'gentle', judge: 'debater', debater: 'judge' };
+    const exclusives = { gentle: ['forceful'], forceful: ['gentle'], judge: ['debater', 'counter_side'], debater: ['judge'], counter_side: ['judge'] };
     if (roleCreatorState.selectedTags.has(tag)) {
       roleCreatorState.selectedTags.delete(tag);
       button.classList.remove('active');
     } else {
-      const exclusive = exclusives[tag];
-      if (exclusive) {
+      (exclusives[tag] || []).forEach(exclusive => {
         roleCreatorState.selectedTags.delete(exclusive);
         document.querySelector(`#roleCreatorOverlay .role-tag[data-tag="${exclusive}"]`)?.classList.remove('active');
-      }
+      });
       roleCreatorState.selectedTags.add(tag);
       button.classList.add('active');
+      if (tag === 'counter_side') {
+        roleCreatorState.selectedTags.add('debater');
+        document.querySelector('#roleCreatorOverlay .role-tag[data-tag="debater"]')?.classList.add('active');
+      }
       if (tag === 'judge') {
         ['stage_summary', 'final_verdict'].forEach(recommended => {
           roleCreatorState.selectedTags.add(recommended);
