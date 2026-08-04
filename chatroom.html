@@ -286,6 +286,13 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .role-creator-message.user{align-self:flex-end;background:linear-gradient(135deg,#7c5cfc,#6a4de8);color:#fff;border-bottom-right-radius:4px}
 .role-creator-message.assistant{align-self:flex-start;background:var(--surface-hover);border:1px solid var(--border);border-bottom-left-radius:4px}
 .role-creator-message.status{align-self:center;padding:6px 12px;color:var(--text2);font-size:11px;background:transparent}
+.role-creator-error-title{font-weight:800;color:var(--danger);margin-bottom:5px}
+.role-creator-error-meta,.role-creator-error-hint{font-size:11px;color:var(--text2);line-height:1.55}
+.role-creator-error-meta{white-space:pre-line}
+.role-creator-error-details{margin-top:8px;border-top:1px dashed var(--border);padding-top:7px}
+.role-creator-error-details summary{cursor:pointer;color:var(--primary);font-size:10px;font-weight:700}
+.role-creator-error-details pre{max-height:180px;overflow:auto;margin-top:6px;padding:8px;border-radius:8px;background:rgba(0,0,0,.08);font:10px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap;word-break:break-word}
+.role-creator-error-copy{margin-top:6px;padding:4px 8px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--text2);font-size:9px;cursor:pointer}
 .role-creator-compose{padding:12px;border-top:1px solid var(--border)}
 .role-creator-compose-row{display:flex;gap:8px;align-items:flex-end}
 .role-creator-compose textarea{flex:1;min-height:64px;max-height:130px;resize:vertical;padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:rgba(0,0,0,.04);color:var(--text);font:13px/1.55 inherit;outline:none}
@@ -1470,12 +1477,88 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 
   function parseRoleCreatorResponse(raw) {
     const text = String(raw || '').trim();
+    if (!text) {
+      const error = new Error('模型请求成功，但没有返回任何内容');
+      error.code = 'EMPTY_RESPONSE';
+      throw error;
+    }
     const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
     const source = fenced ? fenced[1].trim() : text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1);
-    if (!source) throw new Error('AI 未返回角色卡数据');
-    const parsed = JSON.parse(source);
-    if (!parsed || typeof parsed !== 'object') throw new Error('角色卡格式不正确');
+    if (!source || !source.startsWith('{') || !source.endsWith('}')) {
+      const error = new Error('模型返回了文字，但没有找到完整的 JSON 角色卡');
+      error.code = 'MISSING_JSON';
+      throw error;
+    }
+    let parsed;
+    try {
+      parsed = JSON.parse(source);
+    } catch (cause) {
+      const error = new Error('JSON 无法解析：' + cause.message);
+      error.code = 'INVALID_JSON';
+      throw error;
+    }
+    if (!parsed || typeof parsed !== 'object') {
+      const error = new Error('角色卡不是有效对象');
+      error.code = 'INVALID_CARD';
+      throw error;
+    }
+    const missing = ['name', 'prompt', 'temp', 'tags'].filter(key => parsed[key] === undefined || parsed[key] === null);
+    if (missing.length) {
+      const error = new Error('角色卡缺少字段：' + missing.join('、'));
+      error.code = 'MISSING_FIELDS';
+      throw error;
+    }
     return parsed;
+  }
+
+  function renderRoleCreatorError(status, error, raw) {
+    const provider = PROVIDERS[roleCreatorState.provider];
+    const modelLabel = (provider?.name || roleCreatorState.provider) + ' / ' + roleCreatorState.model;
+    const parseCodes = ['EMPTY_RESPONSE', 'MISSING_JSON', 'INVALID_JSON', 'INVALID_CARD', 'MISSING_FIELDS'];
+    const stage = parseCodes.includes(error?.code) ? '角色卡解析' : 'API 请求或流式响应';
+    const hint = parseCodes.includes(error?.code)
+      ? '模型没有严格按角色卡格式输出。可以直接重试；右侧已有内容不会丢失。'
+      : '请检查该服务商的 API Key、模型可用性、账户额度和网络状态后重试。';
+    const diagnostic = `模型：${modelLabel}\n阶段：${stage}\n原因：${error?.message || '未知错误'}${raw ? `\n\n原始返回：\n${raw}` : ''}`;
+
+    status.className = 'role-creator-message assistant';
+    status.replaceChildren();
+    const title = document.createElement('div');
+    title.className = 'role-creator-error-title';
+    title.textContent = '角色创建失败';
+    const meta = document.createElement('div');
+    meta.className = 'role-creator-error-meta';
+    meta.textContent = '模型：' + modelLabel + '\n阶段：' + stage + '\n原因：' + (error?.message || '未知错误');
+    const hintEl = document.createElement('div');
+    hintEl.className = 'role-creator-error-hint';
+    hintEl.textContent = hint;
+    status.append(title, meta, hintEl);
+
+    if (raw) {
+      const details = document.createElement('details');
+      details.className = 'role-creator-error-details';
+      const summary = document.createElement('summary');
+      summary.textContent = '查看模型原始返回（最多显示 3000 字）';
+      const pre = document.createElement('pre');
+      pre.textContent = String(raw).slice(0, 3000);
+      details.append(summary, pre);
+      status.appendChild(details);
+    }
+
+    const copy = document.createElement('button');
+    copy.type = 'button';
+    copy.className = 'role-creator-error-copy';
+    copy.textContent = '复制诊断信息';
+    copy.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(diagnostic);
+        showToast('诊断信息已复制', 'success');
+      } catch {
+        showToast('复制失败，请手动选择错误信息', 'warning');
+      }
+    });
+    status.appendChild(copy);
+    console.error('[角色共创失败]', { provider: roleCreatorState.provider, model: roleCreatorState.model, stage, error, raw });
   }
 
   function getRoleCreatorContext() {
@@ -1545,6 +1628,7 @@ judge, fact_checker, moderator, summarizer, debater, counter_side, gentle, force
     document.getElementById('roleCreatorSendBtn').disabled = true;
     const status = addRoleCreatorMessage('assistant', '正在生成角色卡……', 'status');
 
+    let raw = '';
     try {
       const participant = normalizeParticipant({
         type: 'ai',
@@ -1554,15 +1638,14 @@ judge, fact_checker, moderator, summarizer, debater, counter_side, gentle, force
         model: roleCreatorState.model,
         temp: 0.35
       });
-      const raw = await streamAI(participant, messages, null);
+      raw = await streamAI(participant, messages, null);
       roleCreatorState.history.push({ role: 'assistant', content: raw });
       const result = parseRoleCreatorResponse(raw);
       setRoleCreatorDraft(result);
       status.className = 'role-creator-message assistant';
       status.textContent = String(result.message || '角色卡已更新，你可以继续修改或直接应用。');
     } catch (error) {
-      status.className = 'role-creator-message assistant';
-      status.textContent = '生成失败：' + (error?.message || '返回格式无法解析') + '。你可以重试，右侧已有内容不会丢失。';
+      renderRoleCreatorError(status, error, raw);
     } finally {
       roleCreatorState.busy = false;
       document.getElementById('roleCreatorSendBtn').disabled = false;
@@ -2424,6 +2507,13 @@ ${transcript}
 
     const totalRounds = room.rounds;
     const mode = state.discussionMode;
+    const firstEnabledParticipant = room.participants.find(participant => participant.enabled !== false);
+    const latestMessage = room.messages[room.messages.length - 1];
+    let openingHumanTurn = firstEnabledParticipant?.type === 'human'
+      && latestMessage?.role === 'user'
+      && latestMessage.name === (firstEnabledParticipant.name || '你')
+        ? latestMessage
+        : null;
     let round = 0;
 
     async function collectHumanTurn(name, reason, questionText) {
@@ -2458,7 +2548,12 @@ ${transcript}
 
           let result = null;
           if (participant.type === 'human') {
-            result = await collectHumanTurn(participant.name || '你', 'scheduled');
+            if (round === 1 && idx === 0 && openingHumanTurn) {
+              result = { content: openingHumanTurn.content, name: openingHumanTurn.name, role: 'user' };
+              openingHumanTurn = null;
+            } else {
+              result = await collectHumanTurn(participant.name || '你', 'scheduled');
+            }
           } else {
             result = await callSingleAI(participantIdx, round, totalRounds);
           }
