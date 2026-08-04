@@ -1624,6 +1624,8 @@ ${getRoleCreatorContext()}
 
 Prompt 应覆盖身份、职责、立场或观察角度、分析方法、互动规则和边界；适合多人讨论，避免空泛人物传记。
 
+这个任务不需要展开长篇推理。请用最少的内部判断完成角色设计，把输出额度优先留给完整、合法的最终 JSON；不要输出分析过程、思考过程或解释性前言。
+
 温度是角色卡的一部分，必须随用户要求同步修改，不能只在 message 或 Prompt 中描述。用户给出明确数值时采用该数值并限制在 0～1；未明确时可参考：裁判/事实核查 0.25～0.45，稳定分析 0.45～0.65，辩手 0.65～0.85，高发散创意角色 0.8～0.95。
 
 选择 counter_side（AI反方）时，必须读取“已有 AI 角色及 Prompt”中的正方内容，生成与其议题相同、立场相反且论证强度对称的角色；如果现有角色超过一个且无法确认谁是正方，应在 message 中向用户说明需要指定参照角色，不要自行混合多个立场。
@@ -1670,7 +1672,11 @@ judge, fact_checker, moderator, summarizer, debater, counter_side, gentle, force
         model: roleCreatorState.model,
         temp: 0.35
       });
-      raw = await streamAI(participant, messages, null, null, { stream: false });
+      raw = await streamAI(participant, messages, null, null, {
+        stream: false,
+        maxTokens: 12000,
+        conciseStructuredOutput: true
+      });
       roleCreatorState.history.push({ role: 'assistant', content: raw });
       const result = parseRoleCreatorResponse(raw);
       setRoleCreatorDraft(result);
@@ -2265,7 +2271,15 @@ judge, fact_checker, moderator, summarizer, debater, counter_side, gentle, force
     const apiKey = getApiKey(participant.provider);
     if (!apiKey) throw new Error(participant.name + ' 的 ' + provider.name + ' API Key 未设置');
 
-    const body = provider.buildBody(participant.model, messages, 4000, participant.temp);
+    const requestedMaxTokens = Number(options?.maxTokens);
+    const maxTokens = Number.isFinite(requestedMaxTokens)
+      ? Math.min(64000, Math.max(1, Math.round(requestedMaxTokens)))
+      : 4000;
+    const body = provider.buildBody(participant.model, messages, maxTokens, participant.temp);
+    if (participant.provider === 'deepseek' && options?.conciseStructuredOutput) {
+      body.thinking = { type: 'disabled' };
+      body.response_format = { type: 'json_object' };
+    }
     const useStream = participant.provider === 'gemini' || options?.stream !== false;
     if (participant.provider !== 'gemini') body.stream = useStream;
 
