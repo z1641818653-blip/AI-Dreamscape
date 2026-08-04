@@ -31,7 +31,7 @@
   }
 
   function fieldKey(element, index) {
-    return element.id || element.getAttribute('name') || `field-${index}`;
+    return element.id || element.getAttribute('name') || null;
   }
 
   function collectFields() {
@@ -41,6 +41,7 @@
       .slice(0, MAX_FIELDS);
     elements.forEach((element, index) => {
       const key = fieldKey(element, index);
+      if (!key) return;
       const type = String(element.type || element.tagName).toLowerCase();
       const raw = element.matches('[contenteditable="true"]') ? element.textContent : element.value;
       fields[key] = {
@@ -77,18 +78,18 @@
     saveTimer = setTimeout(persistPageCache, 500);
   }
 
-  function findField(key, index) {
+  function findField(key) {
     const byId = document.getElementById(key);
     if (byId && isCacheableField(byId)) return byId;
     const named = Array.from(document.querySelectorAll('[name]')).find(element => element.getAttribute('name') === key && isCacheableField(element));
     if (named) return named;
-    return Array.from(document.querySelectorAll('input, textarea, select, [contenteditable="true"]')).filter(isCacheableField)[index] || null;
+    return null;
   }
 
   function restoreFields(record) {
     restoring = true;
-    Object.entries(record.fields || {}).forEach(([key, saved], index) => {
-      const element = findField(key, index);
+    Object.entries(record.fields || {}).forEach(([key, saved]) => {
+      const element = findField(key);
       if (!element) return;
       if (element.matches('[contenteditable="true"]')) element.textContent = saved.value || '';
       else if (typeof saved.checked === 'boolean' && /checkbox|radio/.test(saved.type)) element.checked = saved.checked;

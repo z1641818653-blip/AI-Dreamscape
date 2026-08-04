@@ -513,7 +513,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
   </div>
 </div>
 
-<div class="role-creator-overlay" id="roleCreatorOverlay" aria-hidden="true">
+<div class="role-creator-overlay" id="roleCreatorOverlay" aria-hidden="true" data-no-page-cache>
   <div class="role-creator-dialog" role="dialog" aria-modal="true" aria-labelledby="roleCreatorTitle">
     <div class="role-creator-header">
       <div class="role-creator-header-copy">
@@ -611,7 +611,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     </div>
         <div class="sidebar-section">
       <h3>💬 参与角色</h3>
-      <div id="aiList"></div>
+      <div id="aiList" data-no-page-cache></div>
       <div class="add-role-row three">
         <button id="addAiBtn" class="add-ai-btn">➕ 手动添加</button>
         <button id="openRoleCreatorBtn" class="add-ai-btn">✨ AI 创建</button>
@@ -1621,6 +1621,8 @@ judge, fact_checker, moderator, summarizer, debater, gentle, forceful, concise, 
     saveRoom(state.room);
     renderSidebar();
     closeRoleCreator();
+    resetRoleCreator(false);
+    window.DreamscapeStorage?.markSaved?.();
     showToast('✅ 已创建角色：' + participant.name, 'success');
   }
 
