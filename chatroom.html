@@ -76,6 +76,13 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .setting-help{font-size:9px;line-height:1.4;color:var(--text2)}
 .setting-row input[type="checkbox"]{width:16px;height:16px;cursor:pointer;accent-color:var(--primary);flex-shrink:0}
 .setting-row .chk-label{font-size:11px;color:var(--text2)}
+.room-settings-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.room-settings-heading h3{margin-bottom:0}
+.deep-thinking-btn{padding:5px 9px;border:1px solid var(--border);border-radius:11px;background:transparent;color:var(--text2);font-size:9px;font-weight:750;cursor:pointer;transition:all .15s;white-space:nowrap}
+.deep-thinking-btn:hover:not(:disabled){border-color:var(--primary);color:var(--primary);background:var(--primary-glow)}
+.deep-thinking-btn.active{border-color:var(--warning);background:rgba(243,156,18,.1);color:var(--warning)}
+.deep-thinking-btn:disabled{opacity:.45;cursor:not-allowed}
+.deep-thinking-note{margin:6px 0 9px;padding:7px 8px;border-left:3px solid var(--warning);border-radius:0 8px 8px 0;background:rgba(243,156,18,.07);color:var(--text2);font-size:9px;line-height:1.5}
 
 .history-section{margin-top:auto}
 .history-list{max-height:160px;overflow-y:auto;display:flex;flex-direction:column;gap:2px}
@@ -318,6 +325,9 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .role-creator-temp input{flex:1}
 .role-creator-temp output{min-width:32px;font-size:11px;color:var(--text2);text-align:right}
 .role-creator-context{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--text2)}
+.role-creator-thinking{margin-top:10px;padding:10px;border:1px solid var(--border);border-radius:11px;background:rgba(0,0,0,.025)}
+.role-creator-thinking .deep-thinking-btn{width:100%;padding:7px 10px;font-size:10px}
+.role-creator-thinking .deep-thinking-note{margin:8px 0 0}
 .role-creator-actions{position:static;display:flex;justify-content:flex-end;gap:8px;margin:16px -18px -16px;padding:12px 18px;border-top:1px solid var(--border);background:var(--surface)}
 .role-creator-secondary,.role-creator-apply{padding:8px 15px;border-radius:14px;font-size:11px;font-weight:700;cursor:pointer}
 .role-creator-secondary{border:1px solid var(--border);background:transparent;color:var(--text2)}
@@ -399,6 +409,8 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
           <p>这是所有角色持续遵守的长期任务，不只是最近一句消息。复杂讨论应写清问题、结果、边界、互动方式和停止条件。</p>
           <div class="tutorial-callout"><strong>讨论目标留空：</strong>系统会自动把第一条用户消息作为目标。适合快速聊天，但复杂任务最好单独填写。</div>
           <p>可以把“讨论目标”理解为这场讨论为什么存在，把“最近消息”理解为当前需要处理什么。</p>
+          <h3>房间深度思考</h3>
+          <p>默认关闭，适合普通聊天和多轮辩论。只有议题需要复杂推演、严格比较或多重约束时再开启；开启后当前房间的 DeepSeek 角色会获得更高输出上限，但等待更久、消耗更多。请先把讨论目标、判断标准和边界写清楚。</p>
           <h3>其他空值</h3>
           <ul>
             <li><strong>角色 Prompt 为空：</strong>角色缺乏稳定职责，不建议用于多人讨论。</li>
@@ -414,6 +426,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
             <li>先说清楚想要的职责、立场和语气，例如“创建一个严格但不抢话的裁判”。</li>
             <li>选择职责、表达和流程标签；AI 也会根据描述推荐标签。</li>
             <li>检查并修改名称、可编辑 Prompt、模型和温度。AI 可以按你的要求调整温度，你也可以直接拖动滑块。</li>
+            <li>复杂角色可以开启“详细配置角色（深度思考）”；普通角色保持关闭更快、更稳定。</li>
             <li>满意后点击“应用为新角色”。角色加入房间后，共创页会自动清空，方便继续创建下一个角色。</li>
           </ol>
           <h3>Prompt 和固定协议有什么区别</h3>
@@ -627,6 +640,10 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
             </div>
           </div>
           <label class="role-creator-context"><input id="roleCreatorUseContext" type="checkbox" checked>结合当前聊天室目标和已有角色生成</label>
+          <div class="role-creator-thinking">
+            <button class="deep-thinking-btn" id="roleCreatorDeepThinkingBtn" type="button" aria-pressed="false">🧠 详细配置角色（深度思考：关）</button>
+            <div class="deep-thinking-note">仅建议复杂角色使用。开启后需要更长等待时间和更多额度；请把职责、立场、边界、互动方式及特殊限制写清楚。目前只控制 DeepSeek 模型。</div>
+          </div>
         </div>
         <div class="role-creator-actions">
           <button class="role-creator-secondary" id="roleCreatorResetBtn" type="button">重新开始</button>
@@ -646,7 +663,11 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
       </div>
     </div>
     <div class="sidebar-section">
-      <h3>⚙️ 房间设置</h3>
+      <div class="room-settings-heading">
+        <h3>⚙️ 房间设置</h3>
+        <button class="deep-thinking-btn" id="roomDeepThinkingBtn" type="button" aria-pressed="false">🧠 深度思考：关</button>
+      </div>
+      <div class="deep-thinking-note">仅建议复杂议题开启。DeepSeek 角色会等待更久并消耗更多额度；请先写清讨论目标、判断标准和边界。普通讨论保持关闭。</div>
       <div class="setting-row">
         <label>名称</label>
         <input type="text" id="roomNameInput" value="AI 聊天室">
@@ -1051,6 +1072,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
       messages: [],
       rounds: rounds || 3,
       autoStart: autoStart !== undefined ? autoStart : true,
+      deepThinking: false,
       discussionMode: discussionMode || 'fixed',
       collaborationMode: 'free',
       discussionGoal: '',
@@ -1280,6 +1302,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
       discussionMode: room.discussionMode || 'fixed',
       rounds: Number(room.rounds) || 3,
       autoStart: room.autoStart !== false,
+      deepThinking: room.deepThinking === true,
       participants: room.participants.map(exportParticipant)
     };
   }
@@ -1385,6 +1408,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     const room = createRoom(getUniqueRoomName(String(source.name || '导入的 AI 聊天室').slice(0, 80)), [], rounds, source.autoStart !== false, ['fixed', 'auto', 'infinite'].includes(source.discussionMode) ? source.discussionMode : 'fixed');
     room.collaborationMode = ['free', 'cocreate', 'debate'].includes(source.collaborationMode) ? source.collaborationMode : 'free';
     room.discussionGoal = String(source.discussionGoal || '').slice(0, 30000);
+    room.deepThinking = source.deepThinking === true;
     room.participants = source.participants.map(sanitizeImportedParticipant);
     room.messages = isTemplate ? [] : sanitizeImportedMessages(source.messages);
     return { room, importType: isTemplate ? '模板' : '整体房间' };
@@ -1435,6 +1459,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     selectedTags: new Set(),
     provider: 'deepseek',
     model: 'deepseek-v4-flash',
+    deepThinking: false,
     busy: false,
     selectorMounted: false
   };
@@ -1450,6 +1475,19 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
   function updateRoleCreatorProtocol() {
     const protocol = compileRoleFixedProtocol();
     document.getElementById('roleFixedProtocol').textContent = protocol || '尚未选择标签。';
+  }
+
+  function updateRoleCreatorDeepThinkingButton() {
+    const button = document.getElementById('roleCreatorDeepThinkingBtn');
+    if (!button) return;
+    const supported = roleCreatorState.provider === 'deepseek';
+    if (!supported) roleCreatorState.deepThinking = false;
+    button.disabled = !supported || roleCreatorState.busy;
+    button.classList.toggle('active', supported && roleCreatorState.deepThinking);
+    button.setAttribute('aria-pressed', String(supported && roleCreatorState.deepThinking));
+    button.textContent = supported
+      ? (roleCreatorState.deepThinking ? '🧠 详细配置角色（深度思考：开）' : '🧠 详细配置角色（深度思考：关）')
+      : '🧠 详细配置角色（当前模型不支持）';
   }
 
   function addRoleCreatorMessage(role, content, className) {
@@ -1609,6 +1647,9 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
   function buildRoleCreatorMessages(userText) {
     const draft = getRoleCreatorDraft();
     const tags = draft.tags.map(tag => ROLE_TAGS[tag]?.label).filter(Boolean);
+    const thinkingInstruction = roleCreatorState.deepThinking
+      ? '已开启详细配置模式。请在内部仔细检查角色职责是否完整、标签是否冲突、温度是否匹配、与现有角色是否互补；不要展示思考过程，仍只输出最终 JSON。'
+      : '当前为快速配置模式。请用最少的内部判断完成角色设计，把输出额度优先留给完整、合法的最终 JSON；不要输出分析过程、思考过程或解释性前言。';
     const system = `你是“AI 角色共创助手”，负责为多角色 AI 聊天室设计一个角色。
 
 用户会连续提出创建或修改要求。你必须继承当前角色卡，只修改用户要求的部分，不得每轮重新创造无关角色。
@@ -1624,7 +1665,7 @@ ${getRoleCreatorContext()}
 
 Prompt 应覆盖身份、职责、立场或观察角度、分析方法、互动规则和边界；适合多人讨论，避免空泛人物传记。
 
-这个任务不需要展开长篇推理。请用最少的内部判断完成角色设计，把输出额度优先留给完整、合法的最终 JSON；不要输出分析过程、思考过程或解释性前言。
+${thinkingInstruction}
 
 温度是角色卡的一部分，必须随用户要求同步修改，不能只在 message 或 Prompt 中描述。用户给出明确数值时采用该数值并限制在 0～1；未明确时可参考：裁判/事实核查 0.25～0.45，稳定分析 0.45～0.65，辩手 0.65～0.85，高发散创意角色 0.8～0.95。
 
@@ -1660,7 +1701,8 @@ judge, fact_checker, moderator, summarizer, debater, counter_side, gentle, force
     roleCreatorState.history.push({ role: 'user', content: userText });
     roleCreatorState.busy = true;
     document.getElementById('roleCreatorSendBtn').disabled = true;
-    const status = addRoleCreatorMessage('assistant', '正在生成角色卡……', 'status');
+    updateRoleCreatorDeepThinkingButton();
+    const status = addRoleCreatorMessage('assistant', roleCreatorState.deepThinking ? '正在深度分析并生成角色卡，请耐心等待……' : '正在生成角色卡……', 'status');
 
     let raw = '';
     try {
@@ -1674,8 +1716,10 @@ judge, fact_checker, moderator, summarizer, debater, counter_side, gentle, force
       });
       raw = await streamAI(participant, messages, null, null, {
         stream: false,
-        maxTokens: 12000,
-        conciseStructuredOutput: true
+        maxTokens: roleCreatorState.deepThinking ? 20000 : 12000,
+        deepThinking: roleCreatorState.deepThinking,
+        jsonOutput: true,
+        timeoutMs: roleCreatorState.deepThinking ? 180000 : 90000
       });
       roleCreatorState.history.push({ role: 'assistant', content: raw });
       const result = parseRoleCreatorResponse(raw);
@@ -1687,6 +1731,7 @@ judge, fact_checker, moderator, summarizer, debater, counter_side, gentle, force
     } finally {
       roleCreatorState.busy = false;
       document.getElementById('roleCreatorSendBtn').disabled = false;
+      updateRoleCreatorDeepThinkingButton();
     }
   }
 
@@ -1698,6 +1743,8 @@ judge, fact_checker, moderator, summarizer, debater, counter_side, gentle, force
     document.getElementById('roleCreatorPrompt').value = '';
     document.getElementById('roleCreatorTemp').value = '0.7';
     document.getElementById('roleCreatorTempValue').textContent = '0.70';
+    roleCreatorState.deepThinking = false;
+    updateRoleCreatorDeepThinkingButton();
     document.getElementById('roleCreatorMessages').innerHTML = '<div class="role-creator-empty" id="roleCreatorEmpty">描述你想创建的角色，例如：<br>“创建一个严格但不抢话的裁判，只在最后给出明确结论。”</div>';
     updateRoleCreatorProtocol();
     if (showNotice) showToast('已清空角色共创草稿', 'info');
@@ -1718,10 +1765,12 @@ judge, fact_checker, moderator, summarizer, debater, counter_side, gentle, force
         onChange(value) {
           roleCreatorState.provider = value.provider;
           roleCreatorState.model = value.model;
+          updateRoleCreatorDeepThinkingButton();
         }
       });
       roleCreatorState.selectorMounted = true;
     }
+    updateRoleCreatorDeepThinkingButton();
     setTimeout(() => document.getElementById('roleCreatorInput').focus(), 50);
   }
 
@@ -1874,6 +1923,7 @@ judge, fact_checker, moderator, summarizer, debater, counter_side, gentle, force
     room.participants = room.participants.map(normalizeParticipant);
     room.collaborationMode = ['free', 'cocreate', 'debate'].includes(room.collaborationMode) ? room.collaborationMode : 'free';
     room.discussionGoal = typeof room.discussionGoal === 'string' ? room.discussionGoal : '';
+    room.deepThinking = room.deepThinking === true;
     state.room = room;
     state.isDiscussing = false;
     state.discussStopped = false;
@@ -1959,6 +2009,10 @@ judge, fact_checker, moderator, summarizer, debater, counter_side, gentle, force
     document.getElementById('discussionModeSelect').value = state.discussionMode || 'fixed';
     document.getElementById('roundsSelect').value = room.rounds;
     document.getElementById('autoStartCheck').checked = room.autoStart;
+    const roomDeepThinkingBtn = document.getElementById('roomDeepThinkingBtn');
+    roomDeepThinkingBtn.classList.toggle('active', room.deepThinking === true);
+    roomDeepThinkingBtn.setAttribute('aria-pressed', String(room.deepThinking === true));
+    roomDeepThinkingBtn.textContent = room.deepThinking ? '🧠 深度思考：开' : '🧠 深度思考：关';
     document.getElementById('roundCountRow').style.display = (state.discussionMode === 'fixed') ? 'flex' : 'none';
 
     const list = document.getElementById('aiList');
@@ -2276,8 +2330,10 @@ judge, fact_checker, moderator, summarizer, debater, counter_side, gentle, force
       ? Math.min(64000, Math.max(1, Math.round(requestedMaxTokens)))
       : 4000;
     const body = provider.buildBody(participant.model, messages, maxTokens, participant.temp);
-    if (participant.provider === 'deepseek' && options?.conciseStructuredOutput) {
-      body.thinking = { type: 'disabled' };
+    if (participant.provider === 'deepseek' && typeof options?.deepThinking === 'boolean') {
+      body.thinking = { type: options.deepThinking ? 'enabled' : 'disabled' };
+    }
+    if (participant.provider === 'deepseek' && options?.jsonOutput) {
       body.response_format = { type: 'json_object' };
     }
     const useStream = participant.provider === 'gemini' || options?.stream !== false;
@@ -2291,13 +2347,17 @@ judge, fact_checker, moderator, summarizer, debater, counter_side, gentle, force
     const requestController = new AbortController();
     let idleTimer = null;
     let timedOut = false;
+    const requestedTimeout = Number(options?.timeoutMs);
+    const timeoutMs = Number.isFinite(requestedTimeout)
+      ? Math.min(300000, Math.max(30000, Math.round(requestedTimeout)))
+      : 90000;
     const abortRequest = () => requestController.abort();
     const armIdleTimeout = () => {
       clearTimeout(idleTimer);
       idleTimer = setTimeout(() => {
         timedOut = true;
         requestController.abort();
-      }, 90000);
+      }, timeoutMs);
     };
 
     if (signal) {
@@ -2371,13 +2431,23 @@ judge, fact_checker, moderator, summarizer, debater, counter_side, gentle, force
       return fullContent;
     } catch (error) {
       if (timedOut) {
-        throw new Error('[' + provider.name + '] 90 秒内未收到新数据，请检查网络或稍后重试');
+        throw new Error('[' + provider.name + '] ' + Math.round(timeoutMs / 1000) + ' 秒内未收到新数据，请检查网络或稍后重试');
       }
       throw error;
     } finally {
       clearTimeout(idleTimer);
       if (signal) signal.removeEventListener('abort', abortRequest);
     }
+  }
+
+  function getDiscussionRequestOptions(room, participant) {
+    if (participant.provider !== 'deepseek') return undefined;
+    const deepThinking = room.deepThinking === true;
+    return {
+      maxTokens: deepThinking ? 16000 : 4000,
+      deepThinking,
+      timeoutMs: deepThinking ? 180000 : 90000
+    };
   }
 
   const COLLABORATION_PROMPTS = {
@@ -2495,7 +2565,7 @@ ${transcript}
       fullContent = await streamAI(p, msgs, ac.signal, content => {
         fullContent = content;
         updateBubble(bubble, content, false);
-      });
+      }, getDiscussionRequestOptions(room, p));
       if (!fullContent) fullContent = '（无响应）';
       updateBubble(bubble, fullContent, true);
     } catch (e) {
@@ -2538,7 +2608,7 @@ ${transcript}
     try {
       const ac = new AbortController();
       state._aborters.push(ac);
-      const result = await streamAI(judge, msgs, ac.signal);
+      const result = await streamAI(judge, msgs, ac.signal, null, getDiscussionRequestOptions(room, judge));
       hideTypingIndicator('讨论评估');
       if (result && result.includes('【END】')) {
         showToast('✅ 讨论已充分，自动结束', 'success');
@@ -2775,6 +2845,15 @@ ${transcript}
     if (t.id === 'sidebarToggle') { state.sidebarOpen = !state.sidebarOpen; updateSidebarState(); return; }
     if (t.id === 'themeBtn') { state.darkMode = !state.darkMode; applyTheme(); return; }
     if (t.id === 'newRoomBtn') { if (state.isDiscussing) { showToast('请先停止讨论','warning'); return; } newRoom(); return; }
+    if (t.id === 'roomDeepThinkingBtn') {
+      if (!state.room) return;
+      if (state.isDiscussing) { showToast('请先停止讨论再切换深度思考', 'warning'); return; }
+      state.room.deepThinking = !state.room.deepThinking;
+      saveRoom(state.room);
+      renderSidebar();
+      showToast(state.room.deepThinking ? '🧠 当前房间已开启 DeepSeek 深度思考' : '已关闭深度思考，恢复快速讨论', state.room.deepThinking ? 'warning' : 'info');
+      return;
+    }
     if (t.id === 'addAiBtn') {
       if (!state.room) { showToast('请先创建房间','warning'); return; }
       state.room.participants.push(normalizeParticipant({type:'ai',name:'新 AI',prompt:'你是一个有用的AI助手。',provider:'deepseek',model:'deepseek-chat',temp:0.7}));
@@ -2974,6 +3053,12 @@ ${transcript}
   document.getElementById('roleCreatorSendBtn').addEventListener('click', runRoleCreator);
   document.getElementById('roleCreatorApplyBtn').addEventListener('click', applyCreatedRole);
   document.getElementById('roleCreatorResetBtn').addEventListener('click', () => resetRoleCreator(true));
+  document.getElementById('roleCreatorDeepThinkingBtn').addEventListener('click', () => {
+    if (roleCreatorState.provider !== 'deepseek') return;
+    roleCreatorState.deepThinking = !roleCreatorState.deepThinking;
+    updateRoleCreatorDeepThinkingButton();
+    showToast(roleCreatorState.deepThinking ? '🧠 已开启详细配置，请提供完整角色要求' : '已恢复快速角色配置', roleCreatorState.deepThinking ? 'warning' : 'info');
+  });
   document.getElementById('roleCreatorInput').addEventListener('keydown', event => {
     if (event.isComposing || event.keyCode === 229) return;
     if (event.key === 'Enter' && !event.shiftKey) {
