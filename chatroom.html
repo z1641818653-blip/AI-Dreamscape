@@ -1839,6 +1839,8 @@ judge, fact_checker, moderator, summarizer, debater, counter_side, gentle, force
     room.deepThinking = room.deepThinking === true;
     room.speechMode = room.speechMode === 'manual' ? 'manual' : 'auto';
     state.manualNext = null;
+    state.autoCursor = null;
+    state.autoSuspended = false;
     state.room = room;
     state.isDiscussing = false;
     state.discussStopped = false;
@@ -2129,7 +2131,8 @@ judge, fact_checker, moderator, summarizer, debater, counter_side, gentle, force
         addMessageDOM('ai', m.name, m.content, COLORS[Math.max(participantIndex, 0) % COLORS.length], m.timestamp);
       }
     });
-    scrollToBottom();
+    if (room.messages.length) scrollToBottom();
+    else area.scrollTop = 0;
   }
 
   function addMessageDOM(role, name, content, color, timestamp) {
@@ -2469,7 +2472,7 @@ ${transcript}
     }
   }
 
-  async function startDiscussion() {
+  async function startDiscussion(resume = null) {
     const room = state.room;
     if (!room || state.isDiscussing || room.speechMode === 'manual') return;
     const aiParticipants = room.participants.filter(participant => participant.type !== 'human' && participant.enabled !== false);
@@ -2482,6 +2485,7 @@ ${transcript}
     }
 
     state.isDiscussing = true;
+    state.autoSuspended = false;
     state.discussStopped = false;
     state.currentRound = 0;
     state.discussionPaused = false;
@@ -2507,7 +2511,8 @@ ${transcript}
       && latestMessage.name === (firstEnabledParticipant.name || '你')
         ? latestMessage
         : null;
-    let round = 0;
+    let round = resume?.room === room ? Math.max(0, resume.round - 1) : 0;
+    let resumeIndex = resume?.room === room ? resume.index : 0;
 
     async function collectHumanTurn(name, reason, questionText) {
       const userReply = await waitForHumanTurn(name, reason, questionText);
@@ -2518,7 +2523,7 @@ ${transcript}
 
     try {
       while (true) {
-        if (state.discussStopped) break;
+        if (state.discussStopped || room.speechMode === 'manual') break;
 
         round++;
         state.currentRound = round;
@@ -2530,10 +2535,12 @@ ${transcript}
         }
 
         let queue = room.participants.map((participant, i) => participant.enabled !== false ? i : -1).filter(i => i >= 0);
-        let idx = 0;
+        let idx = queue.findIndex(index => index >= resumeIndex);
+        if (idx < 0) idx = queue.length;
+        resumeIndex = 0;
 
         while (idx < queue.length) {
-          if (state.discussStopped) break;
+          if (state.discussStopped || room.speechMode === 'manual') break;
 
           const participantIdx = queue[idx];
           const participant = room.participants[participantIdx];
@@ -2551,7 +2558,8 @@ ${transcript}
             result = await callSingleAI(participantIdx, round, totalRounds);
           }
 
-          if (state.discussStopped) break;
+          state.autoCursor = {room,index:participantIdx + 1,round};
+          if (state.discussStopped || room.speechMode === 'manual') break;
 
           if (participant.type !== 'human' && result && result.content && !result.content.startsWith('❌') && result.content !== '（无响应）') {
             if (hasQuestion(result.content)) {
@@ -2586,7 +2594,7 @@ ${transcript}
           idx++;
         }
 
-        if (state.discussStopped) break;
+        if (state.discussStopped || room.speechMode === 'manual') break;
         if (mode === 'fixed' && round >= totalRounds) break;
         if (mode === 'auto') {
           const shouldContinue = await checkAutoEnd();
@@ -2594,10 +2602,16 @@ ${transcript}
         }
       }
     } finally {
+      const next = state.manualNext;
+      state.manualNext = null;
+      state.autoSuspended = !state.discussStopped && room.speechMode === 'manual';
       finishDiscussion();
+      if (!state.discussStopped && room.speechMode === 'manual' && next) {
+        await specifySpeaker(room.participants.indexOf(next.participant), next.purpose);
+      }
     }
 
-    if (!state.discussStopped) showToast('✅ 讨论完成', 'success');
+    if (!state.discussStopped && room.speechMode === 'auto') showToast('✅ 讨论完成', 'success');
   }
 
   function finishDiscussion() {
@@ -2879,6 +2893,7 @@ ${transcript}
   });
   document.getElementById('stopDiscussBtn').addEventListener('click', () => {
     state.discussStopped = true;
+    state.autoSuspended = false;
     state.manualNext = null;
     state._aborters.forEach(ac=>{try{ac.abort()}catch(e){}});
     state._aborters = [];
@@ -2969,6 +2984,9 @@ ${transcript}
       state.manualNext = {participant,purpose}; updateHeader(); return;
     }
     state.isDiscussing = true; state.discussStopped = false; state._aborters = [];
+    if (!state.autoSuspended) state.autoCursor = null;
+    state.autoSuspended = true;
+    let resumeAuto = false;
     let next = {participant,purpose};
     try {
       while (next && !state.discussStopped && state.room === room) {
@@ -2980,21 +2998,36 @@ ${transcript}
         document.getElementById('stopDiscussBtn').style.display = 'inline-flex'; updateHeader();
         const result = await callSingleAI(room.participants.indexOf(current), 1, 1);
         state._aborters = [];
+        state.autoCursor = {room,index:room.participants.indexOf(current) + 1,round:state.autoCursor?.room === room ? state.autoCursor.round : 1};
         if (!result?.content || room.messages.at(-1)?.incomplete) { state.manualNext = null; break; }
+        if (room.speechMode === 'auto') { resumeAuto = true; break; }
         next = state.manualNext;
       }
     } finally {
       state.manualNext = null; state.manualPurpose = 'reply';
+      if (state.discussStopped) state.autoSuspended = false;
       if (state.room === room) finishDiscussion();
     }
+    if (resumeAuto && !state.discussStopped && state.room === room && room.speechMode === 'auto') await startDiscussion(state.autoCursor);
   }
   window.DreamscapeRoom = {
     getView: () => ({room:state.room,running:state.isDiscussing,stopping:state.isDiscussing && state.discussStopped,paused:state.discussionPaused,speaker:state.speakingAI,next:state.manualNext?.participant.name}),
     specifySpeaker,
     cancelNext() { state.manualNext = null; updateHeader(); },
     setMode(mode) {
-      if (state.isDiscussing) { showToast('请先停止当前讨论再切换发言方式','warning'); return false; }
-      state.manualNext = null; state.room.speechMode = mode === 'manual' ? 'manual' : 'auto'; saveRoom(state.room); updateHeader(); return true;
+      if (!state.room || (state.isDiscussing && state.discussStopped)) return false;
+      const next = mode === 'manual' ? 'manual' : 'auto';
+      if (state.room.speechMode === next) return true;
+      state.manualNext = null; state.room.speechMode = next;
+      if (next === 'manual') {
+        state.interjectionRequested = false;
+        state._pendingUserResolve?.(null); state._pendingUserResolve = null;
+        state.discussionPaused = false; state.waitingForHuman = null; hideQuestionBanner();
+      }
+      saveRoom(state.room); updateRequestTurnButton(); updateHeader();
+      if (state.isDiscussing) showToast('当前发言结束后使用' + (next === 'manual' ? '手动指定' : '自动轮流'), 'info');
+      else if (next === 'auto' && state.autoSuspended && state.autoCursor?.room === state.room) startDiscussion(state.autoCursor);
+      return true;
     },
     preset(kind) {
       if (state.isDiscussing) { showToast('请先停止讨论','warning'); return; }

@@ -41,6 +41,11 @@
   if(!empty.isConnected){empty.id='emptyChat';empty.className='empty-chat';empty.style.display='none';$('messagesArea').append(empty);}
   empty.innerHTML='<span class="empty-eyebrow">AI 协作 · 预览版</span><h1>一个问题，多种思考。</h1><p>选一组角色，写下问题，再决定让 AI 轮流讨论，还是由你点名。</p><div class="starter-choices"><button type="button" data-preset="debate"><strong>正反辩论</strong><span>正方、反方与裁判</span></button><button type="button" data-preset="cocreate"><strong>方案共创</strong><span>提案、审查与整合</span></button><button type="button" data-preset="free"><strong>自由讨论</strong><span>探索、质疑与总结</span></button></div><div class="starter-footer"><button type="button" id="readDemo">先阅读一场演示</button><a href="settings.html">配置模型服务 →</a></div><small>阅读演示不会请求模型。模板会创建新房间，保留已有记录。</small>';
   const starterHTML=empty.innerHTML;
+  function decorateStarter(node) {
+    const heading=node?.querySelector('h1');
+    if(heading)heading.innerHTML='一个问题，<span>多种思考。</span>';
+  }
+  decorateStarter(empty);
   let lastFocus=null;
   function open(which) {
     lastFocus=document.activeElement;sidebar.classList.remove('show-history');panel.classList.remove('open');
@@ -71,9 +76,10 @@
   $('chatInput').addEventListener('input',refresh);
   function refresh() {
     const view=api.getView();if(!view.room)return;const room=view.room;const manual=room.speechMode==='manual';
-    const starter=$('emptyChat');if(starter){if(!starter.querySelector('.starter-choices'))starter.innerHTML=starterHTML;starter.style.display=room.messages.length?'none':'flex';}
-    $('speechMode').value=manual?'manual':'auto';$('speechMode').disabled=view.running;
-    $('modeNote').textContent=manual?'补充消息后，在角色旁点“让 TA 发言”。一次只生成一位；下一位可改选或取消。':'按角色顺序运行。你可以申请插话，也可以随时停止。';
+    const starter=$('emptyChat');if(starter){if(!starter.querySelector('.starter-choices')){starter.innerHTML=starterHTML;decorateStarter(starter);}starter.style.display=room.messages.length?'none':'flex';}
+    $('speechMode').value=manual?'manual':'auto';$('speechMode').disabled=view.stopping;
+    document.querySelector('.discussion-status').hidden=!view.running;
+    $('modeNote').textContent=(manual?'补充消息后，点名让一位角色发言。下一位可改选或取消。':'按角色顺序讨论，你可以插话或随时停止。')+(view.running?' 切换方式会在当前发言结束后衔接。':'');
     $('nextSpeaker').hidden=!view.next;$('nextSpeaker').querySelector('span').textContent=view.next?'下一位：'+view.next:'';
     title.textContent=(room.discussionGoal?'目标：'+room.discussionGoal:'先写下问题，或在右侧填写长期讨论目标。')+(view.running?' · '+(view.stopping?'正在停止':view.speaker?view.speaker+'正在发言':view.paused?'等待你发言':'正在讨论'):'');
     $('speechPurpose').closest('label').hidden=!manual;
