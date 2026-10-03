@@ -2688,7 +2688,7 @@ ${transcript}
     });
   }
 
-  document.getElementById('sidebar').addEventListener('click', function(e) {
+  document.querySelector('.app-layout').addEventListener('click', function(e) {
     const t = e.target;
     if (t.id === 'themeBtn') { state.darkMode = !state.darkMode; applyTheme(); return; }
     if (t.id === 'newRoomBtn') { if (state.isDiscussing) { showToast('请先停止讨论','warning'); return; } newRoom(); return; }

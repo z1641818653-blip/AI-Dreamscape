@@ -499,6 +499,22 @@ function source(name) {
     assert.equal(calls.length,3);assert.match(calls[0].messages[0].content,/正方/);assert.match(calls[1].messages[0].content,/反方/);assert.match(calls[2].messages[0].content,/【最终裁决阶段】/);
     await page.unroute('https://api.deepseek.com/**');
   });
+  await test('relocated theme and role action buttons still work and persist',async()=>{
+    const before=await page.locator('html').getAttribute('data-theme');
+    const after=before==='dark'?'light':'dark';
+    await page.locator('.room-menu summary').click();await page.locator('#themeBtn').click();
+    assert.equal(await page.locator('html').getAttribute('data-theme'),after);
+    await page.reload();assert.equal(await page.locator('html').getAttribute('data-theme'),after);
+    await page.locator('.advanced-settings summary').click();await page.locator('#roomDeepThinkingBtn').click();
+    assert.equal(await page.evaluate(()=>DreamscapeRoom.getView().room.deepThinking),true);
+    await page.locator('.add-role-menu summary').click();await page.locator('#addAiBtn').click();
+    assert.equal(await page.locator('#aiList .ai-card').count(),4);
+    await page.locator('#addHumanBtn').click();assert.equal(await page.locator('#aiList .human-card').count(),1);
+    await page.locator('#openRoleCreatorBtn').click();assert.equal(await page.locator('#roleCreatorOverlay').isVisible(),true);
+    await page.locator('#roleCreatorCloseBtn').click();await page.reload();
+    assert.equal(await page.locator('#aiList .ai-card').count(),5);
+    assert.equal(await page.evaluate(()=>DreamscapeRoom.getView().room.deepThinking),true);
+  });
   await page.setViewportSize({width:1280,height:900});await go('chat');
   await page.locator('#updateCloseBtn').evaluate(el=>el.click());
   await test('workbench parameter group and global search stay operable after button consolidation',async()=>{
