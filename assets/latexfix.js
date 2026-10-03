@@ -52,60 +52,15 @@
 
 \end{document}`;
 
-  const PROVIDERS = {
-    deepseek: {
-      models: ['deepseek-v4-flash', 'deepseek-v4-pro'],
-      endpoint: 'https://api.deepseek.com/v1/chat/completions',
-      buildRequest(key, model, messages) {
-        return {
-          url: this.endpoint,
-          headers: { Authorization: `Bearer ${key}` },
-          body: { model, messages, max_tokens: 12000 }
-        };
-      },
-      read(data) { return data?.choices?.[0]?.message?.content; }
+  const PROVIDERS = Object.fromEntries(Object.entries(DreamscapeConfig.providers).map(([key, adapter]) => [key, {
+    ...adapter,
+    buildRequest(apiKey, model, messages) {
+      const body = adapter.buildBody(model, messages, 12000, 0.7);
+      if (key !== 'gemini') body.stream = false;
+      return { url:DreamscapeConfig.getUrl(key, model, false), headers:adapter.authHeader(apiKey), body };
     },
-    openai: {
-      models: ['gpt-5.4-mini', 'gpt-5.4', 'gpt-4o-mini'],
-      endpoint: 'https://api.openai.com/v1/chat/completions',
-      buildRequest(key, model, messages) {
-        return {
-          url: this.endpoint,
-          headers: { Authorization: `Bearer ${key}` },
-          body: { model, messages, max_completion_tokens: 12000 }
-        };
-      },
-      read(data) { return data?.choices?.[0]?.message?.content; }
-    },
-    gemini: {
-      models: ['gemini-3.5-flash', 'gemini-3.6-flash', 'gemini-3.1-pro-preview'],
-      endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/',
-      buildRequest(key, model, messages) {
-        const system = messages.find(item => item.role === 'system')?.content || '';
-        const contents = messages
-          .filter(item => item.role !== 'system')
-          .map(item => ({ role: item.role === 'assistant' ? 'model' : 'user', parts: [{ text: item.content }] }));
-        return {
-          url: `${this.endpoint}${encodeURIComponent(model)}:generateContent`,
-          headers: { 'x-goog-api-key': key },
-          body: { systemInstruction: { parts: [{ text: system }] }, contents, generationConfig: { maxOutputTokens: 12000 } }
-        };
-      },
-      read(data) { return data?.candidates?.[0]?.content?.parts?.map(part => part.text || '').join(''); }
-    },
-    qwen: {
-      models: ['qwen3.7-plus', 'qwen3.7-max', 'qwen3.6-flash'],
-      endpoint: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
-      buildRequest(key, model, messages) {
-        return {
-          url: this.endpoint,
-          headers: { Authorization: `Bearer ${key}` },
-          body: { model, messages, max_tokens: 12000 }
-        };
-      },
-      read(data) { return data?.choices?.[0]?.message?.content; }
-    }
-  };
+    read:adapter.parseResponse
+  }]));
 
   const el = {
     workspace: $('#workspace'),
@@ -152,33 +107,9 @@
     outlineTimer: null
   };
 
-  function decodeStoredKey(value) {
-    if (!value) return '';
-    try { return decodeURIComponent(atob(value)); } catch { return ''; }
-  }
-
-  function getGlobalProviderConfig(providerKey) {
-    try {
-      const providers = JSON.parse(localStorage.getItem('dp0') || '{}');
-      return providers?.[providerKey] || {};
-    } catch {
-      return {};
-    }
-  }
-
-  function getGlobalApiKey(providerKey) {
-    return decodeStoredKey(getGlobalProviderConfig(providerKey).apiKey).trim();
-  }
-
-  function saveGlobalModel(providerKey, model) {
-    if (!providerKey || !model) return;
-    try {
-      const providers = JSON.parse(localStorage.getItem('dp0') || '{}');
-      const current = providers[providerKey] && typeof providers[providerKey] === 'object' ? providers[providerKey] : {};
-      providers[providerKey] = { ...current, model };
-      localStorage.setItem('dp0', JSON.stringify(providers));
-    } catch {}
-  }
+  function getGlobalProviderConfig(providerKey) { return DreamscapeConfig.read()[providerKey] || {}; }
+  const getGlobalApiKey = DreamscapeConfig.getKey;
+  function saveGlobalModel(provider, model) { DreamscapeConfig.saveSelection(provider, model, false); }
 
   function normalizeTex(value) {
     return String(value || '')
@@ -360,7 +291,7 @@
       state.compileTimer = null;
       el.compileBtn.disabled = false;
       el.cancelCompileBtn.hidden = true;
-      setCompileState('success', '编译结果已返回；若预览显示普通文字，则是 TeX 编译错误日志。');
+      setCompileState('idle', '结果已返回，编译状态未验证；请检查 PDF 或错误日志。');
     });
 
     state.compileTimer = setTimeout(() => {
@@ -582,6 +513,7 @@ ${el.editor.value}
     }
 
     el.chatInput.value = '';
+    window.DreamscapeStorage?.markSaved();
     addMessage('user', prompt);
     const loading = addMessage('assistant', '', { loading: true });
     el.sendAiBtn.disabled = true;

@@ -4,14 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Markdown 渲染测试</title>
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="assets/vendor/marked.umd.js"></script>
 <script>MathJax={tex:{inlineMath:[['$','$'],['\\(','\\)']],displayMath:[['$$','$$'],['\\[','\\]']]},options:{skipHtmlTags:['script','noscript','style','textarea','pre','code']}};</script>
 <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/github-dark.min.css">
-<script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/core.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/languages/python.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/languages/javascript.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/languages/bash.min.js"></script>
+<script src="assets/vendor/highlight.min.js"></script>
 <style>
 :root{--bg:#f5f0ff;--surface:#ffffff;--surface-hover:#f0ebf8;--border:#d4c8e8;--text:#2d1b4e;--text2:#6b5b8a;--primary:#7c5cfc;--primary-glow:rgba(124,92,252,.15);--accent:#ff6b9d;--radius:16px;--radius-sm:10px;--shadow:0 2px 12px rgba(109,63,192,.08);--transition:.2s ease;--success:#2ecc71;--danger:#e74c3c;--warning:#f39c12;--info:#3498db}
 
@@ -113,6 +110,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Inter','PingFang SC',sans-ser
 @media(max-width:700px){.page-guide-overlay{padding:0}.page-guide-dialog{width:100vw;height:100vh;max-height:none;border:0;border-radius:0}.page-guide-layout{display:flex;flex-direction:column}.page-guide-toc{display:flex;gap:5px;flex:0 0 auto;overflow-x:auto;overflow-y:hidden;border-right:0;border-bottom:1px solid var(--border)}.page-guide-link{width:auto;flex:0 0 auto;white-space:nowrap}.page-guide-content{padding:20px 18px 40px}}
 
 </style>
+<script src="providers-config.js"></script>
+<script src="request.js"></script>
+<script src="backup.js"></script>
+<script src="global-storage.js"></script>
+<script src="assets/vendor/purify.min.js"></script>
+<script src="markdown.js"></script>
 </head>
 <body>
 <div class="layout">
@@ -132,7 +135,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Inter','PingFang SC',sans-ser
     <div class="split" id="split">
       <div class="pane pane-left" id="paneLeft">
         <div class="pane-header"><span style="flex:1;text-align:center">Markdown</span><span class="count" id="charCount">0 字符</span><button class="pane-btn" id="collapseLeft" style="margin-left:8px">◀ 折叠</button></div>
-        <div class="editor-wrap"><textarea id="editor" placeholder="在此输入 Markdown..."></textarea></div>
+        <div class="editor-wrap"><textarea data-page-cache id="editor" placeholder="在此输入 Markdown..."></textarea></div>
       </div>
       <div class="splitter" id="splitter"></div>
       <button class="restore-btn" id="restoreLeft" style="display:none">▶ 展开编辑</button>
@@ -181,24 +184,10 @@ const editor=document.getElementById('editor'),preview=document.getElementById('
   if(docs.length===0){const id=Date.now().toString();docs.push({id:id,title:'欢迎',content:'# Markdown 渲染测试\n\n## 支持\n\n- **加粗** *斜体* ~~删除线~~\n- `行内代码` 和代码块\n- LaTeX 公式 $E=mc^2$\n\n```python\nprint("Hello")\n```\n\n> 左侧编辑，右侧实时预览'});activeDocId=id;}
 })();
 
-function saveDocs(){try{localStorage.setItem('md_docs',JSON.stringify(docs))}catch(e){}}
+function saveDocs(){try{localStorage.setItem('md_docs',JSON.stringify(docs));window.DreamscapeStorage?.markSaved();return true;}catch(e){window.DreamscapeStorage?.markDirty();showToast('文档保存失败，请先复制内容并清理存储','warning');return false;}}
 function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
 
-function renderMD(content){
-  if(!content)return'';
-  content=content.replace(/\\\[([\s\S]*?)\\\]/g,(m,f)=>'$$'+f+'$$');
-  content=content.replace(/\\\((.+?)\\\)/g,(m,f)=>'$'+f+'$');
-  // Escape < that isn't part of HTML tags to prevent content disappearing
-  content=content.replace(/</g,'&lt;').replace(/&lt;(\/?[a-zA-Z][^>]*>)/g,'<$1');
-  const bl=[];let p=content;
-  p=p.replace(/\$\$([\s\S]*?)\$\$/g,(m,f)=>{bl.push({t:'block',c:f.trim()});return'\u0000B'+(bl.length-1)+'\u0000E';});
-  p=p.replace(/(?<!\$)\$(?!\$)([^$\n]+?)(?<!\$)\$(?!\$)/g,(m,f)=>{bl.push({t:'inline',c:f.trim()});return'\u0000I'+(bl.length-1)+'\u0000E';});
-  let h;
-  if(typeof marked!=='undefined'){try{h=marked.parse(p);}catch(e){h=esc(p).replace(/\n/g,'<br>');}}
-  else{h=esc(p).replace(/\n/g,'<br>');}
-  bl.forEach(function(b,i){const ph=b.t==='block'?'\u0000B'+i+'\u0000E':'\u0000I'+i+'\u0000E';const rp=b.t==='block'?'$$'+b.c+'$$':'$'+b.c+'$';h=h.split(ph).join(rp);});
-  return h;
-}
+function renderMD(content){return DreamscapeMarkdown.render(content,{math:true});}
 
 function updatePreview(){
   const text=editor.value;
@@ -226,7 +215,7 @@ function switchDoc(id){
   if(cur){cur.content=editor.value;cur.title=editor.value.split('\n')[0].replace(/^#\s*/,'').slice(0,30)||'未命名';}
   activeDocId=id;saveDocs();loadDoc(id);renderHistory();
 }
-function loadDoc(id){const doc=docs.find(d=>d.id===id);if(!doc)return;editor.value=doc.content;updatePreview();}
+function loadDoc(id){const doc=docs.find(d=>d.id===id);if(!doc)return;if(!window.DreamscapeStorage?.setContext(id))editor.value=doc.content;updatePreview();}
 function newDoc(){
   const cur=docs.find(d=>d.id===activeDocId);
   if(cur){cur.content=editor.value;cur.title=editor.value.split('\n')[0].replace(/^#\s*/,'').slice(0,30)||'未命名';}
@@ -329,6 +318,6 @@ function showToast(msg,type){
 })();
 
 </script>
-<script src="global-storage.js"></script>
+
 </body>
 </html>

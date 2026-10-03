@@ -6,6 +6,10 @@
   <meta name="color-scheme" content="light">
   <title>LaTeX 演示文稿工作台</title>
   <link rel="stylesheet" href="assets/latexfix.css">
+<script src="providers-config.js"></script>
+<script src="request.js"></script>
+<script src="backup.js"></script>
+<script src="global-storage.js"></script>
 </head>
 <body>
   <header class="topbar">
@@ -108,7 +112,7 @@
       </div>
 
       <div class="chat-compose">
-        <textarea id="chatInput" rows="3" placeholder="例如：帮我优化这一页的视觉层次，但不要删除内容"></textarea>
+        <textarea data-page-cache id="chatInput" rows="3" placeholder="例如：帮我优化这一页的视觉层次，但不要删除内容"></textarea>
         <div class="compose-actions">
           <button class="danger-quiet compact" id="cancelAiBtn" type="button" hidden>停止</button>
           <button class="primary-btn compact" id="sendAiBtn" type="button">发送</button>
@@ -128,6 +132,6 @@
 
   <script src="model-selector.js"></script>
   <script src="assets/latexfix.js" defer></script>
-  <script src="global-storage.js"></script>
+
 </body>
 </html>

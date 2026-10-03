@@ -16,10 +16,7 @@ let workflowVersionFuture = {};
 let workflowVersionBaselines = {};
 let versionHistoryInitialized = false;
 let isRestoringWorkflowVersion = false;
-const DEEPSEEK_MODELS = [
-  { id: 'deepseek-v4-flash', label: 'DeepSeek V4 Flash（快速测试）' },
-  { id: 'deepseek-v4-pro', label: 'DeepSeek V4 Pro（高质量）' }
-];
+const DEEPSEEK_MODELS = DreamscapeConfig.providers.deepseek.models.map(id => ({id, label:id}));
 let providerState = { provider: 'DeepSeek', model: 'deepseek-v4-flash', apiKey: '' };
 
 function normalizeDeepSeekProviderState() {
@@ -30,30 +27,12 @@ function normalizeDeepSeekProviderState() {
 }
 
 function readSharedDeepSeekConfig() {
-  var result = { apiKey: localStorage.getItem('dk30') || '', model: '' };
-  try {
-    var stored = JSON.parse(localStorage.getItem('dp0') || '{}');
-    var deepseek = stored && stored.deepseek;
-    if (deepseek) {
-      if (!result.apiKey && deepseek.apiKey) result.apiKey = decodeURIComponent(atob(deepseek.apiKey));
-      if (typeof deepseek.model === 'string') result.model = deepseek.model;
-    }
-  } catch (err) {
-    console.warn('读取 AI 工作台 DeepSeek 配置失败:', err);
-  }
-  return result;
+  return { apiKey:DreamscapeConfig.getKey('deepseek'), model:DreamscapeConfig.read().deepseek?.model || '' };
 }
 
 function persistSharedDeepSeekModel(model) {
-  try {
-    var stored = JSON.parse(localStorage.getItem('dp0') || '{}');
-    if (!stored || typeof stored !== 'object' || Array.isArray(stored)) stored = {};
-    if (!stored.deepseek || typeof stored.deepseek !== 'object') stored.deepseek = {};
-    if (model) stored.deepseek.model = model;
-    localStorage.setItem('dp0', JSON.stringify(stored));
-  } catch (err) {
-    console.warn('同步全局 DeepSeek 模型失败:', err);
-  }
+  try { DreamscapeConfig.saveSelection('deepseek', model, false); }
+  catch (error) { showToast('模型设置保存失败', 'error'); }
 }
 
 function createNode(title, opts) {
@@ -112,7 +91,7 @@ function normalizeNodeData(node, parentId, seenIds, counter) {
   node.manualInput = typeof node.manualInput === 'string' ? node.manualInput : '';
   node.output = typeof node.output === 'string' ? node.output : '';
   node.status = typeof node.status === 'string' && node.status ? node.status : 'pending';
-  if (node.status === 'running') node.status = 'pending';
+  if (node.status === 'running' && !isRunning) node.status = 'pending';
   node.error = typeof node.error === 'string' ? node.error : '';
   node.maxTokens = Number.isFinite(Number(node.maxTokens)) && Number(node.maxTokens) > 0 ? Number(node.maxTokens) : 4000;
   node.temperature = Number.isFinite(Number(node.temperature)) ? Number(node.temperature) : 0.3;
@@ -598,61 +577,10 @@ function toggleNodeLock(id) {
 // ── Provider configs ──
 const PROVIDERS = {
   DeepSeek: {
-    endpoint: 'https://api.deepseek.com/v1/chat/completions',
-    buildBody: (model, prompt, maxTokens, temperature) => ({
-      model: model || 'deepseek-v4-flash',
-      messages: [{ role: 'user', content: prompt }],
-      stream: true,
-      max_tokens: maxTokens,
-      temperature
-    }),
-    buildHeaders: (apiKey) => ({ 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' }),
-    parse: (data) => data.choices?.[0]?.delta?.content || data.choices?.[0]?.text || ''
-  },
-  OpenAI: {
-    endpoint: 'https://api.openai.com/v1/chat/completions',
-    buildBody: (model, prompt, maxTokens, temperature) => ({
-      model: model || 'gpt-4o',
-      messages: [{ role: 'user', content: prompt }],
-      stream: true,
-      max_tokens: maxTokens,
-      temperature
-    }),
-    buildHeaders: (apiKey) => ({ 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' }),
-    parse: (data) => data.choices?.[0]?.delta?.content || data.choices?.[0]?.text || ''
-  },
-  Claude: {
-    endpoint: 'https://api.anthropic.com/v1/messages',
-    buildBody: (model, prompt, maxTokens, temperature) => ({
-      model: model || 'claude-sonnet-4-20250514',
-      max_tokens: maxTokens,
-      messages: [{ role: 'user', content: prompt }],
-      stream: true,
-      temperature
-    }),
-    buildHeaders: (apiKey) => ({ 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' }),
-    parse: (data) => data.type === 'content_block_delta' ? (data.delta?.text || '') : ''
-  },
-  Gemini: {
-    getUrl: (model, apiKey) => `https://generativelanguage.googleapis.com/v1beta/models/${model || 'gemini-2.0-flash'}:streamGenerateContent?alt=sse&key=${apiKey}`,
-    buildBody: (model, prompt, maxTokens, temperature) => ({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { maxOutputTokens: maxTokens, temperature }
-    }),
-    buildHeaders: () => ({ 'Content-Type': 'application/json' }),
-    parse: (data) => data.candidates?.[0]?.content?.parts?.[0]?.text || ''
-  },
-  '千问': {
-    endpoint: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
-    buildBody: (model, prompt, maxTokens, temperature) => ({
-      model: model || 'qwen-turbo',
-      messages: [{ role: 'user', content: prompt }],
-      stream: true,
-      max_tokens: maxTokens,
-      temperature
-    }),
-    buildHeaders: (apiKey) => ({ 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' }),
-    parse: (data) => data.choices?.[0]?.delta?.content || data.choices?.[0]?.text || ''
+    endpoint:DreamscapeConfig.getUrl('deepseek'),
+    buildBody:(model, prompt, maxTokens, temperature) => ({ ...DreamscapeConfig.providers.deepseek.buildBody(model, [{role:'user', content:prompt}], maxTokens, temperature), stream:true }),
+    buildHeaders:key => ({ 'Content-Type':'application/json', ...DreamscapeConfig.providers.deepseek.authHeader(key) }),
+    parse:data => DreamscapeConfig.getStreamText('deepseek', data)
   }
 };
 
@@ -797,6 +725,10 @@ async function runExecutionQueue(nodes, options) {
   var provider = PROVIDERS[providerState.provider];
   if (!provider) { showToast('当前 Provider 不可用', 'error'); return; }
 
+  // Record pending edits before running. Otherwise the first result save can
+  // mark its own newly completed output stale and block dependent nodes.
+  if (!saveState()) return;
+
   isRunning = true;
   abortController = new AbortController();
   runQueue = nodes.map(function(node) { return node.id; });
@@ -876,43 +808,21 @@ async function runExecutionQueue(nodes, options) {
         var headers = provider.buildHeaders(providerState.apiKey);
         var body = provider.buildBody(model, actualPrompt || 'Hello', node.maxTokens, node.temperature);
         var parseFn = provider.parse;
-        var response = await fetch(url, {
-          method: 'POST',
-          headers: headers,
-          body: JSON.stringify(body),
-          signal: abortController.signal
-        });
-        if (!response.ok) {
-          var errText = await response.text().catch(function() { return ''; });
-          throw new Error('HTTP ' + response.status + (errText ? ': ' + errText.slice(0, 200) : ''));
-        }
-
-        var reader = response.body.getReader();
-        var decoder = new TextDecoder();
-        var buffer = '';
-        var accumulated = '';
-        while (true) {
-          var readResult = await reader.read();
-          if (readResult.done) break;
-          buffer += decoder.decode(readResult.value, { stream: true });
-          var parts = buffer.split('\n');
-          buffer = parts.pop() || '';
-          for (var partIndex = 0; partIndex < parts.length; partIndex++) {
-            var line = parts[partIndex];
-            if (!line.startsWith('data: ')) continue;
-            var payload = line.slice(5).trim();
-            if (payload === '[DONE]' || payload === '[done]') continue;
-            try {
-              var parsed = JSON.parse(payload);
+        await DreamscapeRequest.withTimeout(abortController.signal, 90000, async function(signal, touch) {
+          var response = await fetch(url, { method:'POST', headers:headers, body:JSON.stringify(body), signal:signal });
+          touch();
+          if (!response.ok) throw new Error('HTTP ' + response.status + ': ' + (await response.text()).slice(0, 200));
+          if ((response.headers.get('content-type') || '').includes('application/json')) {
+            var data = await response.json();
+            if (data.error) throw new Error(data.error.message || '模型请求失败');
+            node.output = DreamscapeConfig.providers.deepseek.parseResponse(data) || '';
+          } else {
+            await DreamscapeRequest.readSSE(response, function(parsed) {
               var text = parseFn(parsed);
-              if (text) {
-                accumulated += text;
-                node.output = accumulated;
-                updateOutputDisplay(nodeId);
-              }
-            } catch (parseError) {}
+              if (text) { node.output += text; updateOutputDisplay(nodeId); }
+            }, touch);
           }
-        }
+        });
         if (!hasNodeText(node.output)) throw new Error('模型未返回有效输出');
         node.status = 'done';
       } catch (error) {
@@ -2128,4 +2038,13 @@ document.addEventListener('keydown', function(e) {
   if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
     if (selectedNodeId) { pasteNode(selectedNodeId); e.preventDefault(); }
   }
+});
+
+// Mobile tabs retain the desktop panel dimensions without squeezing the editor.
+function setWorkflowMobileView(view) {
+  document.body.dataset.workflowView = view;
+  document.querySelectorAll('.workflow-mobile-tabs button').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.workflowView === view)));
+}
+document.querySelector('.workflow-mobile-tabs').addEventListener('click', event => {
+  if (event.target.dataset.workflowView) setWorkflowMobileView(event.target.dataset.workflowView);
 });

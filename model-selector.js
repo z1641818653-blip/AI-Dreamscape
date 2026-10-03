@@ -1,13 +1,7 @@
 (function () {
   'use strict';
 
-  const PROVIDERS = {
-    deepseek: { name:'DeepSeek', icon:'🟢', models:['deepseek-v4-pro','deepseek-v4-flash'] },
-    openai: { name:'OpenAI', icon:'🟣', models:['gpt-5.6-sol','gpt-5.6-terra','gpt-5.6-luna','gpt-5.5-latest'] },
-    claude: { name:'Claude', icon:'🟠', models:['claude-opus-4-6','claude-sonnet-4-6','claude-haiku-4-5'] },
-    gemini: { name:'Gemini', icon:'🔵', models:['gemini-3.5-flash','gemini-3.5-pro','gemini-omni-flash'] },
-    qwen: { name:'千问', icon:'🔴', models:['qwen3.7-max','qwen3.7-plus','qwen3.7-flash'] }
-  };
+  const PROVIDERS = DreamscapeConfig.providers;
   const STORAGE_KEY = 'dp0';
   const CURRENT_PROVIDER_KEY = 'dcp0';
 
@@ -40,28 +34,9 @@
     document.head.appendChild(style);
   }
 
-  function readConfig() {
-    try {
-      const value = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-      return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
-    } catch {
-      return {};
-    }
-  }
-
-  function hasApiKey(providerKey) {
-    return Boolean(readConfig()?.[providerKey]?.apiKey);
-  }
-
-  function saveSelection(providerKey, model, saveProvider) {
-    try {
-      const config = readConfig();
-      const current = config[providerKey] && typeof config[providerKey] === 'object' ? config[providerKey] : {};
-      config[providerKey] = { ...current, model };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
-      if (saveProvider) localStorage.setItem(CURRENT_PROVIDER_KEY, providerKey);
-    } catch {}
-  }
+  const readConfig = DreamscapeConfig.read;
+  function hasApiKey(provider) { return Boolean(DreamscapeConfig.getKey(provider)); }
+  const saveSelection = DreamscapeConfig.saveSelection;
 
   function getInitialProvider(allowed, requested) {
     if (requested && allowed.includes(requested)) return requested;
@@ -163,6 +138,16 @@
     });
     renderModels(model);
     container.replaceChildren(root);
+    const cleanup = () => {
+      window.removeEventListener('storage', refresh);
+      window.removeEventListener('dreamscape-config-change', refresh);
+    };
+    const refresh = () => {
+      if (!root.isConnected) { cleanup(); return; }
+      renderModels(model);
+    };
+    window.addEventListener('storage', refresh);
+    window.addEventListener('dreamscape-config-change', refresh);
 
     return {
       element: root,
@@ -174,10 +159,9 @@
         renderModels(value?.model);
       },
       refreshStatus() { renderModels(model); },
-      destroy() { root.remove(); }
+      destroy() { cleanup(); root.remove(); }
     };
   }
 
   window.DreamscapeModelSelector = { mount, providers: PROVIDERS, readConfig, hasApiKey };
 })();
-

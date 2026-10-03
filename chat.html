@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-  <title>多模型 AI 工作台 v4.2.3</title>
-  <script src="https://cdn.jsdelivr.net/npm/marked@18.0.6/lib/marked.umd.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.4.7/dist/purify.min.js"></script>
+  <title>多模型 AI 工作台 v4.2.4</title>
+  <script src="assets/vendor/marked.umd.js"></script>
+  <script src="assets/vendor/purify.min.js"></script>
   <script>
     MathJax = {
       tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']], processEscapes: true },
@@ -15,10 +15,7 @@
   <script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js"></script>
   <link id="hlThemeLight" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/github.min.css">
   <link id="hlThemeDark" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/github-dark-dimmed.min.css" disabled>
-  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/core.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/languages/python.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/languages/javascript.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/languages/bash.min.js"></script>
+  <script src="assets/vendor/highlight.min.js"></script>
   <style>
     :root {
       --bg-primary: #f0f2f5;
@@ -816,7 +813,7 @@
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
     }
-  
+
 /* Unified page entry, tutorial and batch export */
 .page-shortcuts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .page-shortcut{display:flex;align-items:center;justify-content:center;min-height:34px;padding:7px 9px;border:1px solid var(--border-color);border-radius:10px;background:transparent;color:var(--text-primary);font:600 12px/1.2 inherit;text-decoration:none;cursor:pointer;transition:all .2s}
@@ -857,6 +854,11 @@
 @media(max-width:700px){.page-guide-overlay{padding:0}.page-guide-dialog{width:100vw;height:100vh;max-height:none;border:0;border-radius:0}.page-guide-layout{display:flex;flex-direction:column}.page-guide-toc{display:flex;gap:5px;flex:0 0 auto;overflow-x:auto;overflow-y:hidden;border-right:0;border-bottom:1px solid var(--border-color)}.page-guide-link{width:auto;flex:0 0 auto;white-space:nowrap}.page-guide-content{padding:20px 18px 40px}.batch-format-list{grid-template-columns:1fr}}
 
 </style>
+<script src="providers-config.js"></script>
+<script src="request.js"></script>
+<script src="backup.js"></script>
+<script src="global-storage.js"></script>
+<script src="markdown.js"></script>
 </head>
 <body>
   <div class="sidebar-toggle-left" id="sidebarToggleLeft">◀</div>
@@ -867,7 +869,7 @@
     <div class="theme-toggle"><button id="themeToggleBtn">🌙 暗色模式</button></div>
     <div class="font-size-selector"><label>界面</label><button class="font-size-btn" data-size="12">紧凑</button><button class="font-size-btn active" data-size="14">标准</button><button class="font-size-btn" data-size="16">舒适</button></div>
     <div class="sidebar-section"><h4>🤖 模型选择</h4><div id="chatModelSelector"></div></div>
-    <div class="sidebar-footer">v4.2.3 · 稳定维护版</div>
+    <div class="sidebar-footer">v4.2.4 · 稳定维护版</div>
   </div>
   <div class="main-content">
     <div class="search-bar" id="searchBar" style="display:none"><span>🔍</span><input type="text" class="search-input" id="searchInput" placeholder="搜索..."><span class="search-count" id="searchCount">0/0</span><button class="search-nav-btn" id="searchPrev" disabled>◀</button><button class="search-nav-btn" id="searchNext" disabled>▶</button><span class="search-close" id="searchClose">✕</span></div>
@@ -877,7 +879,7 @@
     <div class="input-panel">
       <div class="compare-area" id="compareArea"><div class="compare-area-label">🔄 选择对比的提供商（选2+个）</div><div class="compare-provider-list" id="compareProviderList"></div></div>
       <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px"><span style="font-weight:600">输入</span><span style="font-size:10px;color:var(--text-secondary)"><kbd style="background:#f0f0f5;padding:1px 5px;border-radius:3px">Enter</kbd> 发送 <kbd style="background:#f0f0f5;padding:1px 5px;border-radius:3px">Shift+Enter</kbd> 换行</span></div>
-      <textarea id="userInput" class="input-area" placeholder="输入你的问题..." rows="2"></textarea>
+      <textarea data-page-cache id="userInput" class="input-area" placeholder="输入你的问题..." rows="2"></textarea>
       <div class="action-row">
         <div class="action-left">
           <span id="requestStatus" class="status-text"></span>
@@ -905,7 +907,7 @@
   <div class="sidebar-right collapsed" id="sidebarRight"><h3>📑 问题列表</h3><div class="jump-list" id="jumpList"><div style="font-size:11px;color:var(--text-secondary);text-align:center;padding:20px">暂无问题</div></div></div>
   <div class="modal-overlay" id="editModalOverlay"><div class="modal-box"><h4>✎ 修改消息</h4><textarea id="editModalTextarea"></textarea><div class="modal-btns"><button class="btn-danger" id="editModalDelete">✕ 删除</button><button class="btn-cancel" id="editModalCancel">取消</button><button class="btn-primary" id="editModalConfirm">✅ 确认修改</button></div></div></div>
   <div class="modal-overlay" id="exportOverlay"><div class="modal-box"><h4>📤 导出对话</h4><div class="modal-btns" style="flex-direction:column;align-items:stretch;"><button id="exportTextBtn" style="margin-bottom:6px;">📄 导出文本 (.txt)</button><button id="exportAIBtn" style="margin-bottom:6px;">🤖 导出AI格式 (.ai.json)</button><button id="exportCancelBtn" class="btn-cancel" style="text-align:center;">取消</button></div></div></div>
-  <div class="update-overlay" id="updateOverlay"><div class="update-modal"><h3>v4.2.3 稳定维护版</h3><div class="update-body"><ul><li><strong>发送保护</strong> — 缺少 API Key 时不再写入或清空消息</li><li><strong>统一配置</strong> — API Key 集中到全局配置页管理</li><li><strong>请求一致性</strong> — 发送、修改重答、重新生成、续写和对比统一检查 Key</li><li><strong>内容保留</strong> — 配置 Key 时原输入与修改内容不会丢失</li><li><strong>稳定基线</strong> — 完整保留 v4.2.2 的界面与渲染修复</li></ul></div><button id="updateCloseBtn">开始体验</button></div></div>
+  <div class="update-overlay" id="updateOverlay"><div class="update-modal"><h3>v4.2.4 稳定维护版</h3><div class="update-body"><ul><li><strong>数据保护</strong> — 保留全局缓存，避免旧标签页覆盖新密钥</li><li><strong>安全渲染</strong> — 统一 Markdown 净化与代码高亮</li><li><strong>请求可靠性</strong> — 修复流尾部丢失、超时与中断内容保留</li><li><strong>备份恢复</strong> — 过滤敏感缓存，恢复失败时回滚</li><li><strong>移动布局</strong> — 流程树支持手机工作区标签页</li></ul></div><button id="updateCloseBtn">开始体验</button></div></div>
 
 
 <div class="page-guide-overlay" id="chatGuideOverlay" aria-hidden="true">
@@ -1056,202 +1058,51 @@
 
   // ============ 流式+思考过程模块（独立） ============
   const StreamModule = {
-    activeStream: null,
-
     async callStream(providerKey, model, messages, maxTokens, apiKey, callbacks, signal) {
-      const p = PROVIDERS[providerKey];
-      if (!p) throw new Error('未知提供商');
-
-      const body = p.buildBody(model, messages, maxTokens, S.temp);
-      // Claude 与千问分支当前按普通 JSON 响应解析，其余提供商使用 SSE。
-      body.stream = providerKey !== 'claude' && providerKey !== 'qwen';
-
-      const headers = { 'Content-Type': 'application/json', ...p.authHeader(apiKey) };
-      let url = typeof p.endpoint === 'function' ? p.endpoint(model) : p.endpoint;
-      if (providerKey === 'gemini') url += `?key=${encodeURIComponent(apiKey)}&alt=sse`;
-
-      const upstreamSignal = signal || S.ac?.signal;
-      const requestController = new AbortController();
-      let idleTimer = null;
-      let timedOut = false;
-      const abortFromUpstream = () => requestController.abort();
-      const armIdleTimeout = () => {
-        clearTimeout(idleTimer);
-        idleTimer = setTimeout(() => {
-          timedOut = true;
-          requestController.abort();
-        }, 90000);
-      };
-      if (upstreamSignal) {
-        if (upstreamSignal.aborted) requestController.abort();
-        else upstreamSignal.addEventListener('abort', abortFromUpstream, { once: true });
-      }
-      armIdleTimeout();
-      try {
-        const response = await fetch(url, {
-          method: 'POST', headers, body: JSON.stringify(body),
-          signal: requestController.signal
+      const provider = PROVIDERS[providerKey];
+      if (!provider) throw new Error('未知提供商');
+      const body = provider.buildBody(model, messages, maxTokens, S.temp);
+      if (providerKey !== 'gemini') body.stream = true;
+      return DreamscapeRequest.withTimeout(signal || S.ac?.signal, 90000, async (requestSignal, touch) => {
+        const response = await fetch(DreamscapeConfig.getUrl(providerKey, model), {
+          method:'POST', headers:{'Content-Type':'application/json', ...provider.authHeader(apiKey)},
+          body:JSON.stringify(body), signal:requestSignal
         });
-        armIdleTimeout();
-
+        touch();
         if (!response.ok) {
-          const t = await response.text();
-          let m = `HTTP ${response.status}`;
-          try { m = JSON.parse(t).error?.message || m; } catch {}
-          throw new Error(`[${p.name}] ${m}`);
+          const raw = await response.text(); let message = `HTTP ${response.status}`;
+          try { message = JSON.parse(raw).error?.message || message; } catch {}
+          throw new Error(`[${provider.name}] ${message}`);
         }
-
-        if (providerKey === 'claude' || providerKey === 'qwen') {
-          const data = await response.json();
-          const content = p.parseResponse(data);
-          if (content) callbacks.onContent(content, true);
-          return content || '';
-        }
-
-        const reader = response.body.getReader();
-        if (!signal) this.activeStream = reader;
-        const decoder = new TextDecoder();
-        let buffer = '';
         let fullContent = '';
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          armIdleTimeout();
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split('\n');
-          buffer = lines.pop() || '';
-
-          for (const line of lines) {
-            const trimmed = line.trim();
-            if (!trimmed || !trimmed.startsWith('data:')) continue;
-            const dataStr = trimmed.slice(5).trimStart();
-            if (dataStr === '[DONE]') continue;
-
-            try {
-              const json = JSON.parse(dataStr);
-              const delta = json.choices?.[0]?.delta;
-
-              if (providerKey === 'gemini') {
-                const text = json.candidates?.[0]?.content?.parts?.[0]?.text;
-                if (text) { fullContent += text; callbacks.onContent(text, false); }
-                continue;
-              }
-
-              if (delta?.reasoning_content) {
-                callbacks.onReasoning(delta.reasoning_content);
-              }
-              if (delta?.content) {
-                fullContent += delta.content;
-                callbacks.onContent(delta.content, false);
-              }
-            } catch(e) {}
-          }
+        if ((response.headers.get('content-type') || '').includes('application/json')) {
+          const data = await response.json();
+          if (data.error) throw new Error(data.error.message || '模型请求失败');
+          fullContent = provider.parseResponse(data) || '';
+          if (fullContent) callbacks.onContent(fullContent, false);
+        } else {
+          await DreamscapeRequest.readSSE(response, payload => {
+            const reasoning = payload.choices?.[0]?.delta?.reasoning_content;
+            if (reasoning) callbacks.onReasoning?.(reasoning);
+            const text = DreamscapeConfig.getStreamText(providerKey, payload);
+            if (text) { fullContent += text; callbacks.onContent(text, false); }
+          }, touch);
         }
+        if (!fullContent) throw new Error(`[${provider.name}] 响应结束，但没有最终正文`);
         callbacks.onContent('', true);
         return fullContent;
-      } catch (error) {
-        if (timedOut) throw new Error(`[${p.name}] 90 秒内未收到新数据，请检查网络或稍后重试`);
-        throw error;
-      } finally {
-        clearTimeout(idleTimer);
-        if (upstreamSignal) upstreamSignal.removeEventListener('abort', abortFromUpstream);
-        if (!signal) this.activeStream = null;
-      }
+      });
     },
-
-    abort() {
-      if (this.activeStream) {
-        this.activeStream.cancel();
-        this.activeStream = null;
-      }
-    }
+    abort() { S.ac?.abort(); }
   };
 
   // ============ 提供商配置 ============
-  const PROVIDERS = {
-    deepseek:{
-        name:'DeepSeek',
-        icon:'🟢',
-        models:['deepseek-v4-pro','deepseek-v4-flash'],
-        endpoint:'https://api.deepseek.com/v1/chat/completions',
-        authHeader:(key)=>({'Authorization':`Bearer ${key}`}),
-        buildBody:(model,messages,mt,temp)=>({model,messages,temperature:temp??0.7,max_tokens:mt}),
-        parseResponse:(data)=>data.choices?.[0]?.message?.content,
-        info:'1M上下文 · V4-Pro旗舰推理 / V4-Flash高速低成本'
-    },
-    openai:{
-        name:'OpenAI',
-        icon:'🟣',
-        models:['gpt-5.6-sol','gpt-5.6-terra','gpt-5.6-luna','gpt-5.5-latest'],
-        endpoint:'https://api.openai.com/v1/chat/completions',
-        authHeader:(key)=>({'Authorization':`Bearer ${key}`}),
-        buildBody:(model,messages,mt,temp)=>({model,messages,temperature:temp??0.7,max_tokens:mt}),
-        parseResponse:(data)=>data.choices?.[0]?.message?.content,
-        info:'GPT-5.6全系列 · Sol旗舰/均衡Terra/轻量Luna'
-    },
-    claude:{
-        name:'Claude',
-        icon:'🟠',
-        models:['claude-opus-4-6','claude-sonnet-4-6','claude-haiku-4-5'],
-        endpoint:'https://api.anthropic.com/v1/messages',
-        authHeader:(key)=>({'x-api-key':key,'anthropic-version':'2023-06-01'}),
-        buildBody:(model,messages,mt,temp)=>{
-            const sm=messages.find(m=>m.role==='system');
-            const cm=messages.filter(m=>m.role!=='system');
-            const b={
-                model,
-                max_tokens:mt,
-                temperature:temp??0.7,
-                messages:cm.map(m=>({role:m.role,content:m.content}))
-            };
-            if(sm)b.system=sm.content;
-            return b;
-        },
-        parseResponse:(data)=>data.content?.[0]?.text,
-        info:'Opus4.6最强推理 / Sonnet4.6主力 / Haiku4.5高吞吐'
-    },
-    gemini:{
-        name:'Gemini',
-        icon:'🔵',
-        models:['gemini-3.5-flash','gemini-3.5-pro','gemini-omni-flash'],
-        endpoint:(model)=>`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-        authHeader:(key)=>({}),
-        buildBody:(model,messages,mt,temp)=>{
-            const contents=messages.filter(m=>m.role!=='system').map(m=>({
-                role:m.role==='assistant'?'model':'user',
-                parts:[{text:m.content}]
-            }));
-            const sm=messages.find(m=>m.role==='system');
-            const b={
-                contents,
-                generationConfig:{
-                    maxOutputTokens:mt,
-                    temperature:temp??0.7
-                }
-            };
-            if(sm)b.systemInstruction={parts:[{text:sm.content}]};
-            return b;
-        },
-        parseResponse:(data)=>data.candidates?.[0]?.content?.parts?.[0]?.text,
-        info:'Gemini3.5系列 + Omni全模态世界模型'
-    },
-    qwen:{
-        name:'千问',
-        icon:'🔴',
-        models:['qwen3.7-max','qwen3.7-plus','qwen3.7-flash'],
-        endpoint:'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
-        authHeader:(key)=>({'Authorization':`Bearer ${key}`}),
-        buildBody:(model,messages,mt,temp)=>({model,messages,temperature:temp??0.7,max_tokens:mt}),
-        parseResponse:(data)=>data.choices?.[0]?.message?.content,
-        info:'Qwen3.7-Max国产旗舰 · 262K超长上下文'
-    }
-};
+  const PROVIDERS = DreamscapeConfig.providers;
 
   const defaultProviders = {};
-  Object.keys(PROVIDERS).forEach(k => { defaultProviders[k] = { apiKey: (k==='deepseek'?(localStorage.getItem('dk30')||''):''), model: PROVIDERS[k].models[0] }; });
+  Object.keys(PROVIDERS).forEach(k => { defaultProviders[k] = { apiKey: (k==='deepseek'?DreamscapeConfig.getKey(k):''), model: PROVIDERS[k].models[0] }; });
 
-  const APP_VERSION = '4.2.3';
+  const APP_VERSION = '4.2.4';
   let S = { pe:false, tke:false, ir:false, lv:true, rv:false, cs:[], cid:null, ap:'', ch:[], ac:null, sr:[], csi:-1, exportId:null, currentProvider:'deepseek', providers:JSON.parse(JSON.stringify(defaultProviders)), ctxLimit:0, maxTokens:8000, editingMsgIdx:null, currentAssistantMsg:null, dm:false, temp:0.7, isNearBottom:true, compareMode:false, compareEntries:[], compareControllers:[], globalSearchActive:false, fontSize:14, showReasoning:true, regenerating:false };
   const K = { C:'dc0', P:'dp0', L:'dl0', R:'dr0', ID:'di0', CP:'dcp0', CTX:'dctx0', TOK:'dtok0', VER:'dver0', DM:'ddm0', TEMP:'dtemp0', CM:'dcm0', FS:'dfs0', REASON:'dre0' };
 
@@ -1319,12 +1170,6 @@
       console.warn('save:C storage quota exceeded', e.message);
       showToast('存储空间不足：本次内容尚未保存，请先导出备份并清理旧对话', 'error');
     }
-    try {
-      const pc = JSON.parse(JSON.stringify(S.providers));
-      Object.keys(pc).forEach(k => { if (pc[k].apiKey) try { pc[k].apiKey = btoa(encodeURIComponent(pc[k].apiKey)); } catch(ee) { pc[k].apiKey = ''; } });
-      localStorage.setItem(K.P, JSON.stringify(pc));
-    } catch(e) { console.warn('save:P', e.message); ok = false; }
-    try { localStorage.setItem(K.CP, S.currentProvider); } catch(e) { ok = false; }
     try { localStorage.setItem(K.L, S.lv); } catch(e) { ok = false; }
     try { localStorage.setItem(K.R, S.rv); } catch(e) { ok = false; }
     try { localStorage.setItem(K.ID, S.cid || ''); } catch(e) { ok = false; }
@@ -1383,25 +1228,14 @@
       if (E.temp) E.temp.value = S.temp;
       var fs = localStorage.getItem(K.FS); if (fs !== null) S.fontSize = parseInt(fs); else S.fontSize = 14;
       var reason = localStorage.getItem(K.REASON); if (reason !== null) S.showReasoning = reason === 'true';
-      // One-time cleanup: remove old version keys (d* where * != 0) to free quota
-      var keepKeys = {};
-      Object.keys(K).forEach(function(kk){ keepKeys[K[kk]] = true; });
-      for (var ci = localStorage.length - 1; ci >= 0; ci--) {
-        var ck = localStorage.key(ci);
-        if (ck && ck.length > 1 && ck[0] === 'd' && !keepKeys[ck]) {
-          try { localStorage.removeItem(ck); } catch(e) {}
-        }
-      }
     } catch(e) { console.warn('finishLoad:err', e.message); }
     if (cb) cb();
   }
 
   function getCurrentProvider() { return PROVIDERS[S.currentProvider]; }
   function getCurrentProviderConfig() { return S.providers[S.currentProvider]; }
-  function cleanApiKey(value) { return String(value || '').replace(/[^\x00-\x7F]/g, '').trim(); }
   function getProviderApiKey(providerKey) {
-    const cfg = S.providers[providerKey];
-    return cleanApiKey(cfg && cfg.apiKey);
+    return DreamscapeConfig.getKey(providerKey);
   }
   function promptForApiKey(providerKey) {
     const targetKey = PROVIDERS[providerKey] ? providerKey : S.currentProvider;
@@ -1424,6 +1258,15 @@
   }
 
   let sharedModelSelector = null;
+  function refreshGlobalConfig() {
+    const config = DreamscapeConfig.read();
+    Object.keys(PROVIDERS).forEach(key => {
+      S.providers[key] = { ...S.providers[key], ...config[key], apiKey:DreamscapeConfig.getKey(key) };
+    });
+    sharedModelSelector?.setValue({ provider:S.currentProvider, model:S.providers[S.currentProvider]?.model });
+  }
+  window.addEventListener('storage', event => { if (event.key === 'dp0') refreshGlobalConfig(); });
+  window.addEventListener('dreamscape-config-change', refreshGlobalConfig);
   function initModelSelector() {
     sharedModelSelector = DreamscapeModelSelector.mount(E.modelHost, {
       provider: S.currentProvider,
@@ -1552,7 +1395,7 @@ if(count>0){S.cid=S.cs[0].id;var saved=save();renderCL();loadC();if(saved){showT
     el.querySelector('.si-help')?.addEventListener('mouseleave', function(){ this.querySelector('div').style.display = 'none'; });
   }
   function renderCL(){E.cl.innerHTML='';S.cs.forEach(c=>{const d=document.createElement('div');d.className=`conversation-item ${c.id===S.cid?'active':''}`;var sz=convSizeBytes(c);var szStr=sz>1024?(sz/1024).toFixed(0)+'KB':sz+'B';d.innerHTML=`<span class="conv-title" data-id="${c.id}" title="双击重命名 | ${szStr}">${esc(c.title)}</span><span style="font-size:9px;color:var(--text-secondary);opacity:0.5;flex-shrink:0">${szStr}</span><div class="conv-actions"><span class="conv-rename" data-id="${c.id}">✎</span><span class="conv-export" data-id="${c.id}">⬇</span><span class="conv-delete" data-id="${c.id}">✕</span></div>`;d.querySelector('.conv-title').addEventListener('click',e=>switchC(e.target.dataset.id));d.querySelector('.conv-title').addEventListener('dblclick',e=>{const s=e.target,id=s.dataset.id,conv=S.cs.find(c=>c.id===id);if(!conv)return;const inp=document.createElement('input');inp.type='text';inp.value=conv.title;inp.className='conv-title-input';s.replaceWith(inp);inp.focus();inp.select();const sv=()=>renameC(id,inp.value.trim()||conv.title);inp.addEventListener('blur',sv);inp.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();inp.blur();}if(e.key==='Escape'){inp.value=conv.title;inp.blur();}});});d.querySelector('.conv-export').addEventListener('click',function(e){e.stopPropagation();showExport(c.id);});d.querySelector('.conv-rename').addEventListener('click',e=>{e.stopPropagation();d.querySelector('.conv-title').dispatchEvent(new MouseEvent('dblclick'));});d.querySelector('.conv-delete').addEventListener('click',e=>{e.stopPropagation();if(confirm(`删除"${c.title}"？`))deleteC(e.target.dataset.id);});E.cl.appendChild(d);});updateStorageUI();}
-  function loadC(){const c=gC();if(!c)return;syncConversation(c);E.ct.textContent=c.title;S.ap=c.prompt;E.pt.value=c.prompt;
+  function loadC(){const c=gC();if(!c)return;window.DreamscapeStorage?.setContext(c.id);syncConversation(c);E.ct.textContent=c.title;S.ap=c.prompt;E.pt.value=c.prompt;
 var wrap=document.getElementById('messagesWrapper');wrap.querySelectorAll('.conv-msgs').forEach(function(el){el.style.display='none';});var origContainer=document.getElementById('messagesContainer');if(origContainer)origContainer.style.display='none';
 var ac=document.getElementById('msgs-'+c.id);if(!ac){ac=document.createElement('div');ac.id='msgs-'+c.id;ac.className='conv-msgs';wrap.appendChild(ac);}
 ac.style.display='block';E.mc=ac;
@@ -1577,7 +1420,7 @@ S.pe=false;updatePromptUI();setTimeout(function(){if(typeof MathJax!=='undefined
       )
     );
   }
-  function renderMD(content){if(!content)return'';const originalContent=content;content=normalizeMathTags(content);content=content.replace(/\\\[([\s\S]*?)\\\]/g,(m,f)=>`$$${f}$$`);content=content.replace(/\\\((.+?)\\\)/g,(m,f)=>`$${f}$`);const bl=[];let p=content;p=p.replace(/\$\$([\s\S]*?)\$\$/g,(m,f)=>{bl.push({t:'block',c:f.trim()});return`\u0000B${bl.length-1}\u0000E`;});p=p.replace(/(?<!\$)\$(?!\$)([^$\n]+?)(?<!\$)\$(?!\$)/g,(m,f)=>{bl.push({t:'inline',c:f.trim()});return`\u0000I${bl.length-1}\u0000E`;});let h;if(typeof marked!=='undefined'){try{h=marked.parse(p);}catch(e){h=esc(p).replace(/\n/g,'<br>');}}else{h=esc(p).replace(/\n/g,'<br>');}bl.forEach((b,i)=>{const ph=b.t==='block'?`\u0000B${i}\u0000E`:`\u0000I${i}\u0000E`;const rp=b.t==='block'?`$$${b.c}$$`:`$${b.c}$`;h=h.split(ph).join(rp);});if(typeof DOMPurify==='undefined'){console.warn('DOMPurify unavailable; rendering escaped text');return esc(originalContent).replace(/\n/g,'<br>');}return DOMPurify.sanitize(h,{USE_PROFILES:{html:true}});}
+  function renderMD(content){return DreamscapeMarkdown.render(normalizeMathTags(content || ''), {math:true});}
 
   // ============ Feature 3: Markdown Source Toggle ============
   function scrollToMessageQuestion(msgEl) {
@@ -2012,6 +1855,7 @@ S.pe=false;updatePromptUI();setTimeout(function(){if(typeof MathJax!=='undefined
     });
 
     const results = {};
+    const resultStatus = {};
     const controllers = [];
     S.compareControllers = controllers;
 
@@ -2020,7 +1864,7 @@ S.pe=false;updatePromptUI();setTimeout(function(){if(typeof MathJax!=='undefined
       return new Promise(resolve => {
         const p = PROVIDERS[entry.providerKey];
         const cfg = S.providers[entry.providerKey];
-        const apiKey = cfg ? String(cfg.apiKey || '').replace(/[^\x00-\x7F]/g, '').trim() : '';
+        const apiKey = DreamscapeConfig.getKey(entry.providerKey);
         const col = cols[key];
         const statusEl = col.querySelector('.cmp-status');
         const contentDiv = col.querySelector('.comparison-column-body');
@@ -2055,13 +1899,13 @@ S.pe=false;updatePromptUI();setTimeout(function(){if(typeof MathJax!=='undefined
           }
         }, ac.signal).then(() => {
           results[key] = content;
+          resultStatus[key] = 'complete';
           statusEl.textContent = content ? '✅' : '⚠️';
           if (S.isNearBottom) E.cc.scrollTop = E.cc.scrollHeight;
         }).catch(e => {
-          if (e.name !== 'AbortError') {
-            bubble.textContent = `❌ ${e.message}`;
-            results[key] = content || '';
-          }
+          results[key] = content || '';
+          resultStatus[key] = 'error';
+          bubble.textContent = (content ? content + '\n\n' : '') + (e.name === 'AbortError' ? '⏹️ 已停止' : `❌ ${e.message}`);
           statusEl.textContent = '❌';
         }).finally(() => {
           resolve();
@@ -2080,7 +1924,7 @@ S.pe=false;updatePromptUI();setTimeout(function(){if(typeof MathJax!=='undefined
           providerKey: entry.providerKey,
           model: entry.model,
           content: results[key] || '',
-          status: results[key] ? 'complete' : 'error'
+          status: resultStatus[key] || 'error'
         };
       });
       const firstContent = results['entry_0'] || '';
@@ -2101,7 +1945,7 @@ S.pe=false;updatePromptUI();setTimeout(function(){if(typeof MathJax!=='undefined
     if (!c) { finishSend(); return; }
     const providerKey = S.currentProvider;
     const cfg = { ...S.providers[providerKey] };
-    const key = cleanApiKey(cfg.apiKey);
+    const key = DreamscapeConfig.getKey(providerKey);
     if (!key) { promptForApiKey(providerKey); finishSend(); return; }
 
     S.ac = new AbortController();
@@ -2172,7 +2016,11 @@ S.pe=false;updatePromptUI();setTimeout(function(){if(typeof MathJax!=='undefined
         if (c && fullContent) { c.messages.push({ id: createMessageId(), role: 'assistant', content: fullContent, reasoning: reasoningContent, providerKey, model: cfg.model }); syncConversation(c); d.dataset.msgIndex = c.messages.length - 1; save(); if (S.cid === c.id) updateJL(); d.dataset.content = fullContent; }
         E.rs.textContent = '⏹️';
       } else {
-        bubble.textContent = `❌ ${e.message}`;
+        bubble.textContent = fullContent ? fullContent + '\n\n❌ ' + e.message : `❌ ${e.message}`;
+        if (c && fullContent) {
+          c.messages.push({ id:createMessageId(), role:'assistant', content:fullContent, reasoning:reasoningContent, providerKey, model:cfg.model, incomplete:true });
+          syncConversation(c); d.dataset.msgIndex = c.messages.length - 1; d.dataset.content = fullContent; save();
+        }
         E.rs.textContent = '❌';
       }
     } finally {
@@ -2422,17 +2270,18 @@ S.pe=false;updatePromptUI();setTimeout(function(){if(typeof MathJax!=='undefined
           }
         });
       } catch (e) {
-        if (e.name === 'AbortError' && appendedContent) {
+        if (appendedContent) {
           const fullNew = currentContent + appendedContent;
           msgEl.dataset.content = fullNew;
           bubble.innerHTML = renderMD(fullNew);
           const msgIdx = parseInt(msgEl.dataset.msgIndex);
           if (!isNaN(msgIdx) && c.messages[msgIdx]) {
             c.messages[msgIdx].content = fullNew;
+            c.messages[msgIdx].incomplete = true;
             syncConversation(c);
             save();
           }
-          E.rs.textContent = '⏹️ 续写已停止';
+          E.rs.textContent = e.name === 'AbortError' ? '⏹️ 续写已停止' : '❌ 续写中断，已保留内容';
         } else if (e.name === 'AbortError') {
           E.rs.textContent = '⏹️ 续写已停止';
         } else if (e.name !== 'AbortError') {
@@ -2561,7 +2410,7 @@ S.pe=false;updatePromptUI();setTimeout(function(){if(typeof MathJax!=='undefined
       return;
     }
     const conversationId=S.cid;
-    addM('user',m);E.ui.value='';E.ui.style.height='auto';E.ui.focus();
+    addM('user',m);E.ui.value='';window.DreamscapeStorage?.markSaved();E.ui.style.height='auto';E.ui.focus();
 
     if (S.compareMode && S.compareEntries.length >= 2) {
       S.ir=true;E.snd.style.display='none';E.stp.style.display='flex';E.rs.textContent='⏳ 对比中...';
@@ -2583,7 +2432,7 @@ S.pe=false;updatePromptUI();setTimeout(function(){if(typeof MathJax!=='undefined
   if(E.reasoningT)E.reasoningT.addEventListener('click',toggleReasoningVisibility);
   E.tt.addEventListener('click',toggleTheme);
   E.temp.addEventListener('change',function(){S.temp=parseFloat(this.value);save();});
-  E.clrI.addEventListener('click',()=>{E.ui.value='';E.ui.style.height='auto';E.ui.focus();});
+  E.clrI.addEventListener('click',()=>{E.ui.value='';window.DreamscapeStorage?.markSaved();E.ui.style.height='auto';E.ui.focus();});
   E.clrC.addEventListener('click',()=>{if(confirm('清空对话？')){const c=gC();if(c){c.messages=[];syncConversation(c);}clearM();addE();save();updateJL();updateTotalTokenEstimate();}});
   E.nc.addEventListener('click',createC);
   E.tsb.addEventListener('click',toggleSearch);E.sx.addEventListener('click',()=>{E.sb.style.display='none';clearSearch();});
@@ -2634,6 +2483,6 @@ S.pe=false;updatePromptUI();setTimeout(function(){if(typeof MathJax!=='undefined
 })();
 
 </script>
-<script src="global-storage.js"></script>
+
 </body>
 </html>
