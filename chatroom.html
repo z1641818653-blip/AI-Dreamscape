@@ -816,7 +816,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
   const PROVIDERS = DreamscapeConfig.providers;
   const getApiKey = DreamscapeConfig.getKey;
 
-  const COLORS = ['#7c5cfc', '#f59e0b', '#10b981', '#ff6b9d', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
+  const COLORS = ['#658878', '#a88657', '#73869b', '#a1747f', '#87809a', '#8e7562', '#5e8b8b', '#9b8269'];
 
   function esc(t) { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
 
@@ -1352,7 +1352,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     isDiscussing: false,
     discussStopped: false,
     currentRound: 0,
-    darkMode: localStorage.getItem('chatroom_dark') !== 'false',
+    darkMode: localStorage.getItem('chatroom_dark') === 'true',
     sidebarOpen: localStorage.getItem('chatroom_sidebar') !== 'closed',
     _aborters: [],
     discussionMode: 'fixed',

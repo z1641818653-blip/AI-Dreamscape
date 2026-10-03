@@ -31,6 +31,11 @@
   const title=document.createElement('div');title.className='goal-summary';title.setAttribute('role','status');document.querySelector('.top-bar').after(title);
   const historySearch=document.createElement('input');historySearch.placeholder='搜索房间';historySearch.setAttribute('aria-label','搜索房间');$('historyList').before(historySearch);
   sidebar.prepend($('newRoomBtn'));$('newRoomBtn').textContent='＋ 新讨论';
+  const brand=sidebar.querySelector('.chatroom-shortcuts a');
+  brand.classList.add('room-brand');brand.textContent='灵境';sidebar.prepend(brand);
+  sidebar.querySelector('.chatroom-shortcuts').closest('.sidebar-section').hidden=true;
+  $('historySection').querySelector('h3').textContent='讨论记录';
+  roles.querySelector('h3').textContent='参与角色';
   $('sidebarToggle').textContent='房间';$('sidebarToggle').setAttribute('aria-label','打开或收起房间历史');
   const empty=$('emptyChat')||document.createElement('div');
   if(!empty.isConnected){empty.id='emptyChat';empty.className='empty-chat';empty.style.display='none';$('messagesArea').append(empty);}
