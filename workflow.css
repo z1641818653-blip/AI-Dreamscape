@@ -632,3 +632,17 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .page-guide-section p,.page-guide-section li{font-size:13px;line-height:1.75;color:var(--text2)}.page-guide-section ul,.page-guide-section ol{padding-left:20px;margin:6px 0}
 .page-guide-callout{margin:10px 0;padding:11px 13px;border:1px solid rgba(124,92,252,.2);border-radius:11px;background:rgba(109,63,192,.1);font-size:12px;line-height:1.65;color:var(--text2)}
 @media(max-width:700px){.page-guide-overlay{padding:0}.page-guide-dialog{width:100vw;height:100vh;max-height:none;border:0;border-radius:0}.page-guide-layout{display:flex;flex-direction:column}.page-guide-toc{display:flex;gap:5px;flex:0 0 auto;overflow-x:auto;overflow-y:hidden;border-right:0;border-bottom:1px solid var(--border)}.page-guide-link{width:auto;flex:0 0 auto;white-space:nowrap}.page-guide-content{padding:20px 18px 40px}}
+
+.workflow-mobile-tabs{display:none}
+@media(max-width:760px){
+  body{height:100dvh;overflow:hidden}
+  .workflow-mobile-tabs{height:48px;display:flex;gap:6px;padding:7px 10px;border-bottom:1px solid var(--border);background:var(--surface)}
+  .workflow-mobile-tabs button{flex:1;min-width:0;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font:600 12px inherit}
+  .workflow-mobile-tabs button[aria-pressed="true"]{background:var(--primary-soft);color:var(--primary);border-color:var(--primary)}
+  .layout{width:100%;height:calc(100dvh - 48px)}
+  .panel-left,.panel-center,.panel-right{display:none;width:100%!important;min-width:0!important;max-width:100%;flex:1}
+  body[data-workflow-view="list"] .panel-left,body[data-workflow-view="editor"] .panel-center,body[data-workflow-view="tree"] .panel-right{display:flex;opacity:1;padding:0;border:0}
+  .floating-btn,.resize-handle{display:none!important}
+  .panel-center .top-bar{min-width:0}
+  .workflow-name-input{min-width:0;max-width:100%}
+}

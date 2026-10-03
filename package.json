@@ -1,0 +1,7 @@
+{
+  "name": "ai-dreamscape",
+  "private": true,
+  "version": "4.2.4",
+  "scripts": { "test": "node tests/regression.cjs" },
+  "devDependencies": { "playwright": "1.62.1" }
+}

@@ -83,6 +83,10 @@
     footer{padding:28px 0 44px;text-align:center;color:var(--muted);font-size:12px}
     @media(max-width:780px){main{padding-top:32px}.hero{align-items:flex-start;flex-direction:column}.local-note{max-width:none}.provider-grid,.data-grid{grid-template-columns:1fr}.summary{align-items:flex-start;flex-direction:column}.save-all{width:100%}.tabs{width:100%}.tab{flex:1;padding-inline:10px}.nav{min-height:62px}}
   </style>
+<script src="providers-config.js"></script>
+<script src="request.js"></script>
+<script src="backup.js"></script>
+<script src="global-storage.js"></script>
 </head>
 <body>
   <header>
@@ -115,7 +119,7 @@
         </article>
         <article class="data-card">
           <h2>恢复本机数据</h2>
-          <p>选择由本页生成的 JSON。导入采用合并方式，同名项目会覆盖，其他现有数据保留。</p>
+          <p>选择由本页生成的 JSON。恢复前会列出冲突；同名对话、房间、流程及文档会整体替换，其他数据保留。写入失败会回滚。</p>
           <input class="file-input" id="importFile" type="file" accept="application/json,.json">
           <button class="secondary-btn" id="chooseImportBtn" type="button">选择备份文件</button>
           <div class="status-box" id="importStatus" aria-live="polite"></div>
@@ -144,13 +148,7 @@
     const LEGACY_SECRET_KEYS = new Set(['dp49', 'dk30']);
     const GLOBAL_STORAGE_SETTINGS_KEY = 'dreamscape_global_storage_v1';
     const PAGE_CACHE_KEY = 'dreamscape_page_cache_v1';
-    const PROVIDERS = {
-      deepseek:{name:'DeepSeek',icon:'🟢',models:['deepseek-v4-pro','deepseek-v4-flash'],info:'推理与高速模型'},
-      openai:{name:'OpenAI',icon:'🟣',models:['gpt-5.6-sol','gpt-5.6-terra','gpt-5.6-luna','gpt-5.5-latest'],info:'GPT 多档模型'},
-      claude:{name:'Claude',icon:'🟠',models:['claude-opus-4-6','claude-sonnet-4-6','claude-haiku-4-5'],info:'Opus、Sonnet 与 Haiku'},
-      gemini:{name:'Gemini',icon:'🔵',models:['gemini-3.5-flash','gemini-3.5-pro','gemini-omni-flash'],info:'Gemini 与全模态模型'},
-      qwen:{name:'千问',icon:'🔴',models:['qwen3.7-max','qwen3.7-plus','qwen3.7-flash'],info:'通义千问系列'}
-    };
+    const PROVIDERS = DreamscapeConfig.providers;
     const $ = id => document.getElementById(id);
     const state = { providers:{}, currentProvider:'deepseek' };
 
@@ -185,7 +183,7 @@
         const card = document.createElement('article');
         card.className = 'provider-card';
         card.dataset.provider = key;
-        card.innerHTML = `<div class="provider-head"><div class="provider-name"><span class="provider-icon">${provider.icon}</span><span>${provider.name}</span></div><span class="state ${config.apiKey ? 'ready' : ''}" data-state>${config.apiKey ? '已配置' : '未配置'}</span></div><div class="field"><label for="key-${key}">API Key</label><div class="input-wrap"><input id="key-${key}" data-key type="password" autocomplete="off" spellcheck="false" placeholder="输入 ${provider.name} API Key"><button class="reveal" data-reveal type="button">显示</button></div></div><div class="field"><label for="model-${key}">默认模型</label><select id="model-${key}" data-model>${provider.models.map(model => `<option value="${model}">${model}</option>`).join('')}</select></div><div class="provider-foot"><span>${provider.info}</span><button class="default-btn ${state.currentProvider === key ? 'active' : ''}" data-default type="button">${state.currentProvider === key ? '✓ 当前默认' : '设为默认'}</button></div>`;
+        card.innerHTML = `<div class="provider-head"><div class="provider-name"><span class="provider-icon">${provider.icon}</span><span>${provider.name}</span></div><span class="state ${config.apiKey ? 'ready' : ''}" data-state>${config.apiKey ? '已配置' : '未配置'}</span></div><div class="field"><label for="key-${key}">API Key</label><div class="input-wrap"><input id="key-${key}" data-key data-unsaved data-no-page-cache type="password" autocomplete="off" spellcheck="false" placeholder="输入 ${provider.name} API Key"><button class="reveal" data-reveal type="button">显示</button></div></div><div class="field"><label for="model-${key}">默认模型</label><select id="model-${key}" data-model data-unsaved>${provider.models.map(model => `<option value="${model}">${model}</option>`).join('')}</select></div><div class="provider-foot"><span>${provider.info}</span><button class="default-btn ${state.currentProvider === key ? 'active' : ''}" data-default type="button">${state.currentProvider === key ? '✓ 当前默认' : '设为默认'}</button></div>`;
         card.querySelector('[data-key]').value = config.apiKey;
         card.querySelector('[data-model]').value = config.model;
         grid.appendChild(card);
@@ -200,12 +198,14 @@
     }
     function saveConfig() {
       collectForm();
-      const payload = {};
+      const payload = DreamscapeConfig.read();
       Object.keys(PROVIDERS).forEach(key => { payload[key] = { apiKey:encodeKey(state.providers[key].apiKey), model:state.providers[key].model }; });
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
         localStorage.setItem(CURRENT_PROVIDER_KEY, state.currentProvider);
         renderProviders();
+        window.dispatchEvent(new Event('dreamscape-config-change'));
+        window.DreamscapeStorage?.markSaved();
         showToast('全局 API 配置已保存');
       } catch (error) { showToast('保存失败：' + (error.message || '浏览器存储不可用'), true); }
       updateStorageStats();
@@ -214,27 +214,7 @@
       const count = Object.values(state.providers).filter(item => item.apiKey).length;
       $('apiSummary').textContent = `已配置 ${count} / ${Object.keys(PROVIDERS).length} 个模型服务`;
     }
-    function sanitizedStorage(includeKeys) {
-      const result = {};
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (!key) continue;
-        if (LEGACY_SECRET_KEYS.has(key)) {
-          if (includeKeys) result[key] = localStorage.getItem(key) || '';
-          continue;
-        }
-        if (key === STORAGE_KEY && !includeKeys) {
-          try {
-            const providers = JSON.parse(localStorage.getItem(key) || '{}');
-            Object.values(providers).forEach(item => { if (item && typeof item === 'object') item.apiKey = ''; });
-            result[key] = JSON.stringify(providers);
-          } catch { result[key] = '{}'; }
-          continue;
-        }
-        result[key] = localStorage.getItem(key) || '';
-      }
-      return result;
-    }
+    const sanitizedStorage = DreamscapeBackup.snapshot;
     function downloadBackup() {
       const includeKeys = $('includeKeys').checked;
       if (includeKeys && !confirm('备份将包含可直接使用的 API Key。确定继续吗？')) return;
@@ -253,29 +233,13 @@
       status.className = 'status-box'; status.textContent = '正在检查文件…';
       if (!file || file.size > 12 * 1024 * 1024) throw new Error('文件为空或超过 12 MB');
       const payload = JSON.parse(await file.text());
-      if (payload?.kind !== 'ai-dreamscape-browser-backup' || payload.schemaVersion !== 1 || !payload.storage || Array.isArray(payload.storage) || typeof payload.storage !== 'object') throw new Error('不是有效的 AI 灵境备份文件');
-      const entries = Object.entries(payload.storage);
-      if (entries.length > 500 || entries.some(([key,value]) => !key || key.length > 200 || typeof value !== 'string')) throw new Error('备份内容超出允许范围');
-      const warning = payload.includesApiKeys ? '\n该备份包含 API Key。' : '';
-      if (!confirm(`将合并恢复 ${entries.length} 项数据，同名数据会被覆盖。${warning}\n确定继续吗？`)) { status.textContent = '已取消导入'; return; }
-      entries.forEach(([key,value]) => {
-        if (key === STORAGE_KEY && !payload.includesApiKeys) {
-          try {
-            const incoming = JSON.parse(value);
-            const current = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-            Object.keys(incoming).forEach(providerKey => {
-              if (incoming[providerKey] && typeof incoming[providerKey] === 'object') {
-                incoming[providerKey].apiKey = current?.[providerKey]?.apiKey || '';
-              }
-            });
-            localStorage.setItem(key, JSON.stringify(incoming));
-            return;
-          } catch {}
-        }
-        localStorage.setItem(key, value);
-      });
+      const prepared = DreamscapeBackup.plan(payload);
+      const warning = payload.includesApiKeys === true ? '\n该备份包含 API Key。' : '';
+      const conflicts = prepared.conflicts.length ? `\n将覆盖 ${prepared.conflicts.length} 项同名数据：${prepared.conflicts.slice(0, 8).join('、')}。` : '';
+      if (!confirm(`将恢复 ${prepared.writes.length} 项数据。${conflicts}\n同名聊天、房间、流程及文档会整体替换，请先导出当前备份。${warning}\n确定继续吗？`)) { status.textContent = '已取消导入'; return; }
+      DreamscapeBackup.restore(prepared);
       loadConfig(); renderProviders(); updateStorageStats();
-      status.className = 'status-box success'; status.textContent = `已恢复 ${entries.length} 项数据`;
+      status.className = 'status-box success'; status.textContent = `已恢复 ${prepared.writes.length} 项数据`;
       showToast('数据恢复完成');
     }
     function updateStorageStats() {
@@ -329,7 +293,7 @@
     $('providerGrid').addEventListener('click', event => {
       const card = event.target.closest('.provider-card'); if (!card) return;
       if (event.target.matches('[data-reveal]')) { const input = card.querySelector('[data-key]'); const hidden = input.type === 'password'; input.type = hidden ? 'text' : 'password'; event.target.textContent = hidden ? '隐藏' : '显示'; }
-      if (event.target.matches('[data-default]')) { state.currentProvider = card.dataset.provider; collectForm(); renderProviders(); }
+      if (event.target.matches('[data-default]')) { state.currentProvider = card.dataset.provider; collectForm(); renderProviders(); window.DreamscapeStorage?.markDirty(); }
     });
     $('providerGrid').addEventListener('input', event => {
       if (!event.target.matches('[data-key]')) return;
@@ -348,7 +312,7 @@
     loadConfig(); renderProviders(); updateStorageStats();
   })();
   </script>
-  <script src="global-storage.js"></script>
+
 </body>
 </html>
 

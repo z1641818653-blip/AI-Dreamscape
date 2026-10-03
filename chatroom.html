@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 <title>AI 聊天室 · 灵境</title>
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="assets/vendor/marked.umd.js"></script>
 <style>
 :root{--bg:#f5f0ff;--surface:#ffffff;--surface-hover:#f0ebf8;--border:#d4c8e8;--text:#2d1b4e;--text2:#6b5b8a;--primary:#7c5cfc;--primary-glow:rgba(124,92,252,.15);--accent:#ff6b9d;--radius:16px;--radius-sm:10px;--shadow:0 2px 12px rgba(109,63,192,.08);--transition:.2s ease;--success:#2ecc71;--danger:#e74c3c;--warning:#f39c12;--info:#3498db}
 {--bg:#f5f3f0;--surface:rgba(255,255,255,.7);--surface-hover:rgba(0,0,0,.04);--border:rgba(0,0,0,.08);--text:#1e1b16;--text2:#7a7268;--shadow:0 8px 32px rgba(0,0,0,.08)}
@@ -348,6 +348,12 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 }
 
 </style>
+<script src="providers-config.js"></script>
+<script src="request.js"></script>
+<script src="backup.js"></script>
+<script src="global-storage.js"></script>
+<script src="assets/vendor/purify.min.js"></script>
+<script src="markdown.js"></script>
 </head>
 <body>
 <div id="toastContainer"></div>
@@ -786,7 +792,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 
     <div class="input-area-wrap">
       <div class="input-row">
-        <textarea id="chatInput" placeholder="输入消息..." rows="1"></textarea>
+        <textarea data-page-cache id="chatInput" placeholder="输入消息..." rows="1"></textarea>
         <div class="input-actions">
           <button id="sendMsgBtn" class="send-btn">发送</button>
           <button id="requestTurnBtn" class="discuss-btn interject-btn" title="当前 AI 发言结束后暂停，由你发言">✋ 插入发言</button>
@@ -803,116 +809,14 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 (function() {
   if (typeof marked !== 'undefined') marked.setOptions({ breaks: true, gfm: true });
 
-  const PROVIDERS = {
-    deepseek: {
-      name: 'DeepSeek',
-      icon: '🟢',
-      models: ['deepseek-v4-pro', 'deepseek-v4-flash'],
-      endpoint: 'https://api.deepseek.com/v1/chat/completions',
-      streamFormat: 'openai',
-      authHeader: (key) => ({ 'Authorization': 'Bearer ' + key }),
-      buildBody: (model, messages, mt, temp) => ({ model, messages, temperature: temp ?? 0.7, max_tokens: mt }),
-      parseResponse: (data) => data.choices?.[0]?.message?.content
-    },
-    openai: {
-      name: 'OpenAI',
-      icon: '🟣',
-      models: ['gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-5.5-latest'],
-      endpoint: 'https://api.openai.com/v1/chat/completions',
-      streamFormat: 'openai',
-      authHeader: (key) => ({ 'Authorization': 'Bearer ' + key }),
-      buildBody: (model, messages, mt, temp) => ({ model, messages, temperature: temp ?? 0.7, max_completion_tokens: mt }),
-      parseResponse: (data) => data.choices?.[0]?.message?.content
-    },
-    claude: {
-      name: 'Claude',
-      icon: '🟠',
-      models: ['claude-opus-4-6', 'claude-sonnet-4-6', 'claude-haiku-4-5'],
-      endpoint: 'https://api.anthropic.com/v1/messages',
-      streamFormat: 'anthropic',
-      authHeader: (key) => ({
-        'x-api-key': key,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
-      }),
-      buildBody: (model, messages, mt, temp) => {
-        const sm = messages.find(m => m.role === 'system');
-        const cm = messages.filter(m => m.role !== 'system');
-        const body = {
-          model,
-          max_tokens: mt,
-          temperature: temp ?? 0.7,
-          messages: cm.map(m => ({ role: m.role, content: m.content }))
-        };
-        if (sm) body.system = sm.content;
-        return body;
-      },
-      parseResponse: (data) => data.content?.map(block => block.text || '').join('') || ''
-    },
-    gemini: {
-      name: 'Gemini',
-      icon: '🔵',
-      models: ['gemini-3.5-flash', 'gemini-3.5-pro', 'gemini-omni-flash'],
-      endpoint: (model) => 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':streamGenerateContent?alt=sse',
-      streamFormat: 'gemini',
-      authHeader: (key) => ({ 'x-goog-api-key': key }),
-      buildBody: (model, messages, mt, temp) => {
-        const contents = messages.filter(m => m.role !== 'system').map(m => ({
-          role: m.role === 'assistant' ? 'model' : 'user',
-          parts: [{ text: m.content }]
-        }));
-        const sm = messages.find(m => m.role === 'system');
-        const body = { contents, generationConfig: { maxOutputTokens: mt, temperature: temp ?? 0.7 } };
-        if (sm) body.systemInstruction = { parts: [{ text: sm.content }] };
-        return body;
-      },
-      parseResponse: (data) => data.candidates?.[0]?.content?.parts?.map(part => part.text || '').join('') || ''
-    },
-    qwen: {
-      name: '千问',
-      icon: '🔴',
-      models: ['qwen3.7-max', 'qwen3.7-plus', 'qwen3.7-flash'],
-      endpoint: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
-      streamFormat: 'openai',
-      authHeader: (key) => ({ 'Authorization': 'Bearer ' + key }),
-      buildBody: (model, messages, mt, temp) => ({ model, messages, temperature: temp ?? 0.7, max_tokens: mt }),
-      parseResponse: (data) => data.choices?.[0]?.message?.content
-    }
-  };
-
-  function decodeStoredKey(value) {
-    if (!value) return '';
-    try { return decodeURIComponent(atob(value)); } catch {}
-    return String(value).replace(/[^\x00-\x7F]/g, '').trim();
-  }
-
-  function getApiKey(provider) {
-    for (const storageKey of ['dp0', 'dp49']) {
-      try {
-        const raw = localStorage.getItem(storageKey);
-        if (!raw) continue;
-        const providers = JSON.parse(raw);
-        const key = decodeStoredKey(providers?.[provider]?.apiKey);
-        if (key) return key;
-      } catch {}
-    }
-    if (provider === 'deepseek') {
-      return String(localStorage.getItem('dk30') || '').replace(/[^\x00-\x7F]/g, '').trim();
-    }
-    return '';
-  }
+  const PROVIDERS = DreamscapeConfig.providers;
+  const getApiKey = DreamscapeConfig.getKey;
 
   const COLORS = ['#7c5cfc', '#f59e0b', '#10b981', '#ff6b9d', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
 
   function esc(t) { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
 
-  function renderMD(content) {
-    if (!content) return '';
-    if (typeof marked !== 'undefined') {
-      try { return marked.parse(content); } catch(e) {}
-    }
-    return esc(content).replace(/\n/g, '<br>');
-  }
+  function renderMD(content) { return DreamscapeMarkdown.render(content); }
 
   function showConfirm(msg, cb) {
     const overlay = document.getElementById('confirmOverlay');
@@ -1696,6 +1600,7 @@ judge, fact_checker, moderator, summarizer, debater, counter_side, gentle, force
     }
 
     input.value = '';
+
     addRoleCreatorMessage('user', userText);
     const messages = buildRoleCreatorMessages(userText);
     roleCreatorState.history.push({ role: 'user', content: userText });
@@ -1920,6 +1825,7 @@ judge, fact_checker, moderator, summarizer, debater, counter_side, gentle, force
   }
 
   function initRoom(room) {
+    window.DreamscapeStorage?.setContext(room.id);
     room.participants = room.participants.map(normalizeParticipant);
     room.collaborationMode = ['free', 'cocreate', 'debate'].includes(room.collaborationMode) ? room.collaborationMode : 'free';
     room.discussionGoal = typeof room.discussionGoal === 'string' ? room.discussionGoal : '';
@@ -1964,6 +1870,7 @@ judge, fact_checker, moderator, summarizer, debater, counter_side, gentle, force
 
   function loadRoomById(id) {
     const room = loadRoom(id);
+    if (room) window.DreamscapeStorage?.setContext(room.id);
     if (room) {
       initRoom(room);
       showToast('📂 已加载: ' + room.name, 'info');
@@ -2344,100 +2251,31 @@ judge, fact_checker, moderator, summarizer, debater, counter_side, gentle, force
       ? provider.endpoint(participant.model)
       : provider.endpoint;
 
-    const requestController = new AbortController();
-    let idleTimer = null;
-    let timedOut = false;
     const requestedTimeout = Number(options?.timeoutMs);
-    const timeoutMs = Number.isFinite(requestedTimeout)
-      ? Math.min(300000, Math.max(30000, Math.round(requestedTimeout)))
-      : 90000;
-    const abortRequest = () => requestController.abort();
-    const armIdleTimeout = () => {
-      clearTimeout(idleTimer);
-      idleTimer = setTimeout(() => {
-        timedOut = true;
-        requestController.abort();
-      }, timeoutMs);
-    };
-
-    if (signal) {
-      if (signal.aborted) requestController.abort();
-      else signal.addEventListener('abort', abortRequest, { once: true });
-    }
-
-    try {
-      armIdleTimeout();
-      const response = await fetch(url, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(body),
-        signal: requestController.signal
-      });
-      armIdleTimeout();
-
-      if (!response.ok) {
-        const text = await response.text();
-        throw new Error(getApiError(text, response.status, provider.name));
-      }
-
-      const contentType = response.headers.get('content-type') || '';
-      if (!contentType.includes('text/event-stream') || !response.body) {
+    const timeoutMs = Number.isFinite(requestedTimeout) ? Math.min(300000, Math.max(30000, requestedTimeout)) : 90000;
+    return DreamscapeRequest.withTimeout(signal, timeoutMs, async (requestSignal, touch) => {
+      const response = await fetch(url, { method:'POST', headers, body:JSON.stringify(body), signal:requestSignal });
+      touch();
+      if (!response.ok) throw new Error(getApiError(await response.text(), response.status, provider.name));
+      if (!(response.headers.get('content-type') || '').includes('text/event-stream')) {
         const data = await response.json();
+        if (data.error) throw new Error(data.error.message || '模型请求失败');
         const content = provider.parseResponse(data) || '';
         if (content && onUpdate) onUpdate(content);
         return assertFinalContent(content, data, provider.name);
       }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-      let fullContent = '';
-      let reasoningLength = 0;
-
-      const processLine = (line) => {
-        const trimmed = line.trim();
-        if (!trimmed.startsWith('data:')) return;
-        const dataText = trimmed.slice(5).trimStart();
-        if (!dataText || dataText === '[DONE]') return;
-        try {
-          const payload = JSON.parse(dataText);
-          reasoningLength += getReasoningLength(provider, payload);
-          const deltaText = getStreamText(provider, payload);
-          if (!deltaText) return;
-          fullContent += deltaText;
-          if (onUpdate) onUpdate(fullContent);
-        } catch {}
-      };
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        armIdleTimeout();
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split(/\r?\n/);
-        buffer = lines.pop() || '';
-        lines.forEach(processLine);
-      }
-
-      buffer += decoder.decode();
-      if (buffer) processLine(buffer);
+      let fullContent = '', reasoningLength = 0;
+      await DreamscapeRequest.readSSE(response, payload => {
+        reasoningLength += getReasoningLength(provider, payload);
+        const text = DreamscapeConfig.getStreamText(participant.provider, payload);
+        if (text) { fullContent += text; onUpdate?.(fullContent); }
+      }, touch);
       if (!fullContent) {
-        const error = new Error(reasoningLength
-          ? `[${provider.name}] 流式响应包含 ${reasoningLength} 字推理内容，但没有最终 content`
-          : `[${provider.name}] 流式响应结束，但没有收到 content`);
-        error.code = reasoningLength ? 'NO_FINAL_CONTENT' : 'EMPTY_API_CONTENT';
-        throw error;
+        const error = new Error(reasoningLength ? `[${provider.name}] 只有推理内容，没有最终正文` : `[${provider.name}] 响应结束，但没有正文`);
+        error.code = reasoningLength ? 'NO_FINAL_CONTENT' : 'EMPTY_API_CONTENT'; throw error;
       }
       return fullContent;
-    } catch (error) {
-      if (timedOut) {
-        throw new Error('[' + provider.name + '] ' + Math.round(timeoutMs / 1000) + ' 秒内未收到新数据，请检查网络或稍后重试');
-      }
-      throw error;
-    } finally {
-      clearTimeout(idleTimer);
-      if (signal) signal.removeEventListener('abort', abortRequest);
-    }
+    });
   }
 
   function getDiscussionRequestOptions(room, participant) {
@@ -2558,6 +2396,7 @@ ${transcript}
 
     const { bubble } = addMessageDOM('ai', p.name, '', color);
     let fullContent = '';
+    let incomplete = false;
     try {
       const ac = new AbortController();
       state._aborters.push(ac);
@@ -2569,18 +2408,14 @@ ${transcript}
       if (!fullContent) fullContent = '（无响应）';
       updateBubble(bubble, fullContent, true);
     } catch (e) {
-      if (e.name === 'AbortError') {
-        fullContent = '';
-      } else {
-        fullContent = '❌ ' + e.message;
-      }
-      bubble.textContent = fullContent;
+      incomplete = true;
+      bubble.textContent = (fullContent ? fullContent + '\n\n' : '') + (e.name === 'AbortError' ? '⏹️ 已停止' : '❌ ' + e.message);
     }
 
     hideTypingIndicator(p.name);
 
     if (fullContent && !fullContent.startsWith('❌')) {
-      room.messages.push({ role: 'ai', name: p.name, content: fullContent, timestamp: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) });
+      room.messages.push({ role: 'ai', name: p.name, content: fullContent, incomplete, timestamp: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) });
       saveRoom(room);
     }
     return { content: fullContent, name: p.name, idx: participantIdx };
@@ -2941,6 +2776,7 @@ ${transcript}
     const input = event.target;
     const file = input.files?.[0];
     input.value = '';
+
     if (!file) return;
     try {
       await importRoomFile(file);
@@ -2956,11 +2792,14 @@ ${transcript}
   });
 
   document.getElementById('sendMsgBtn').addEventListener('click', async () => {
+    window.DreamscapeStorage?.setContext(state.room?.id);
     const input = document.getElementById('chatInput');
     const text = input.value.trim();
     if (!text || !state.room) return;
     const userName = state.waitingForHuman?.name || getHumanName(state.room);
     input.value = '';
+    window.DreamscapeStorage?.markSaved();
+
     input.style.height = 'auto';
 
     if (!String(state.room.discussionGoal || '').trim() && state.room.messages.length === 0) {
@@ -3167,6 +3006,6 @@ ${transcript}
   },{passive:true});
 })();
 </script>
-<script src="global-storage.js"></script>
+
 </body>
 </html>

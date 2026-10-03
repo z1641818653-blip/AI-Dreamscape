@@ -1,149 +1,92 @@
 (function () {
   'use strict';
-
   const SETTINGS_KEY = 'dreamscape_global_storage_v1';
   const CACHE_KEY = 'dreamscape_page_cache_v1';
-  const MAX_FIELD_LENGTH = 100000;
-  const MAX_FIELDS = 200;
-  let dirty = false;
-  let saveTimer = null;
-  let restoring = false;
-
-  function readJson(key, fallback) {
+  let dirty = false, saveTimer, restoring = false, context = '';
+  function read(key) {
+    try { const value = JSON.parse(localStorage.getItem(key) || '{}'); return value && typeof value === 'object' && !Array.isArray(value) ? value : {}; }
+    catch { return {}; }
+  }
+  function getSettings() { return { exitProtection:true, ...read(SETTINGS_KEY) }; }
+  const cacheId = () => context ? `${location.pathname}#${context}` : location.pathname;
+  const sensitive = element => element.matches('[data-key], [data-sensitive], [type="password"], [type="file"]') || /api.?key|password|secret|^key-/i.test(element.id || element.name || '');
+  function isCacheable(element) {
+    return element instanceof HTMLElement && !element.closest('[data-no-page-cache]') && element.matches('[data-page-cache]') && !sensitive(element) && !element.readOnly && !element.disabled;
+  }
+  function scrub() {
     try {
-      const value = JSON.parse(localStorage.getItem(key) || 'null');
-      return value && typeof value === 'object' ? value : fallback;
-    } catch {
-      return fallback;
-    }
+      const original = localStorage.getItem(CACHE_KEY);
+      if (!original) return;
+      const clean = JSON.stringify(DreamscapeBackup.cleanCaches(read(CACHE_KEY)));
+      if (clean !== original) localStorage.setItem(CACHE_KEY, clean);
+    } catch (error) { console.warn('清理旧缓存未完成', error.name); }
   }
-
-  function getSettings() {
-    return { exitProtection: true, ...readJson(SETTINGS_KEY, {}) };
-  }
-
-  function isCacheableField(element) {
-    if (!(element instanceof HTMLElement) || element.closest('[data-no-page-cache]')) return false;
-    if (element.matches('[contenteditable="true"]')) return true;
-    if (!element.matches('input, textarea, select')) return false;
-    const type = String(element.type || '').toLowerCase();
-    return !['password', 'file', 'hidden', 'button', 'submit', 'reset', 'image'].includes(type);
-  }
-
-  function fieldKey(element, index) {
-    return element.id || element.getAttribute('name') || null;
-  }
-
-  function collectFields() {
-    const fields = {};
-    const elements = Array.from(document.querySelectorAll('input, textarea, select, [contenteditable="true"]'))
-      .filter(isCacheableField)
-      .slice(0, MAX_FIELDS);
-    elements.forEach((element, index) => {
-      const key = fieldKey(element, index);
-      if (!key) return;
-      const type = String(element.type || element.tagName).toLowerCase();
-      const raw = element.matches('[contenteditable="true"]') ? element.textContent : element.value;
-      fields[key] = {
-        type,
-        checked: typeof element.checked === 'boolean' ? element.checked : undefined,
-        value: String(raw || '').slice(0, MAX_FIELD_LENGTH)
-      };
-    });
-    return fields;
-  }
-
-  function persistPageCache() {
+  function persist() {
     if (!dirty) return true;
     try {
-      const allCaches = readJson(CACHE_KEY, {});
-      const fields = collectFields();
-      allCaches[location.pathname] = {
-        path: location.pathname,
-        title: document.title,
-        updatedAt: new Date().toISOString(),
-        dirty: true,
-        fieldCount: Object.keys(fields).length,
-        fields
-      };
-      localStorage.setItem(CACHE_KEY, JSON.stringify(allCaches));
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
-  function schedulePageCache() {
-    clearTimeout(saveTimer);
-    saveTimer = setTimeout(persistPageCache, 500);
-  }
-
-  function findField(key) {
-    const byId = document.getElementById(key);
-    if (byId && isCacheableField(byId)) return byId;
-    const named = Array.from(document.querySelectorAll('[name]')).find(element => element.getAttribute('name') === key && isCacheableField(element));
-    if (named) return named;
-    return null;
-  }
-
-  function restoreFields(record) {
-    restoring = true;
-    Object.entries(record.fields || {}).forEach(([key, saved]) => {
-      const element = findField(key);
-      if (!element) return;
-      if (element.matches('[contenteditable="true"]')) element.textContent = saved.value || '';
-      else if (typeof saved.checked === 'boolean' && /checkbox|radio/.test(saved.type)) element.checked = saved.checked;
-      else element.value = saved.value || '';
-      element.dispatchEvent(new Event('input', { bubbles: true }));
-      element.dispatchEvent(new Event('change', { bubbles: true }));
-    });
-    restoring = false;
-    dirty = true;
-  }
-
-  function offerRestore() {
-    if (/settings\.html$/i.test(location.pathname)) return;
-    const record = readJson(CACHE_KEY, {})[location.pathname];
-    if (!record?.dirty || !record.fields || !Object.keys(record.fields).length) return;
-    const meaningful = Object.values(record.fields).some(field => field.value || field.checked);
-    if (!meaningful) return;
-    const time = record.updatedAt ? new Date(record.updatedAt).toLocaleString('zh-CN') : '上次离开时';
-    if (confirm(`发现 ${time} 保存的页面输入缓存，是否恢复？`)) restoreFields(record);
-  }
-
-  function markSaved() {
-    dirty = false;
-    try {
-      const allCaches = readJson(CACHE_KEY, {});
-      if (allCaches[location.pathname]) {
-        allCaches[location.pathname].dirty = false;
-        localStorage.setItem(CACHE_KEY, JSON.stringify(allCaches));
+      const fields = {};
+      for (const element of [...document.querySelectorAll('[data-page-cache]')].filter(isCacheable).slice(0, 200)) {
+        const key = element.id || element.name;
+        if (!key) continue;
+        fields[key] = { type:element.type || element.tagName, checked:element.checked, value:String(element.isContentEditable ? element.textContent : element.value || '').slice(0, 100000) };
       }
+      const caches = DreamscapeBackup.cleanCaches(read(CACHE_KEY));
+      if (!Object.keys(fields).length) return true;
+      caches[cacheId()] = { path:location.pathname, context, title:document.title, updatedAt:new Date().toISOString(), dirty:true, fieldCount:Object.keys(fields).length, fields };
+      localStorage.setItem(CACHE_KEY, JSON.stringify(caches));
+      return true;
+    } catch { return false; }
+  }
+  function markDirty() { dirty = true; clearTimeout(saveTimer); saveTimer = setTimeout(persist, 500); }
+  function markSaved() {
+    clearTimeout(saveTimer); dirty = false;
+    try {
+      const caches = read(CACHE_KEY);
+      if (caches[cacheId()]) { delete caches[cacheId()]; localStorage.setItem(CACHE_KEY, JSON.stringify(caches)); }
     } catch {}
   }
-
-  document.addEventListener('input', event => {
-    if (restoring || !isCacheableField(event.target)) return;
-    dirty = true;
-    schedulePageCache();
-  }, true);
-  document.addEventListener('change', event => {
-    if (restoring || !isCacheableField(event.target)) return;
-    dirty = true;
-    schedulePageCache();
-  }, true);
-
+  function offerRestore() {
+    if (/settings\.html$/i.test(location.pathname)) return;
+    const record = read(CACHE_KEY)[cacheId()];
+    if (!record?.dirty || !record.fields) return;
+    const entries = Object.entries(record.fields).filter(([key, saved]) => isCacheable(document.getElementById(key)) && (saved.value || saved.checked));
+    if (!entries.length) return;
+    if (!confirm('发现当前文档或对话的未发送草稿，是否恢复？')) { markSaved(); return; }
+    restoring = true;
+    try {
+      for (const [key, saved] of entries) {
+        const element = document.getElementById(key);
+        if (/checkbox|radio/.test(element.type)) element.checked = Boolean(saved.checked);
+        else if (element.isContentEditable) element.textContent = saved.value || '';
+        else element.value = saved.value || '';
+        element.dispatchEvent(new Event('input', { bubbles:true }));
+      }
+      dirty = true;
+      return true;
+    } finally { restoring = false; }
+  }
+  function setContext(next) {
+    next = String(next || '');
+    if (next === context) return;
+    persist(); clearTimeout(saveTimer); dirty = false; context = next;
+    for (const element of [...document.querySelectorAll('[data-page-cache]')].filter(isCacheable)) element.value = '';
+    if (document.readyState !== 'loading') return offerRestore();
+  }
+  const changed = event => {
+    if (restoring) return;
+    if (isCacheable(event.target) || event.target instanceof HTMLElement && event.target.matches('[data-unsaved]')) markDirty();
+  };
+  document.addEventListener('input', changed, true);
+  document.addEventListener('change', changed, true);
   window.addEventListener('beforeunload', event => {
+    persist();
     if (!dirty || !getSettings().exitProtection) return;
-    persistPageCache();
-    event.preventDefault();
-    event.returnValue = '';
+    event.preventDefault(); event.returnValue = '';
   });
-  window.addEventListener('pagehide', persistPageCache);
-  document.addEventListener('visibilitychange', () => { if (document.hidden) persistPageCache(); });
-
-  window.DreamscapeStorage = { persist: persistPageCache, markSaved, getSettings };
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => setTimeout(offerRestore, 0), { once: true });
+  window.addEventListener('pagehide', persist);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) persist(); });
+  window.DreamscapeStorage = { persist, markSaved, markDirty, getSettings, setContext };
+  scrub();
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => setTimeout(offerRestore, 0), { once:true });
   else setTimeout(offerRestore, 0);
 })();
-

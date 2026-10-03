@@ -11,8 +11,8 @@ https://z1641818653-blip.github.io/AI-Dreamscape/index.html
 | 页面 | 用途 | 当前状态 |
 | --- | --- | --- |
 | `index.html` | 工具入口 | 已上线 |
-| `settings.html` | 全局 API 配置与本机数据备份 | 功能分支测试中 |
-| `chat.html` | 多模型聊天工作台 | v4.2.2 稳定维护版 |
+| `settings.html` | 全局 API 配置与本机数据备份 | 已上线 |
+| `chat.html` | 多模型聊天工作台 | v4.2.4 稳定维护版 |
 | `chatroom.html` | 多 AI 聊天室 | 可用 |
 | `mdtest.html` | Markdown 与公式测试 | 可用 |
 | `latex.html` | LaTeX 编辑与编译 | 兼容性测试中 |
@@ -47,6 +47,20 @@ docs(index): 更新工具状态说明
 ## 数据与 API Key
 
 对话记录和 API Key 主要保存在当前浏览器中。`settings.html` 集中管理各模型服务，并支持全站浏览器数据备份与恢复；工作台、流程树、LaTeX 与聊天室统一复用提供商/模型选择组件，不再提供独立密钥输入；LaTeX 使用折叠式选择区，聊天室仍按 AI 角色分别保存选择。全站退出保护会缓存非敏感页面输入，并在内容变化后离开时请求确认；密码、API Key 和文件选择不会进入页面缓存。备份默认移除 API Key。纯前端不等于绝对安全：不要在公共设备保存密钥，不要把 API Key 写入 HTML、提交记录或截图，并建议定期更换密钥。
+
+备份恢复会提前列出同名冲突。同名聊天、房间、流程及文档会整体替换；写入失败时恢复原值。请在恢复之前导出当前数据。未发送草稿按对话或房间隔离保存；已保存的文档以业务存储为准。旧密钥只有在现代配置尚未明确设置时才迁移，损坏的旧配置会保留供恢复。
+
+`providers-config.js` 统一维护模型清单和请求适配，`request.js` 管理流式解析与超时，`markdown.js` 提供安全渲染，`backup.js` 管理备份校验与回滚。第三方浏览器依赖固定在 `assets/vendor/`，许可证随文件保留。模型是否可用仍取决于提供商和账号权限。
+
+## 验证维护改动
+
+```sh
+npm ci
+npx playwright install chromium
+npm test
+```
+
+测试通过本地 HTTP 服务运行页面，使用虚构密钥和模拟 API 响应，不消耗模型额度、不向远程 LaTeX 服务提交文档。设置 `BROWSER_CHANNEL=msedge` 可使用已安装的 Edge；`TEST_REPORT` 可指定 JSON 报告路径。真实模型服务权限和远程编译仍需单独验证。
 
 ## 恢复原则
 
