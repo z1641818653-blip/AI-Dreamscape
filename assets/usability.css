@@ -1,0 +1,8 @@
+/* Shared keyboard and mobile affordances, without changing page themes. */
+:where(button,a,input,select,textarea,summary):focus-visible{outline:3px solid #8273ec;outline-offset:3px}
+:where(button):disabled{cursor:default;opacity:.65}
+.setup-guide{margin:0 0 30px;padding:20px;border:1px solid rgba(103,94,196,.2);border-radius:18px;background:rgba(255,255,255,.8)}
+.setup-guide p{line-height:1.7;color:#60667d}.setup-guide a{color:#6558e8}
+@media(max-width:780px){:where(input,select,textarea){font-size:16px!important}.source-toolbar{flex-wrap:wrap}.source-actions{flex-wrap:wrap}}
+@media(max-width:760px){.top-actions .link-btn{flex:0 0 31px;height:34px;white-space:nowrap}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}

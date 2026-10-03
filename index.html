@@ -88,6 +88,7 @@
 <script src="request.js"></script>
 <script src="backup.js"></script>
 <script src="global-storage.js"></script>
+  <link rel="stylesheet" href="assets/usability.css">
 </head>
 <body>
   <header>
@@ -124,6 +125,7 @@
       </aside>
     </section>
 
+    <section class="setup-guide" aria-label="开始使用"><strong id="setupTitle">从一次对话开始</strong><p id="setupDescription">先配置模型服务，然后选择工作台或聊天室。</p><a href="settings.html">管理模型与本机数据 →</a></section>
     <section id="tools" aria-labelledby="tools-title">
       <div class="section-head">
         <h2 id="tools-title">选择你的探索方式</h2>
@@ -134,7 +136,7 @@
           <div class="tool-top"><span class="icon">💬</span><span class="arrow">→</span></div>
           <h3>AI 工作台</h3>
           <p>从一个问题开始，与 AI 深入交流。支持代码、公式、续写、历史记录与思考内容展示。</p>
-          <span class="tool-meta">开始一场对话 · v4.2.4</span>
+          <span class="tool-meta">开始一场对话 · v4.3.0</span>
         </a>
         <a class="tool" href="chatroom.html">
           <div class="tool-top"><span class="icon">👥</span><span class="arrow">→</span></div>
@@ -151,7 +153,7 @@
         <a class="tool" href="latex.html">
           <div class="tool-top"><span class="icon">∑</span><span class="arrow">→</span></div>
           <h3>LaTeX 渲染</h3>
-          <p>专注呈现复杂公式与 LaTeX 内容，让数学、理论和技术表达更加清晰。</p>
+          <p>编辑 LaTeX 与 Beamer 文稿，根据源码自动选择编译引擎，并使用 AI 辅助检查与优化。</p>
           <span class="tool-meta">专注公式表达</span>
         </a>
         <a class="tool" href="workflow.html">
@@ -171,5 +173,11 @@
 
   <footer class="shell">AI 灵境 · 愿每一次探索，都有新的回响</footer>
 
+<script src="providers-config.js"></script>
+<script>
+  const count = Object.keys(DreamscapeConfig.providers).filter(key => DreamscapeConfig.getKey(key)).length;
+  document.getElementById('setupTitle').textContent = count ? '模型配置已就绪' : '首次使用：先配置一个模型服务';
+  document.getElementById('setupDescription').textContent = count ? `已保存 ${count} 个服务的配置。连接测试可在全局配置中手动运行。` : '在全局配置填写 API Key、选择模型，再返回这里开始对话。数据保存在当前浏览器中，建议定期备份。';
+</script>
 </body>
 </html>

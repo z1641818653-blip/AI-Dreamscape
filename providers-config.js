@@ -50,7 +50,7 @@
       name: 'Gemini',
       icon: '🔵',
       models: ['gemini-3.5-flash', 'gemini-3.5-pro', 'gemini-omni-flash'],
-      endpoint: (model) => 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':streamGenerateContent?alt=sse',
+      endpoint: (model) => 'https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(model) + ':streamGenerateContent?alt=sse',
       streamFormat: 'gemini',
       authHeader: (key) => ({ 'x-goog-api-key': key }),
       buildBody: (model, messages, mt, temp) => {
@@ -78,6 +78,18 @@
   };
 
   const KEY = 'dp0';
+  function normalizeModels(value) {
+    const items = Array.isArray(value) ? value : String(value || '').split(/[,，\n]/);
+    return [...new Set(items.filter(x => typeof x === 'string').map(x => x.trim()).filter(x => /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,159}$/.test(x)))].slice(0, 40);
+  }
+  Object.entries(PROVIDERS).forEach(([key, provider]) => {
+    const builtins = provider.models;
+    provider.builtinModels = [...builtins];
+    Object.defineProperty(provider, 'models', { get() {
+      const config = read()[key] || {};
+      return [...new Set([...builtins, ...normalizeModels(config.customModels), ...normalizeModels(config.model)])];
+    }});
+  });
   function read() {
     try { const data = JSON.parse(localStorage.getItem(KEY) || '{}'); return data && typeof data === 'object' && !Array.isArray(data) ? data : {}; }
     catch { return {}; }
@@ -131,5 +143,5 @@
     if (provider === 'gemini') return PROVIDERS.gemini.parseResponse(payload);
     return payload.choices?.[0]?.delta?.content || '';
   }
-  window.DreamscapeConfig = { providers:PROVIDERS, read, decode, encode, getKey, saveSelection, getUrl, getStreamText };
+  window.DreamscapeConfig = { providers:PROVIDERS, read, decode, encode, normalizeModels, getKey, saveSelection, getUrl, getStreamText };
 })();

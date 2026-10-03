@@ -10,6 +10,7 @@
 <script src="request.js"></script>
 <script src="backup.js"></script>
 <script src="global-storage.js"></script>
+  <link rel="stylesheet" href="assets/usability.css">
 </head>
 <body>
   <header class="topbar">
@@ -78,10 +79,13 @@
               <option value="pdflatex">pdfLaTeX</option>
             </select>
           </label>
+          <button class="quiet-btn compact" id="autoEngineBtn" type="button">自动选择</button>
+          <button class="quiet-btn compact" id="downloadTexBtn" type="button">导出源码</button>
           <button class="danger-quiet compact" id="cancelCompileBtn" type="button" hidden>停止等待</button>
           <button class="primary-btn compact" id="compileBtn" type="button">编译预览</button>
         </div>
       </div>
+      <div id="engineHint" role="status" style="padding:6px 14px;font-size:12px;color:var(--muted)"></div>
       <div class="editor-notice" id="editorNotice" role="status" hidden></div>
       <textarea id="texEditor" aria-label="LaTeX 源码编辑器" spellcheck="false" autocomplete="off"></textarea>
     </section>

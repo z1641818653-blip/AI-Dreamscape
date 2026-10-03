@@ -87,6 +87,7 @@
 <script src="request.js"></script>
 <script src="backup.js"></script>
 <script src="global-storage.js"></script>
+  <link rel="stylesheet" href="assets/usability.css">
 </head>
 <body>
   <header>
@@ -162,7 +163,7 @@
     }
     function loadConfig() {
       Object.entries(PROVIDERS).forEach(([key, provider]) => {
-        state.providers[key] = { apiKey:'', model:provider.models[0] };
+        state.providers[key] = { apiKey:'', model:provider.models[0], customModels:[] };
       });
       try {
         const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
@@ -170,6 +171,7 @@
           const item = saved[key] || {};
           state.providers[key].apiKey = decodeKey(item.apiKey);
           state.providers[key].model = provider.models.includes(item.model) ? item.model : provider.models[0];
+          state.providers[key].customModels = DreamscapeConfig.normalizeModels(item.customModels);
         });
       } catch {}
       const current = localStorage.getItem(CURRENT_PROVIDER_KEY);
@@ -183,9 +185,24 @@
         const card = document.createElement('article');
         card.className = 'provider-card';
         card.dataset.provider = key;
-        card.innerHTML = `<div class="provider-head"><div class="provider-name"><span class="provider-icon">${provider.icon}</span><span>${provider.name}</span></div><span class="state ${config.apiKey ? 'ready' : ''}" data-state>${config.apiKey ? '已配置' : '未配置'}</span></div><div class="field"><label for="key-${key}">API Key</label><div class="input-wrap"><input id="key-${key}" data-key data-unsaved data-no-page-cache type="password" autocomplete="off" spellcheck="false" placeholder="输入 ${provider.name} API Key"><button class="reveal" data-reveal type="button">显示</button></div></div><div class="field"><label for="model-${key}">默认模型</label><select id="model-${key}" data-model data-unsaved>${provider.models.map(model => `<option value="${model}">${model}</option>`).join('')}</select></div><div class="provider-foot"><span>${provider.info}</span><button class="default-btn ${state.currentProvider === key ? 'active' : ''}" data-default type="button">${state.currentProvider === key ? '✓ 当前默认' : '设为默认'}</button></div>`;
+        card.innerHTML = `<div class="provider-head"><div class="provider-name"><span class="provider-icon">${provider.icon}</span><span>${provider.name}</span></div><span class="state ${config.apiKey ? 'ready' : ''}" data-state>${config.apiKey ? '已配置' : '未配置'}</span></div><div class="field"><label for="key-${key}">API Key</label><div class="input-wrap"><input id="key-${key}" data-key data-unsaved data-no-page-cache type="password" autocomplete="off" spellcheck="false" placeholder="输入 ${provider.name} API Key"><button class="reveal" data-reveal type="button">显示</button></div></div><div class="field"><label for="model-${key}">默认模型</label><select id="model-${key}" data-model data-unsaved></select></div><div class="field"><label for="custom-${key}">自定义模型 ID（逗号分隔）</label><input id="custom-${key}" data-custom data-unsaved spellcheck="false" placeholder="填写服务商实际提供的模型 ID"></div><div class="provider-foot"><span>${provider.info}</span><button class="default-btn ${state.currentProvider === key ? 'active' : ''}" data-default type="button">${state.currentProvider === key ? '✓ 当前默认' : '设为默认'}</button></div>`;
         card.querySelector('[data-key]').value = config.apiKey;
         card.querySelector('[data-model]').value = config.model;
+        const modelSelect = card.querySelector('[data-model]');
+        const refreshModels = () => {
+          const selected = modelSelect.value || config.model;
+          const models = [...new Set([...provider.builtinModels, ...DreamscapeConfig.normalizeModels(card.querySelector('[data-custom]').value), ...DreamscapeConfig.normalizeModels(selected)])];
+          modelSelect.replaceChildren(...models.map(id => new Option(id, id)));
+          modelSelect.value = selected;
+        };
+        card.querySelector('[data-custom]').value = config.customModels.join(', ');
+        refreshModels();
+        card.querySelector('[data-custom]').addEventListener('change', refreshModels);
+        const diagnostic = document.createElement('div');
+        diagnostic.className = 'field';
+        diagnostic.innerHTML = '<button class="secondary-btn" type="button" data-test>测试当前模型连接</button><span data-test-status role="status" style="font-size:12px">会发送一次简短请求，可能消耗少量额度；测试不会保存配置。</span>';
+        diagnostic.querySelector('[data-test]').addEventListener('click', () => testConnection(card));
+        card.append(diagnostic);
         grid.appendChild(card);
       });
       updateSummary();
@@ -193,13 +210,13 @@
     function collectForm() {
       document.querySelectorAll('.provider-card').forEach(card => {
         const key = card.dataset.provider;
-        state.providers[key] = { apiKey:card.querySelector('[data-key]').value.trim(), model:card.querySelector('[data-model]').value };
+        state.providers[key] = { apiKey:card.querySelector('[data-key]').value.trim(), model:card.querySelector('[data-model]').value, customModels:DreamscapeConfig.normalizeModels(card.querySelector('[data-custom]').value) };
       });
     }
     function saveConfig() {
       collectForm();
       const payload = DreamscapeConfig.read();
-      Object.keys(PROVIDERS).forEach(key => { payload[key] = { apiKey:encodeKey(state.providers[key].apiKey), model:state.providers[key].model }; });
+      Object.keys(PROVIDERS).forEach(key => { payload[key] = { ...payload[key], apiKey:encodeKey(state.providers[key].apiKey), model:state.providers[key].model, customModels:state.providers[key].customModels }; });
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
         localStorage.setItem(CURRENT_PROVIDER_KEY, state.currentProvider);
@@ -209,6 +226,37 @@
         showToast('全局 API 配置已保存');
       } catch (error) { showToast('保存失败：' + (error.message || '浏览器存储不可用'), true); }
       updateStorageStats();
+    }
+    async function testConnection(card) {
+      const button = card.querySelector('[data-test]');
+      const status = card.querySelector('[data-test-status]');
+      const provider = card.dataset.provider;
+      const key = card.querySelector('[data-key]').value.trim();
+      const model = card.querySelector('[data-model]').value;
+      if (!key) { status.textContent = '请先填写 API Key'; return; }
+      if (!model) { status.textContent = '请先选择模型'; return; }
+      button.disabled = true; status.textContent = '正在连接…';
+      const started = performance.now();
+      try {
+        await DreamscapeRequest.withTimeout(null, 20000, async signal => {
+          const adapter = PROVIDERS[provider];
+          const body = adapter.buildBody(model, [{role:'user',content:'Reply OK.'}], 256, 1);
+          if (provider !== 'gemini') body.stream = false;
+          const response = await fetch(DreamscapeConfig.getUrl(provider, model, false), {
+            method:'POST', headers:{'Content-Type':'application/json', ...adapter.authHeader(key)}, body:JSON.stringify(body), signal
+          });
+          if (!response.ok) {
+            const advice = {400:'模型 ID 或请求参数不受支持',401:'API Key 无效或已过期',403:'账号权限不足或服务拒绝访问',404:'模型不存在或不可访问',429:'请求限流或账号额度不足'};
+            throw new Error(`HTTP ${response.status}：${advice[response.status] || (response.status >= 500 ? '服务商暂时不可用，请稍后重试' : '请求被拒绝，请检查服务配置')}`);
+          }
+          const data = await response.json();
+          if (data.error) throw new Error('服务返回错误，请检查账号权限与模型 ID');
+          if (!adapter.parseResponse(data)) throw new Error('接口已连接，但未返回文字；请在工作台验证模型输出');
+        });
+        status.textContent = `连接成功 · ${model} · ${((performance.now()-started)/1000).toFixed(1)} 秒`;
+      } catch (error) {
+        status.textContent = error instanceof TypeError ? '网络连接失败：检查网络、浏览器跨域限制和服务可达性' : error.message;
+      } finally { button.disabled = false; }
     }
     function updateSummary() {
       const count = Object.values(state.providers).filter(item => item.apiKey).length;
@@ -247,6 +295,7 @@
       for (let i = 0; i < localStorage.length; i++) { const key = localStorage.key(i) || ''; chars += key.length + (localStorage.getItem(key) || '').length; }
       $('storageCount').textContent = String(localStorage.length);
       $('storageSize').textContent = (chars * 2 / 1024).toFixed(1) + ' KB';
+      if (chars * 2 > 3 * 1024 * 1024) $('storageSize').textContent += ' · 数据较多，建议导出备份';
       $('storageTime').textContent = new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});
     }
     function readObject(key) {

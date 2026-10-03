@@ -126,9 +126,15 @@
   function detectEngine(value) {
     const directive = value.match(/^\s*%\s*!TeX\s+(?:program\s*=\s*)?(xelatex|lualatex|pdflatex)\b/im);
     if (directive) return directive[1].toLowerCase();
-    if (/\\(?:usepackage\{(?:ctex|xeCJK|fontspec)\}|setCJK|setmainfont)/i.test(value)) return 'xelatex';
-    if (/\\(?:directlua|luadirect|usepackage\{luatexja\})/i.test(value)) return 'lualatex';
+    const code = value.replace(/(?<!\\)%[^\n]*/g, '');
+    if (/\\(?:directlua|luadirect)\b|\\usepackage(?:\[[^\]]*\])?\{[^}]*\b(?:luatexja|luacode)[^}]*\}/i.test(code)) return 'lualatex';
+    if (/\\(?:setCJK|setmainfont)|\\usepackage(?:\[[^\]]*\])?\{[^}]*\b(?:ctex|xeCJK|fontspec)[^}]*\}/i.test(code)) return 'xelatex';
     return hasChinese(value) ? 'xelatex' : 'pdflatex';
+  }
+
+  function updateEngineHint() {
+    const automatic = !el.engine.dataset.userSelected;
+    document.getElementById('engineHint').textContent = `${automatic ? '自动选择' : '手动选择'}：${el.engine.value} · 源码建议 ${detectEngine(el.editor.value)}`;
   }
 
   function validateDocument(value) {
@@ -190,7 +196,8 @@
     if (index < 0 || index >= state.history.length) return;
     state.historyIndex = index;
     el.editor.value = state.history[index].code;
-    el.engine.value = detectEngine(el.editor.value);
+    if (!el.engine.dataset.userSelected) el.engine.value = detectEngine(el.editor.value);
+    updateEngineHint();
     updateHistoryUI();
     scheduleDraftSave();
     renderOutline();
@@ -231,6 +238,7 @@
       el.engine.value = detected;
       warnings.unshift(`已根据源码自动选择 ${detected}`);
     }
+    updateEngineHint();
     setNotice(warnings.length ? `编译前提示：${warnings.join('；')}。` : '');
 
     if (value !== el.editor.value) {
@@ -468,6 +476,7 @@
     snapshot(normalized, 'AI 修改');
     el.engine.value = detectEngine(normalized);
     delete el.engine.dataset.userSelected;
+    updateEngineHint();
     scheduleDraftSave();
     renderOutline();
     button.textContent = '已应用，可用左上角撤销';
@@ -608,9 +617,23 @@ ${el.editor.value}
       clearTimeout(state.outlineTimer);
       state.outlineTimer = setTimeout(renderOutline, 450);
       if (!el.engine.dataset.userSelected) el.engine.value = detectEngine(el.editor.value);
+      updateEngineHint();
     });
     el.editor.addEventListener('blur', () => snapshot(el.editor.value, '编辑'));
-    el.engine.addEventListener('change', () => { el.engine.dataset.userSelected = 'true'; });
+    el.engine.addEventListener('change', () => { el.engine.dataset.userSelected = 'true'; updateEngineHint(); });
+    document.getElementById('autoEngineBtn').addEventListener('click', () => {
+      delete el.engine.dataset.userSelected; el.engine.value = detectEngine(el.editor.value); updateEngineHint();
+    });
+    document.getElementById('downloadTexBtn').addEventListener('click', () => {
+      const url = URL.createObjectURL(new Blob([el.editor.value], {type:'text/plain;charset=utf-8'}));
+      const link = document.createElement('a'); link.href = url; link.download = 'document.tex'; link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    });
+    el.editor.addEventListener('keydown', event => {
+      if ((event.ctrlKey || event.metaKey) && event.key === 'Enter' && !event.isComposing) {
+        event.preventDefault(); if (!el.compileBtn.disabled) compile();
+      }
+    });
     el.compileBtn.addEventListener('click', compile);
     el.cancelCompileBtn.addEventListener('click', () => stopCompile());
     el.clearPreviewBtn.addEventListener('click', clearPreview);
@@ -645,6 +668,7 @@ ${el.editor.value}
     const draft = getInitialDraft();
     el.editor.value = draft;
     el.engine.value = detectEngine(draft);
+    updateEngineHint();
     snapshot(draft, '初始版本');
     initModelSelector();
     renderOutline();

@@ -324,6 +324,88 @@ function source(name) {
     await page.evaluate(()=>localStorage.setItem('dp49','malformed legacy data'));await go('settings');
     assert.equal(await page.evaluate(()=>localStorage.getItem('dp49')),'malformed legacy data');
   });
+
+  await go('settings');
+  await test('custom model IDs are validated, deduplicated and persist across all model selectors', async () => {
+    assert.deepEqual(await page.evaluate(()=>DreamscapeConfig.normalizeModels('custom-a, custom-a，bad<script>, models/custom-b')), ['custom-a','models/custom-b']);
+    await page.locator('#custom-deepseek').fill('custom-a, custom-b');
+    await page.locator('#custom-deepseek').dispatchEvent('change');
+    await page.locator('#model-deepseek').selectOption('custom-a');
+    await page.locator('#key-deepseek').fill('dummy');
+    await page.locator('#saveApiBtn').click();
+    await page.reload();
+    assert.equal(await page.locator('#model-deepseek').inputValue(),'custom-a');
+    for (const name of ['chat','chatroom','workflow','latex']) {
+      await go(name);
+      const value=await page.evaluate(()=>{
+        const host=document.createElement('div');document.body.append(host);
+        const selector=DreamscapeModelSelector.mount(host,{provider:'deepseek',model:'custom-a',persist:false});
+        const models=[...host.querySelectorAll('select[aria-label="模型"] option')].map(x=>x.value);
+        const selected=selector.getValue().model;selector.destroy();return {models,selected};
+      });
+      assert.ok(value.models.includes('custom-b'));assert.equal(value.selected,'custom-a');
+    }
+  });
+  await go('settings');
+  await test('connection diagnostic runs only on click and never saves unsaved keys', async () => {
+    let requests=0;let sent;
+    await page.route('https://api.deepseek.com/**',route=>{requests++;sent=route.request().postDataJSON();return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({choices:[{message:{content:'OK'}}]})});});
+    const original=await page.evaluate(()=>localStorage.getItem('dp0'));
+    await page.locator('#key-deepseek').fill('unsaved-test-only');
+    assert.equal(requests,0);
+    await page.locator('[data-provider="deepseek"] [data-test]').click();
+    await page.waitForFunction(()=>document.querySelector('[data-provider="deepseek"] [data-test-status]').textContent.includes('连接成功'));
+    assert.equal(requests,1);assert.equal(sent.model,'custom-a');assert.equal(sent.stream,false);
+    assert.equal(await page.evaluate(()=>localStorage.getItem('dp0')),original);
+    await page.unroute('https://api.deepseek.com/**');
+  });
+  await test('connection diagnostic explains auth, permission, model and quota failures', async () => {
+    for(const [status,expected] of [[401,'API Key'],[403,'权限'],[404,'模型'],[429,'额度']]) {
+      await page.route('https://api.deepseek.com/**',route=>route.fulfill({status,body:'failure'}));
+      await page.locator('[data-provider="deepseek"] [data-test]').click();
+      await page.waitForFunction(()=>!document.querySelector('[data-provider="deepseek"] [data-test]').disabled);
+      assert.ok((await page.locator('[data-provider="deepseek"] [data-test-status]').textContent()).includes(expected));
+      await page.unroute('https://api.deepseek.com/**');
+    }
+  });
+  await go('latex');
+  await test('LaTeX automatically selects Lua, Xe and pdf engines and can resume after manual selection', async () => {
+    await page.locator('.mobile-tabs [data-mobile-view="source"]').click();
+    const cases=[['\\directlua{print(1)}\\usepackage{fontspec}','lualatex'],['\\usepackage[UTF8]{ctex}','xelatex'],['% !TeX program = lualatex\n中文','lualatex'],['\\usepackage{amsmath}','pdflatex']];
+    for(const [code,expected] of cases) {
+      await page.locator('#texEditor').fill(code);
+      await page.locator('#autoEngineBtn').click();
+      assert.equal(await page.locator('#engineSelect').inputValue(),expected);
+    }
+    await page.locator('#engineSelect').selectOption('lualatex');
+    await page.locator('#texEditor').fill('plain source');
+    assert.equal(await page.locator('#engineSelect').inputValue(),'lualatex');
+    await page.locator('#autoEngineBtn').click();
+    assert.equal(await page.locator('#engineSelect').inputValue(),'pdflatex');
+    assert.match(await page.locator('#engineHint').textContent(),/自动选择/);
+  });
+  await test('LaTeX source export retains exact text and compile shortcut submits once', async () => {
+    const text='\\documentclass{article}\n\\begin{document}\nExample\n\\end{document}';
+    await page.locator('#texEditor').fill(text);
+    const downloading=page.waitForEvent('download');await page.locator('#downloadTexBtn').click();
+    const download=await downloading;assert.equal(fs.readFileSync(await download.path(),'utf8'),text);
+    await page.evaluate(()=>{window.__submitCount=0;HTMLFormElement.prototype.submit=function(){window.__submitCount++};});
+    await page.locator('#texEditor').press('Control+Enter');
+    assert.equal(await page.evaluate(()=>window.__submitCount),1);
+    await page.locator('#cancelCompileBtn').click();
+  });
+  await go('index');
+  await test('homepage setup status follows saved local configuration', async () => {
+    assert.match(await page.locator('#setupTitle').textContent(),/就绪/);
+    await page.evaluate(()=>{localStorage.removeItem('dp0');localStorage.removeItem('dp49');});
+    await page.reload();assert.match(await page.locator('#setupTitle').textContent(),/首次使用/);
+  });
+  if (process.env.VISUAL_REPORT_DIR) {
+    await page.screenshot({path:path.join(process.env.VISUAL_REPORT_DIR,'optimization-home-mobile.png'),fullPage:true});
+    await go('settings');await page.screenshot({path:path.join(process.env.VISUAL_REPORT_DIR,'optimization-settings-mobile.png'),fullPage:true});
+    await go('latex');await page.locator('.mobile-tabs [data-mobile-view="source"]').click();
+    await page.screenshot({path:path.join(process.env.VISUAL_REPORT_DIR,'optimization-latex-mobile.png'),fullPage:true});
+  }
   if (process.env.TEST_REPORT) fs.writeFileSync(process.env.TEST_REPORT,JSON.stringify(results,null,2));
   const failed=results.filter(item=>!item.passed);console.log(`${results.length-failed.length}/${results.length} checks passed`);
   if (failed.length) process.exitCode=1;

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-  <title>多模型 AI 工作台 v4.2.4</title>
+  <title>多模型 AI 工作台 v4.3.0</title>
   <script src="assets/vendor/marked.umd.js"></script>
   <script src="assets/vendor/purify.min.js"></script>
   <script>
@@ -859,6 +859,7 @@
 <script src="backup.js"></script>
 <script src="global-storage.js"></script>
 <script src="markdown.js"></script>
+  <link rel="stylesheet" href="assets/usability.css">
 </head>
 <body>
   <div class="sidebar-toggle-left" id="sidebarToggleLeft">◀</div>
@@ -869,7 +870,7 @@
     <div class="theme-toggle"><button id="themeToggleBtn">🌙 暗色模式</button></div>
     <div class="font-size-selector"><label>界面</label><button class="font-size-btn" data-size="12">紧凑</button><button class="font-size-btn active" data-size="14">标准</button><button class="font-size-btn" data-size="16">舒适</button></div>
     <div class="sidebar-section"><h4>🤖 模型选择</h4><div id="chatModelSelector"></div></div>
-    <div class="sidebar-footer">v4.2.4 · 稳定维护版</div>
+    <div class="sidebar-footer">v4.3.0 · 稳定维护版</div>
   </div>
   <div class="main-content">
     <div class="search-bar" id="searchBar" style="display:none"><span>🔍</span><input type="text" class="search-input" id="searchInput" placeholder="搜索..."><span class="search-count" id="searchCount">0/0</span><button class="search-nav-btn" id="searchPrev" disabled>◀</button><button class="search-nav-btn" id="searchNext" disabled>▶</button><span class="search-close" id="searchClose">✕</span></div>
@@ -907,7 +908,7 @@
   <div class="sidebar-right collapsed" id="sidebarRight"><h3>📑 问题列表</h3><div class="jump-list" id="jumpList"><div style="font-size:11px;color:var(--text-secondary);text-align:center;padding:20px">暂无问题</div></div></div>
   <div class="modal-overlay" id="editModalOverlay"><div class="modal-box"><h4>✎ 修改消息</h4><textarea id="editModalTextarea"></textarea><div class="modal-btns"><button class="btn-danger" id="editModalDelete">✕ 删除</button><button class="btn-cancel" id="editModalCancel">取消</button><button class="btn-primary" id="editModalConfirm">✅ 确认修改</button></div></div></div>
   <div class="modal-overlay" id="exportOverlay"><div class="modal-box"><h4>📤 导出对话</h4><div class="modal-btns" style="flex-direction:column;align-items:stretch;"><button id="exportTextBtn" style="margin-bottom:6px;">📄 导出文本 (.txt)</button><button id="exportAIBtn" style="margin-bottom:6px;">🤖 导出AI格式 (.ai.json)</button><button id="exportCancelBtn" class="btn-cancel" style="text-align:center;">取消</button></div></div></div>
-  <div class="update-overlay" id="updateOverlay"><div class="update-modal"><h3>v4.2.4 稳定维护版</h3><div class="update-body"><ul><li><strong>数据保护</strong> — 保留全局缓存，避免旧标签页覆盖新密钥</li><li><strong>安全渲染</strong> — 统一 Markdown 净化与代码高亮</li><li><strong>请求可靠性</strong> — 修复流尾部丢失、超时与中断内容保留</li><li><strong>备份恢复</strong> — 过滤敏感缓存，恢复失败时回滚</li><li><strong>移动布局</strong> — 流程树支持手机工作区标签页</li></ul></div><button id="updateCloseBtn">开始体验</button></div></div>
+  <div class="update-overlay" id="updateOverlay"><div class="update-modal"><h3>v4.3.0 稳定维护版</h3><div class="update-body"><ul><li><strong>模型配置</strong> — 自定义模型 ID 与手动连接测试</li><li><strong>LaTeX 工作区</strong> — 自动选引擎说明、恢复自动模式、源码导出</li><li><strong>操作体验</strong> — 首页引导、键盘焦点和手机输入优化</li><li><strong>持续维护</strong> — 每次更新自动运行浏览器回归</li></ul></div><button id="updateCloseBtn">开始体验</button></div></div>
 
 
 <div class="page-guide-overlay" id="chatGuideOverlay" aria-hidden="true">
@@ -1102,7 +1103,7 @@
   const defaultProviders = {};
   Object.keys(PROVIDERS).forEach(k => { defaultProviders[k] = { apiKey: (k==='deepseek'?DreamscapeConfig.getKey(k):''), model: PROVIDERS[k].models[0] }; });
 
-  const APP_VERSION = '4.2.4';
+  const APP_VERSION = '4.3.0';
   let S = { pe:false, tke:false, ir:false, lv:true, rv:false, cs:[], cid:null, ap:'', ch:[], ac:null, sr:[], csi:-1, exportId:null, currentProvider:'deepseek', providers:JSON.parse(JSON.stringify(defaultProviders)), ctxLimit:0, maxTokens:8000, editingMsgIdx:null, currentAssistantMsg:null, dm:false, temp:0.7, isNearBottom:true, compareMode:false, compareEntries:[], compareControllers:[], globalSearchActive:false, fontSize:14, showReasoning:true, regenerating:false };
   const K = { C:'dc0', P:'dp0', L:'dl0', R:'dr0', ID:'di0', CP:'dcp0', CTX:'dctx0', TOK:'dtok0', VER:'dver0', DM:'ddm0', TEMP:'dtemp0', CM:'dcm0', FS:'dfs0', REASON:'dre0' };
 
