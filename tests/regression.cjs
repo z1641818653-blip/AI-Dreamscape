@@ -20,7 +20,7 @@ function source(name) {
 }
 (async () => {
   await test('first-party JavaScript parses and local page resources exist', () => {
-    for (const name of [...fs.readdirSync(root).filter(x => /\.(html|js)$/.test(x)), 'assets/latexfix.js']) {
+    for (const name of [...fs.readdirSync(root).filter(x => /\.(html|js)$/.test(x)), 'assets/latexfix.js', 'assets/room-view.js', 'assets/workbench-view.js']) {
       const text = source(name);
       const scripts = name.endsWith('.js') ? [text] : [...text.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)].filter(m => !m[1].includes('src=')).map(m => m[2]);
       scripts.forEach(s => new vm.Script(s, { filename:name }));
@@ -42,7 +42,7 @@ function source(name) {
   browser = await chromium.launch({ headless:true, ...(process.env.BROWSER_CHANNEL ? { channel:process.env.BROWSER_CHANNEL } : {}) });
   const context = await browser.newContext();
   await context.addInitScript(() => window.__nativeResponse = Response);
-  const page = await context.newPage();
+  let page = await context.newPage();
   const pageErrors = [];
   let acceptRestore = false;
   page.on('pageerror', error => pageErrors.push(error.message));
@@ -328,6 +328,7 @@ function source(name) {
   await go('settings');
   await test('custom model IDs are validated, deduplicated and persist across all model selectors', async () => {
     assert.deepEqual(await page.evaluate(()=>DreamscapeConfig.normalizeModels('custom-a, custom-a，bad<script>, models/custom-b')), ['custom-a','models/custom-b']);
+    await page.locator('[data-provider="deepseek"] .custom-model-details summary').click();
     await page.locator('#custom-deepseek').fill('custom-a, custom-b');
     await page.locator('#custom-deepseek').dispatchEvent('change');
     await page.locator('#model-deepseek').selectOption('custom-a');
@@ -400,6 +401,112 @@ function source(name) {
     await page.evaluate(()=>{localStorage.removeItem('dp0');localStorage.removeItem('dp49');});
     await page.reload();assert.match(await page.locator('#setupTitle').textContent(),/首次使用/);
   });
+
+  await page.close();
+  const uiContext=await browser.newContext();page=await uiContext.newPage();
+  page.on('dialog',dialog=>dialog.type()==='beforeunload'?dialog.accept():dialog.dismiss());
+  await page.setViewportSize({width:1280,height:900});await go('chatroom');
+  await page.evaluate(()=>{localStorage.removeItem('dp49');localStorage.setItem('dp0',JSON.stringify({deepseek:{apiKey:DreamscapeConfig.encode('dummy-manual')}}));DreamscapeRoom.preset('debate');});
+  await page.locator('#discussionGoalInput').fill('Compare two proposals');
+  await page.locator('#speechMode').selectOption('manual');
+  await test('room controls save after relocation and manual mode survives reload',async()=>{
+    assert.equal(await page.evaluate(()=>DreamscapeRoom.getView().room.speechMode),'manual');
+    await page.reload();assert.equal(await page.locator('#speechMode').inputValue(),'manual');
+    assert.equal(await page.locator('#discussionGoalInput').inputValue(),'Compare two proposals');
+    assert.equal(await page.locator('#aiList .ai-card').count(),3);
+    assert.equal(await page.locator('#startDiscussBtn').isVisible(),false);
+  });
+  await test('manual sends only save context and each clicked speaker makes exactly one request',async()=>{
+    let count=0;let sent;
+    await page.route('https://api.deepseek.com/**',r=>{count++;sent=r.request().postDataJSON();return r.fulfill({contentType:'text/event-stream',body:'data: {"choices":[{"delta":{"content":"Manual answer"}}]}\n\ndata: [DONE]\n\n'});});
+    await page.locator('#chatInput').fill('User background');await page.locator('#sendMsgBtn').click();assert.equal(count,0);
+    await page.locator('#aiList .speak-role').nth(1).click();
+    await page.waitForFunction(()=>!DreamscapeRoom.getView().running);
+    assert.equal(count,1);assert.match(sent.messages[0].content,/反方/);assert.match(sent.messages[1].content,/User background/);
+    assert.equal(await page.evaluate(()=>DreamscapeRoom.getView().room.messages.at(-1).name),'反方');
+    await page.locator('#aiList .speak-role').nth(1).click();await page.waitForFunction(()=>!DreamscapeRoom.getView().running);
+    assert.equal(count,2);assert.match(sent.messages[1].content,/Manual answer/);
+    await page.unroute('https://api.deepseek.com/**');
+  });
+  await test('manual pending choice is visible, replaceable and uses new background after current speaker',async()=>{
+    const sent=[];let held;
+    await page.route('https://api.deepseek.com/**',r=>{sent.push(r.request().postDataJSON());if(sent.length===1){held=r;return;}return r.fulfill({contentType:'text/event-stream',body:'data: {"choices":[{"delta":{"content":"Second answer"}}]}\n\ndata: [DONE]\n\n'});});
+    await page.locator('#aiList .speak-role').nth(0).click();await page.waitForFunction(()=>DreamscapeRoom.getView().running);
+    await page.locator('#aiList .speak-role').nth(1).click();await page.locator('#aiList .speak-role').nth(2).click();
+    assert.match(await page.locator('#nextSpeaker').textContent(),/裁判/);
+    await page.locator('#chatInput').fill('Additional requirement');await page.locator('#sendMsgBtn').click();
+    assert.equal(await page.evaluate(()=>DreamscapeRoom.setMode('auto')),false);
+    const roomID=await page.evaluate(()=>DreamscapeRoom.getView().room.id);await page.locator('#newRoomBtn').click();
+    assert.equal(await page.evaluate(()=>DreamscapeRoom.getView().room.id),roomID);
+    await held.fulfill({contentType:'text/event-stream',body:'data: {"choices":[{"delta":{"content":"First answer"}}]}\n\ndata: [DONE]\n\n'});
+    await page.waitForFunction(()=>!DreamscapeRoom.getView().running);
+    assert.equal(sent.length,2);assert.match(sent[1].messages[0].content,/裁判/);assert.match(sent[1].messages[1].content,/Additional requirement/);
+    assert.equal(await page.locator('#nextSpeaker').isVisible(),false);
+    await page.unroute('https://api.deepseek.com/**');
+  });
+  await test('manual stop clears pending choice without launching it and preserves recorded messages',async()=>{
+    let count=0;let held;
+    await page.route('https://api.deepseek.com/**',r=>{count++;held=r;});
+    const before=await page.evaluate(()=>DreamscapeRoom.getView().room.messages.length);
+    await page.locator('#aiList .speak-role').nth(0).click();await page.waitForFunction(()=>DreamscapeRoom.getView().running);
+    await page.locator('#aiList .speak-role').nth(1).click();await page.locator('#stopDiscussBtn').click();
+    await page.waitForFunction(()=>!DreamscapeRoom.getView().running);
+    assert.equal(count,1);assert.equal(await page.evaluate(()=>DreamscapeRoom.getView().next),undefined);
+    assert.equal(await page.evaluate(()=>DreamscapeRoom.getView().room.messages.length),before);
+    await held.abort().catch(()=>{});await page.unroute('https://api.deepseek.com/**');
+  });
+  await test('cancel next and explicit verdict operate independently',async()=>{
+    let count=0;let held;let system;
+    await page.route('https://api.deepseek.com/**',r=>{count++;system=r.request().postDataJSON().messages[0].content;if(count===1){held=r;return;}return r.fulfill({contentType:'text/event-stream',body:'data: {"choices":[{"delta":{"content":"Verdict"}}]}\n\ndata: [DONE]\n\n'});});
+    await page.locator('#aiList .speak-role').nth(0).click();await page.waitForFunction(()=>DreamscapeRoom.getView().running);
+    await page.locator('#aiList .speak-role').nth(1).click();await page.locator('#cancelNext').click();
+    await held.fulfill({contentType:'text/event-stream',body:'data: {"choices":[{"delta":{"content":"Reply"}}]}\n\ndata: [DONE]\n\n'});
+    await page.waitForFunction(()=>!DreamscapeRoom.getView().running);assert.equal(count,1);
+    await page.locator('#speechPurpose').selectOption('verdict');await page.locator('#aiList .speak-role').nth(2).click();
+    await page.waitForFunction(()=>!DreamscapeRoom.getView().running);assert.match(system,/用户明确要求最终裁决/);
+    await page.unroute('https://api.deepseek.com/**');
+  });
+  await test('room file export preserves manual mode and never includes API secrets',async()=>{
+    const downloading=page.waitForEvent('download');await page.locator('#exportFullRoomBtn').evaluate(el=>el.click());
+    const file=await downloading;const text=fs.readFileSync(await file.path(),'utf8');const data=JSON.parse(text);
+    assert.equal(data.room.speechMode,'manual');assert.equal(text.includes('dummy-manual'),false);
+  });
+  await test('saved discussions reload with a working role panel and new rooms restore template starters',async()=>{
+    const errors=[];const listener=e=>errors.push(e.message);page.on('pageerror',listener);
+    await page.reload();assert.deepEqual(errors,[]);assert.equal(await page.locator('#speechMode').inputValue(),'manual');
+    assert.ok(await page.locator('#aiList .speak-role').count()>0);
+    await page.locator('#newRoomBtn').click();assert.equal(await page.locator('[data-preset="debate"]').isVisible(),true);
+    await page.locator('[data-preset="debate"]').click();assert.equal(await page.locator('#aiList .ai-card').count(),3);
+    page.removeListener('pageerror',listener);
+  });
+  await test('mobile role drawer traps focus, closes on Escape and restores its opener',async()=>{
+    await page.setViewportSize({width:390,height:844});await page.locator('#openControls').click();
+    assert.equal(await page.locator('#speechMode').isVisible(),true);
+    await page.keyboard.press('Escape');assert.equal(await page.locator('#speechMode').isVisible(),false);
+    assert.equal(await page.evaluate(()=>document.activeElement.id),'openControls');
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+    await page.locator('#sidebarToggle').click();assert.equal(await page.locator('#historyList').isVisible(),true);
+    assert.ok(await page.locator('#sidebar').evaluate(el=>el.getBoundingClientRect().width)>200);
+    await page.keyboard.press('Escape');
+  });
+  await page.setViewportSize({width:1280,height:900});
+  await test('automatic one-round goal-only discussion still runs in order and opens judge verdict stage',async()=>{
+    await page.evaluate(()=>DreamscapeRoom.preset('debate'));
+    await page.locator('#discussionGoalInput').fill('One round review');await page.locator('#roundsSelect').selectOption('1');
+    const calls=[];
+    await page.route('https://api.deepseek.com/**',r=>{calls.push(r.request().postDataJSON());return r.fulfill({contentType:'text/event-stream',body:'data: {"choices":[{"delta":{"content":"Round response"}}]}\n\ndata: [DONE]\n\n'});});
+    await page.locator('#startDiscussBtn').click();await page.waitForFunction(()=>!DreamscapeRoom.getView().running);
+    assert.equal(calls.length,3);assert.match(calls[0].messages[0].content,/正方/);assert.match(calls[1].messages[0].content,/反方/);assert.match(calls[2].messages[0].content,/【最终裁决阶段】/);
+    await page.unroute('https://api.deepseek.com/**');
+  });
+  await page.setViewportSize({width:1280,height:900});await go('chat');
+  await page.locator('#updateCloseBtn').evaluate(el=>el.click());
+  await test('workbench parameter group and global search stay operable after button consolidation',async()=>{
+    await page.locator('.wb-answer summary').click();await page.locator('#tempSelect').selectOption('0.3');
+    assert.equal(await page.evaluate(()=>__chat.S.temp),0.3);
+    await page.getByRole('button',{name:'搜索全部对话'}).click();assert.equal(await page.locator('#globalSearchInput').isVisible(),true);
+  });
+
   if (process.env.VISUAL_REPORT_DIR) {
     await page.screenshot({path:path.join(process.env.VISUAL_REPORT_DIR,'optimization-home-mobile.png'),fullPage:true});
     await go('settings');await page.screenshot({path:path.join(process.env.VISUAL_REPORT_DIR,'optimization-settings-mobile.png'),fullPage:true});
