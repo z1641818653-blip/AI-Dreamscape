@@ -2,6 +2,7 @@
 :root{--bg:#f5f7fb;--surface:#fff;--surface-hover:#f0f3f9;--border:#e1e5ef;--text:#222b40;--text2:#718097;--primary:#6155d9;--accent:#6155d9;--shadow:0 12px 32px #25355808}
 :root[data-theme=dark]{--bg:#131722;--surface:#1b2130;--surface-hover:#242d40;--border:#303a50;--text:#e8edf8;--text2:#a1aec6;--primary:#a599ff;--accent:#a599ff}
 body{font-size:14px}.app-layout{height:100dvh;gap:0}.sidebar{width:230px;min-width:230px;background:var(--bg);padding:20px 12px;border-color:var(--border)}
+.messages-area{overflow-anchor:none}
 .sidebar-section{border:0;background:transparent;box-shadow:none;padding:8px}.sidebar-section:hover{border-color:transparent}.sidebar>.sidebar-section:last-child:empty{display:none}
 #historySection{margin-top:0!important;flex:1;min-height:0;overflow-y:auto}.sidebar>.sidebar-section:last-child:not(:has(*)){display:none}
 .history-section{display:block!important}.history-list{max-height:none}.builtin-templates,.history-import{display:none}.chatroom-shortcuts{display:block}.sidebar input{width:100%;padding:10px;border:1px solid var(--border);background:var(--surface);border-radius:9px;color:var(--text)}

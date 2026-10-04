@@ -567,6 +567,34 @@ function source(name) {
     assert.equal(await page.locator('#aiList .ai-card').count(),5);
     assert.equal(await page.evaluate(()=>DreamscapeRoom.getView().room.deepThinking),true);
   });
+  await test('streaming and subsequent speakers preserve reading position until user returns to bottom',async()=>{
+    await page.evaluate(()=>{DreamscapeRoom.preset('debate');DreamscapeRoom.setMode('manual');});
+    await page.locator('#discussionGoalInput').fill('Scroll control');
+    await page.locator('#chatInput').fill(Array(60).fill('Earlier discussion background.').join('\n'));await page.locator('#sendMsgBtn').click();
+    await page.waitForFunction(()=>{const a=document.getElementById('messagesArea');return a.scrollHeight-a.clientHeight-a.scrollTop<25;});
+    await page.evaluate(()=>{
+      window.__scrollFetch=window.fetch;window.__scrollCalls=0;
+      window.fetch=(url,options)=>String(url).startsWith('https://api.deepseek.com/')?new Response(new ReadableStream({start(controller){window.__scrollController=controller;window.__scrollCalls++;}}),{headers:{'content-type':'text/event-stream'}}):window.__scrollFetch(url,options);
+      window.__scrollChunk=text=>window.__scrollController.enqueue(new TextEncoder().encode('data: '+JSON.stringify({choices:[{delta:{content:text}}]})+'\n\n'));
+      window.__scrollDone=()=>{window.__scrollController.enqueue(new TextEncoder().encode('data: [DONE]\n\n'));window.__scrollController.close();};
+    });
+    await page.locator('#aiList .speak-role').nth(0).click();await page.waitForFunction(()=>window.__scrollCalls===1);
+    await page.evaluate(()=>__scrollChunk(Array(60).fill('Streaming answer.').join('\n')));
+    await page.waitForFunction(()=>{const a=document.getElementById('messagesArea');return a.scrollHeight>2000&&a.scrollHeight-a.clientHeight-a.scrollTop<25;});
+    await page.locator('#messagesArea').evaluate(el=>el.scrollTop=120);await page.waitForFunction(()=>document.getElementById('messagesArea').scrollTop===120);
+    await page.evaluate(()=>__scrollChunk('\nNew text while reading history.'));await page.waitForFunction(()=>document.querySelector('#messagesArea .msg:last-child').textContent.includes('New text while reading history.'));
+    await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+    assert.equal(await page.locator('#messagesArea').evaluate(el=>el.scrollTop),120);
+    await page.evaluate(()=>__scrollDone());await page.waitForFunction(()=>!DreamscapeRoom.getView().running);
+    await page.locator('#aiList .speak-role').nth(1).click();await page.waitForFunction(()=>window.__scrollCalls===2);
+    await page.evaluate(()=>{__scrollChunk('Next speaker.');__scrollDone();});await page.waitForFunction(()=>!DreamscapeRoom.getView().running);
+    assert.equal(await page.locator('#messagesArea').evaluate(el=>el.scrollTop),120);
+    await page.locator('#messagesArea').evaluate(el=>el.scrollTop=el.scrollHeight);await page.waitForFunction(()=>{const a=document.getElementById('messagesArea');return a.scrollHeight-a.clientHeight-a.scrollTop<25;});
+    await page.locator('#aiList .speak-role').nth(2).click();await page.waitForFunction(()=>window.__scrollCalls===3);
+    await page.evaluate(()=>__scrollChunk(Array(40).fill('Follow latest again.').join('\n')));
+    await page.waitForFunction(()=>{const a=document.getElementById('messagesArea');return a.lastElementChild.textContent.includes('Follow latest again.')&&a.scrollHeight-a.clientHeight-a.scrollTop<25;});
+    await page.evaluate(()=>{__scrollDone();window.fetch=window.__scrollFetch;});await page.waitForFunction(()=>!DreamscapeRoom.getView().running);
+  });
   await page.setViewportSize({width:1280,height:900});await go('chat');
   await page.locator('#updateCloseBtn').evaluate(el=>el.click());
   await test('workbench parameter group and global search stay operable after button consolidation',async()=>{

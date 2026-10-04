@@ -2110,7 +2110,21 @@ judge, fact_checker, moderator, summarizer, debater, counter_side, gentle, force
     window.DreamscapeRoomUI?.refresh();
   }
 
+  let followLatest = true;
+  let messageScrollFrame = 0;
+  const messageScroller = document.getElementById('messagesArea');
+  messageScroller.addEventListener('scroll', () => {
+    followLatest = messageScroller.scrollHeight - messageScroller.clientHeight - messageScroller.scrollTop <= 24;
+  }, {passive:true});
+  messageScroller.addEventListener('wheel', event => {
+    if (event.deltaY < 0) followLatest = false;
+  }, {passive:true});
+  messageScroller.addEventListener('touchstart', () => { followLatest = false; }, {passive:true});
+
   function renderMessages() {
+    cancelAnimationFrame(messageScrollFrame);
+    messageScrollFrame = 0;
+    followLatest = true;
     const area = document.getElementById('messagesArea');
     const existingEmpty = document.getElementById('emptyChat');
     const empty = existingEmpty ? existingEmpty.cloneNode(true) : document.createElement('div');
@@ -2192,8 +2206,11 @@ judge, fact_checker, moderator, summarizer, debater, counter_side, gentle, force
   }
 
   function scrollToBottom() {
-    const area = document.getElementById('messagesArea');
-    setTimeout(() => { area.scrollTop = area.scrollHeight; }, 30);
+    if (!followLatest || messageScrollFrame) return;
+    messageScrollFrame = requestAnimationFrame(() => {
+      messageScrollFrame = 0;
+      if (followLatest) messageScroller.scrollTop = messageScroller.scrollHeight;
+    });
   }
 
   function setThinking(name) {
