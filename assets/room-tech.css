@@ -4,8 +4,8 @@
   --border:#ccd6e3; --text:#1d2b42; --text2:#60718a;
   --primary:#2c5ce0; --accent:#2c5ce0; --primary-glow:#2c5ce016;
   --line:#c1cede; --role-wash:#eaf0fb;
-  --panel:linear-gradient(145deg,#ffffff,#edf2f8);
-  --depth:0 8px 18px #243e6810,0 2px 3px #243e680a,inset 0 1px 0 #ffffff;
+  --panel:#f8fafc;
+  --depth:0 4px 14px #243e6808;
   --canvas:radial-gradient(ellipse at 90% 12%,#b9d7ff55,transparent 45%),linear-gradient(135deg,#f3f6fa,#e9eff7);
 }
 :root[data-theme=dark] {
@@ -13,8 +13,8 @@
   --border:#32445f; --text:#e5edfc; --text2:#9bacc8;
   --primary:#8aafff; --accent:#8aafff; --primary-glow:#70a2ff1a;
   --line:#415879; --role-wash:#203653;
-  --panel:linear-gradient(145deg,#22324b,#172338);
-  --depth:0 8px 18px #050b182e,0 2px 3px #050b1820,inset 0 1px 0 #9ebcf018;
+  --panel:#19243a;
+  --depth:0 4px 14px #050b1818;
   --canvas:radial-gradient(ellipse at 90% 12%,#19579744,transparent 45%),linear-gradient(135deg,#142139,#101b2d);
 }
 .main-area {background-image:var(--canvas); position:relative}
@@ -30,12 +30,12 @@
 .room-controls {background:var(--bg); border-left:1px solid var(--border)}
 .control-heading {letter-spacing:.5px; font-size:14px}
 .control-heading strong::before {content:''; display:inline-block; width:3px; height:12px; background:var(--primary); margin-right:8px; vertical-align:-1px}
-.room-controls select {border-radius:6px; background:var(--panel); box-shadow:inset 0 1px 0 #ffffff22}
+.room-controls select {border-radius:8px; background:var(--panel); box-shadow:none}
 .room-controls .setting-row input[type=text],.room-controls .setting-row textarea {background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:9px 10px}
 .room-controls .ai-card {border:1px solid var(--border); border-radius:8px; padding:14px; margin:0 0 12px; background:var(--panel); box-shadow:var(--depth)}
 .room-controls .ai-card:hover {border-color:var(--primary)}
-.ai-avatar,.msg-header .msg-avatar {border-radius:7px; box-shadow:inset 0 1px 0 #ffffff44,0 2px 5px #172b4620}
-.speak-role {background:var(--role-wash); border:1px solid var(--border); border-radius:5px; text-align:left; box-shadow:inset 0 1px 0 #ffffff22}
+.ai-avatar,.msg-header .msg-avatar {border-radius:8px; box-shadow:none}
+.speak-role {background:var(--role-wash); border:1px solid var(--border); border-radius:8px; text-align:left; box-shadow:none}
 .speak-role:hover:not(:disabled) {transform:translateY(-1px); border-color:var(--primary); background:var(--primary-glow)}
 .advanced-settings,.add-role-menu {padding:12px 0; border-top-color:var(--border)}
 .purpose-label,.role-model-summary,.msg-time {font-variant-numeric:tabular-nums}
@@ -67,17 +67,26 @@
 .starter-choices button::before {font:11px 'Consolas',monospace; color:var(--primary); margin-bottom:5px; letter-spacing:1px}
 .starter-choices strong {font-size:15px; font-weight:600; letter-spacing:0}
 .starter-choices span {font-size:12px; line-height:1.8}
-.starter-choices button:hover {background:var(--panel); border-color:var(--primary); transform:translateY(-5px) rotateX(3deg); box-shadow:0 14px 24px #203e721c,inset 0 1px 0 #ffffff44}
+.starter-choices button:hover {background:var(--panel); border-color:var(--primary); transform:translateY(-4px) rotateX(2deg); box-shadow:0 8px 20px #203e7214}
 .starter-choices button:active {transform:translateY(-1px); box-shadow:var(--depth)}
 .starter-footer button {border-bottom-color:var(--border)}
 .empty-chat small {opacity:1}
 .input-area-wrap {background:transparent}
-.input-row textarea {background:var(--surface); border-radius:8px; border-color:var(--border); box-shadow:inset 0 2px 5px #172b4607,0 5px 15px #172b4608}
-.send-btn {background:linear-gradient(180deg,#376bed,#2453c9); color:#fff; border:1px solid #2453c9; border-radius:6px; box-shadow:inset 0 1px 0 #ffffff33,0 3px 6px #254fbd22}
-.send-btn:hover:not(:disabled) {filter:none; box-shadow:inset 0 1px 0 #ffffff33,0 5px 12px #254fbd33}
-.discuss-btn {background:var(--panel); border-color:var(--border); box-shadow:var(--depth); border-radius:6px}
-.msg.ai .msg-bubble {background:var(--surface); border:1px solid var(--border); border-left:2px solid var(--line); border-radius:0 8px 8px 8px; padding:14px 16px; box-shadow:0 3px 12px #203e7206}
-.msg.user .msg-bubble {background:var(--role-wash); border-color:var(--border); border-radius:8px}
+.input-row textarea {background:var(--surface); border-radius:12px; border-color:var(--border); box-shadow:none}
+.send-btn {background:#315fd8; color:#fff; border:1px solid transparent; border-radius:10px; box-shadow:none}
+.send-btn:hover:not(:disabled) {background:#244fc5; filter:none; box-shadow:none; transform:none}
+.discuss-btn {background:transparent; border-color:transparent; box-shadow:none; border-radius:10px; color:var(--text2)}
+.discuss-btn:hover:not(:disabled) {background:var(--surface-hover); color:var(--text)}
+.msg.ai .msg-bubble {background:transparent; border:0; border-radius:0; padding:2px 0 0 36px; box-shadow:none; line-height:1.85; font-size:15px}
+.msg.ai .msg-bubble p {margin-bottom:12px}
+.msg.ai {padding-bottom:26px; border-bottom:1px solid var(--border)}
+.messages-area:has(.msg) {background-image:none; gap:26px}
+.main-area:has(.msg) {background:var(--surface)}
+.main-area:has(.msg) .input-area-wrap {background:var(--surface)}
+.msg-header .msg-avatar {border-radius:50%; width:28px; height:28px; font-size:11px}
+.msg-header .msg-name {font-size:13px; font-weight:600}
+.msg-header .msg-time {font-size:11px; color:var(--text2); opacity:.75}
+.msg.user .msg-bubble {background:var(--role-wash); border:0; border-radius:12px; padding:12px 16px}
 .drawer-backdrop {background:#07142677}
 @media(max-width:599px) {
   .empty-chat {padding:24px 0; gap:20px}
@@ -89,7 +98,7 @@
   .starter-choices button {padding:14px; gap:5px 12px; grid-template-columns:24px 1fr}
   .starter-choices button::before {grid-row:1 / 3; align-self:center; margin:0}
   .starter-choices strong,.starter-choices span {grid-column:2}
-  .msg.ai .msg-bubble {padding:12px 14px}
+  .msg.ai .msg-bubble {padding:2px 0 0 36px; font-size:14px}
 }
 @media(prefers-reduced-motion:reduce) {
   .starter-choices button,.speak-role,.send-btn {transition:none}
@@ -112,14 +121,15 @@
 .send-btn::after,.speak-role::after {display:none}
 .input-actions {gap:10px}
 .input-actions button {min-height:40px; padding:10px 16px; font-size:13px; line-height:18px}
-.send-btn,.discuss-btn,.stop-discuss-btn {border-radius:7px; font-weight:500; transition:background .15s ease,box-shadow .15s ease,transform .15s ease}
-.send-btn:active:not(:disabled),.discuss-btn:active:not(:disabled) {transform:translateY(1px); box-shadow:inset 0 1px 3px #142a5422}
+.send-btn,.discuss-btn,.stop-discuss-btn {border-radius:10px; font-weight:500; transition:background .15s ease,color .15s ease}
+.send-btn:active:not(:disabled) {background:#2047b6; transform:none; box-shadow:none}
+.discuss-btn:active:not(:disabled) {background:var(--surface-hover); transform:none; box-shadow:none}
 button:disabled {filter:none; opacity:.45; box-shadow:none!important; transform:none!important}
 .room-menu>summary,#openControls {display:inline-flex; align-items:center; min-height:36px; border:1px solid transparent; border-radius:6px; padding:7px 10px; color:var(--text2); white-space:nowrap}
 .room-menu>summary::before,#openControls::before {vertical-align:0; flex-shrink:0}
 .room-menu>summary:hover,#openControls:hover {background:var(--surface-hover); border-color:var(--border); color:var(--text)}
 .room-menu[open]>summary {background:var(--surface-hover); border-color:var(--border); color:var(--primary)}
-.room-menu-body {gap:3px; padding:6px; min-width:215px; border-radius:9px; box-shadow:0 12px 36px #11294922,inset 0 1px 0 #ffffff33}
+.room-menu-body {gap:3px; padding:6px; min-width:215px; border-radius:10px; box-shadow:0 8px 26px #11294918}
 .room-menu-body button,.room-menu-body a {min-height:38px; font-size:12px!important; padding:9px 12px!important}
 .speak-role {min-height:36px; padding:8px 12px; text-align:center; font-size:12px; font-weight:500; border-color:transparent; box-shadow:none}
 .speak-role:hover:not(:disabled) {border-color:var(--primary); box-shadow:0 2px 5px var(--primary-glow)}
