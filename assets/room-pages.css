@@ -1,0 +1,44 @@
+/* Full-page role management and discussion settings share the live room engine. */
+.room-page-link{display:inline-flex;align-items:center;padding:8px 12px;border-radius:8px;color:var(--text2);text-decoration:none;font-size:13px;white-space:nowrap}
+.room-page-link:hover{color:var(--primary);background:var(--surface-hover)}
+html[data-room-page="chat"] .room-controls{display:none!important}
+.manager-header{display:none}
+html:is([data-room-page="roles"],[data-room-page="settings"]) .sidebar,
+html:is([data-room-page="roles"],[data-room-page="settings"]) .main-area{display:none!important}
+html:is([data-room-page="roles"],[data-room-page="settings"]) .room-controls{display:block!important;position:static;width:100%;flex:1;max-width:none;min-width:0;padding:32px max(24px,calc((100% - 980px)/2));border:0;background:var(--bg);box-shadow:none;overflow-y:auto}
+html:is([data-room-page="roles"],[data-room-page="settings"]) .manager-header{display:block;margin-bottom:32px}
+html:is([data-room-page="roles"],[data-room-page="settings"]) .control-heading,
+html:is([data-room-page="roles"],[data-room-page="settings"]) #modeNote{display:none}
+.manager-header nav{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:34px}
+.manager-header nav div{display:flex;gap:8px}
+.manager-header a{display:inline-block;padding:9px 12px;color:var(--text2);text-decoration:none;border-radius:9px;font-size:13px}
+.manager-header a[aria-current="page"]{background:var(--surface);color:var(--primary)}
+.manager-room-name{color:var(--text2);font-size:12px;margin:0 0 9px}
+.manager-header h1{font-size:28px;letter-spacing:-.5px;color:var(--text);margin:0 0 12px;outline:none}
+.manager-description{color:var(--text2);font-size:14px;line-height:1.7;margin:0}
+html[data-room-page="roles"] .room-settings-page,
+html[data-room-page="roles"] .mode-label,
+html[data-room-page="roles"] #speechMode{display:none}
+html[data-room-page="settings"] .room-roles-page{display:none}
+html[data-room-page="settings"] .room-controls{padding-right:max(24px,calc((100% - 760px)/2));padding-left:max(24px,calc((100% - 760px)/2))}
+html[data-room-page="settings"] #speechMode{max-width:300px;margin-bottom:24px}
+html[data-room-page="settings"] .setting-row{display:flex;gap:16px;margin:18px 0;align-items:center}
+html[data-room-page="settings"] .setting-row.stacked{align-items:stretch;flex-direction:column;gap:8px}
+html[data-room-page="settings"] .room-controls .setting-row input,
+html[data-room-page="settings"] .room-controls .setting-row textarea{width:100%}
+html[data-room-page="roles"] .room-roles-page>h3{display:none}
+.role-picker{display:flex;flex-wrap:wrap;gap:8px;padding:0 0 16px;border-bottom:1px solid var(--border);margin-bottom:12px}
+.role-picker button{padding:10px 16px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text);font-size:14px;box-shadow:none}
+.role-picker button[aria-pressed="true"]{border-color:var(--primary);color:var(--primary);background:var(--surface-hover)}
+html[data-room-page="roles"] #aiList .ai-card:not(.selected-role){display:none}
+html[data-room-page="roles"] .ai-card{padding:24px;border-radius:16px;max-width:100%}
+html[data-room-page="roles"] .ai-card-name{font-size:18px;width:auto;flex:1}
+html[data-room-page="roles"] .ai-card .speak-role,
+html[data-room-page="roles"] .ai-header-btn{display:none}
+html[data-room-page="roles"] .ai-card-body{display:block!important;padding-top:20px}
+html[data-room-page="roles"] .ai-card-body textarea{min-height:160px;line-height:1.7;resize:vertical}
+html[data-room-page="roles"] .add-role-menu{background:transparent;border:0;padding:0;margin-top:20px}
+html[data-room-page="roles"] .add-role-menu>.add-role-row{display:flex;flex-wrap:wrap;gap:10px}
+html[data-room-page="roles"] .add-role-menu:not([open])>.add-role-row{display:none}
+.speaker-toolbar .purpose-label{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text2)}
+@media(max-width:600px){html:is([data-room-page="roles"],[data-room-page="settings"]) .room-controls{padding:20px 16px}.manager-header nav{gap:4px;margin-bottom:24px}.manager-header a{padding:8px;font-size:12px}.manager-header nav div{gap:2px}.manager-header h1{font-size:25px}.role-picker{gap:6px}.role-picker button{padding:8px 12px;font-size:13px}html[data-room-page="roles"] .ai-card{padding:16px}.room-page-link{padding:7px 8px;font-size:12px}}

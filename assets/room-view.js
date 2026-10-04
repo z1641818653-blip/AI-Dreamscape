@@ -1,5 +1,6 @@
 (function () {
   'use strict';
+  if(document.documentElement.dataset.roomPage==='classic')return;
   const $ = id => document.getElementById(id);
   const api = window.DreamscapeRoom;
   const layout = document.querySelector('.app-layout');
@@ -10,6 +11,13 @@
   panel.setAttribute('aria-label','本次讨论与角色');
   panel.innerHTML='<div class="control-heading"><strong>本次讨论</strong><button type="button" id="closeControls" aria-label="关闭设置">×</button></div><label class="mode-label" for="speechMode">发言方式</label><select id="speechMode"><option value="auto">自动轮流</option><option value="manual">手动指定 · 点谁谁发言</option></select><p class="mode-note" id="modeNote"></p><div class="next-speaker" id="nextSpeaker" hidden><span></span><button type="button" id="cancelNext">取消</button></div>';
   panel.append(settings,roles);layout.append(panel);
+  const dock=document.createElement('section');dock.className='speaker-dock';dock.setAttribute('aria-label','发言控制');
+  dock.innerHTML='<div class="speaker-toolbar"><label for="quickSpeechMode">发言<select id="quickSpeechMode"><option value="auto">自动轮流</option><option value="manual">指定发言</option></select></label><div class="speaker-policy" role="group" aria-label="指定发言长度"><button type="button" data-policy="once" aria-pressed="true">按一下发言一次</button><button type="button" data-policy="until_done" aria-pressed="false">一直发言直到说完</button></div></div><div class="speaker-names" aria-label="点名发言"></div><p class="speaker-hint"></p>';
+  document.querySelector('.input-area-wrap').prepend(dock);dock.append($('nextSpeaker'));
+  let speechPolicy='once',namesSignature='';
+  function speak(index){api.specifySpeaker(index,$('speechPurpose').value,speechPolicy);}
+  $('quickSpeechMode').addEventListener('change',()=>{api.setMode($('quickSpeechMode').value);refresh();});
+  dock.querySelectorAll('[data-policy]').forEach(button=>button.addEventListener('click',()=>{speechPolicy=button.dataset.policy;refresh();}));
   const advanced=document.createElement('details');advanced.className='advanced-settings';
   advanced.innerHTML='<summary>高级运行设置</summary>';
   for(const id of ['roomDeepThinkingBtn','discussionModeSelect','autoStartCheck']) {
@@ -19,7 +27,7 @@
   settings.append(advanced);
   const roleTools=document.createElement('div');roleTools.className='role-tools';
   roleTools.innerHTML='<button type="button" id="orderRoles" aria-pressed="false">调整顺序</button><label for="speechPurpose" class="purpose-label">点名任务<select id="speechPurpose"><option value="reply">普通回应</option><option value="summary">整理总结</option><option value="verdict">最终裁决</option></select></label>';
-  roles.querySelector('h3').after(roleTools);
+  roles.querySelector('h3').after(roleTools);dock.querySelector('.speaker-toolbar').append(roleTools.querySelector('.purpose-label'));
   const add=document.createElement('details');add.className='add-role-menu';add.innerHTML='<summary>＋ 添加角色</summary>';add.append(roles.querySelector('.add-role-row'));roles.append(add);
   const menu=document.createElement('details');menu.className='room-menu';menu.innerHTML='<summary>更多 ⋯</summary><div class="room-menu-body"></div>';
   const menuBody=menu.querySelector('div');
@@ -54,7 +62,29 @@
     (which==='roles'?$('speechMode'):historySearch).focus();
   }
   function close() {panel.classList.remove('open');sidebar.classList.remove('show-history');back.hidden=true;toggle.setAttribute('aria-expanded','false');lastFocus?.focus();}
-  toggle.addEventListener('click',()=>{if(innerWidth<=1100)open('roles');else {panel.classList.toggle('collapsed');toggle.setAttribute('aria-expanded',String(!panel.classList.contains('collapsed')));}});
+  function pageURL(view){const url=new URL(location.href);if(view==='chat')url.searchParams.delete('view');else url.searchParams.set('view',view);return url.pathname+url.search;}
+  let currentPage='chat',selectedRole=0,selectedParticipant=null,roleRoom=null,roleCount=0,roleSignature='';
+  const settingsLink=document.createElement('a');settingsLink.id='openRoomSettings';settingsLink.textContent='讨论设置';settingsLink.href=pageURL('settings');settingsLink.className='room-page-link';
+  const classicLink=document.createElement('a');classicLink.id='openClassic';classicLink.textContent='旧版页面';classicLink.href=pageURL('classic');classicLink.className='room-page-link';
+  toggle.after(classicLink,settingsLink);
+  const manager=document.createElement('header');manager.className='manager-header';manager.innerHTML='<nav aria-label="讨论页面"><a id="backToDiscussion" data-room-page="chat">← 返回讨论</a><div><a data-room-page="roles">角色管理</a><a data-room-page="settings">讨论设置</a></div></nav><p class="manager-room-name"></p><h1></h1><p class="manager-description"></p>';
+  panel.prepend(manager);settings.classList.add('room-settings-page');roles.classList.add('room-roles-page');
+  const picker=document.createElement('div');picker.className='role-picker';picker.setAttribute('role','group');picker.setAttribute('aria-label','选择要编辑的角色');roleTools.before(picker);
+  manager.querySelectorAll('[data-room-page]').forEach(link=>{link.href=pageURL(link.dataset.roomPage);link.addEventListener('click',event=>{event.preventDefault();navigate(link.dataset.roomPage);});});
+  function showPage(view){
+    currentPage=['roles','settings'].includes(view)?view:'chat';document.documentElement.dataset.roomPage=currentPage;
+    close();refresh();
+    document.title=(currentPage==='roles'?'角色管理':currentPage==='settings'?'讨论设置':'AI 聊天室')+' · 灵境';
+    if(currentPage!=='chat'){manager.querySelector('h1').textContent=currentPage==='roles'?'角色管理':'讨论设置';manager.querySelector('.manager-description').textContent=currentPage==='roles'?'点选一个角色，调整模型、职责与发言顺序。修改会自动保存。':'设置这场讨论的目标与运行方式。修改会自动保存。';manager.querySelector('h1').tabIndex=-1;manager.querySelector('h1').focus();panel.scrollTop=0;}
+    else toggle.focus();
+    manager.querySelectorAll('[data-room-page]').forEach(link=>{if(link.dataset.roomPage===currentPage)link.setAttribute('aria-current','page');else link.removeAttribute('aria-current');});
+  }
+  function navigate(view){history.pushState(null,'',pageURL(view));showPage(view);}
+  toggle.addEventListener('click',()=>navigate('roles'));
+  settingsLink.addEventListener('click',event=>{event.preventDefault();navigate('settings');});
+  classicLink.addEventListener('click',event=>{if(!api.canLeave())event.preventDefault();});
+  window.addEventListener('popstate',()=>showPage(new URLSearchParams(location.search).get('view')));
+
   $('closeControls').addEventListener('click',close);back.addEventListener('click',close);
   $('sidebarToggle').addEventListener('click',()=>{if(innerWidth<=900){if(sidebar.classList.contains('show-history'))close();else open('history');}});
   window.addEventListener('keydown',event=>{
@@ -66,7 +96,7 @@
   $('orderRoles').addEventListener('click',()=>{panel.classList.toggle('ordering');$('orderRoles').setAttribute('aria-pressed',String(panel.classList.contains('ordering')));});
   layout.addEventListener('click',event=>{
     const button=event.target.closest('[data-preset]');
-    if(button){api.preset(button.dataset.preset);if(innerWidth<=1100)open('roles');$('discussionGoalInput').focus();}
+    if(button){api.preset(button.dataset.preset);navigate('settings');$('discussionGoalInput').focus();}
     if(event.target.closest('#readDemo'))$('loadBuiltinTemplateBtn').click();
   });
   function filterHistory(){const q=historySearch.value.toLowerCase();$('historyList').querySelectorAll('.history-item').forEach(el=>{el.hidden=!el.textContent.toLowerCase().includes(q);});}
@@ -75,8 +105,17 @@
   $('themeBtn').addEventListener('click',()=>queueMicrotask(refresh));
   sidebar.addEventListener('click',event=>{if(event.target.closest('.history-item')&&!api.getView().running&&innerWidth<=900)close();});
   $('chatInput').addEventListener('input',refresh);
+  layout.addEventListener('input',event=>{if(event.target.closest('#aiList'))queueMicrotask(refresh);});
   function refresh() {
     const view=api.getView();if(!view.room)return;const room=view.room;const manual=room.speechMode==='manual';
+    manager.querySelector('.manager-room-name').textContent=room.name;
+    if(roleRoom!==room.id){roleRoom=room.id;selectedRole=0;selectedParticipant=null;roleCount=room.participants.length;}
+    else if(room.participants.length>roleCount)selectedRole=room.participants.length-1;
+    else if(selectedParticipant&&room.participants.includes(selectedParticipant))selectedRole=room.participants.indexOf(selectedParticipant);
+    roleCount=room.participants.length;selectedRole=Math.max(0,Math.min(selectedRole,roleCount-1));selectedParticipant=room.participants[selectedRole];
+    const roleNames=JSON.stringify(room.participants.map(p=>[p.name,p.type]));
+    if(roleSignature!==roleNames){roleSignature=roleNames;picker.replaceChildren();room.participants.forEach((p,index)=>{const button=document.createElement('button');button.type='button';button.textContent=p.name;button.addEventListener('click',()=>{selectedRole=index;selectedParticipant=room.participants[index];refresh();});picker.append(button);});}
+    picker.querySelectorAll('button').forEach((button,index)=>button.setAttribute('aria-pressed',String(index===selectedRole)));
     const labels={newRoomBtn:'新讨论',exportTemplateBtn:'模板导出',exportFullRoomBtn:'整体导出',importRoomBtn:'导入房间 / 模板',clearChatBtn:'清空记录',addAiBtn:'添加 AI',addHumanBtn:'添加用户角色',openRoleCreatorBtn:'AI 创建角色',stopDiscussBtn:'停止'};
     for(const [id,label] of Object.entries(labels))$(id).textContent=label;
     $('themeBtn').textContent=document.documentElement.dataset.theme==='dark'?'浅色模式':'深色模式';
@@ -84,6 +123,13 @@
     menu.querySelector('summary').textContent='更多';
     add.querySelector('summary').textContent='添加角色';
     const starter=$('emptyChat');if(starter){if(!starter.querySelector('.starter-choices')){starter.innerHTML=starterHTML;decorateStarter(starter);}starter.style.display=room.messages.length?'none':'flex';}
+    $('quickSpeechMode').value=manual?'manual':'auto';$('quickSpeechMode').disabled=view.stopping;
+    dock.querySelector('.speaker-policy').hidden=!manual;dock.querySelector('.speaker-names').hidden=!manual;dock.querySelector('.speaker-hint').hidden=!manual;
+    dock.querySelectorAll('[data-policy]').forEach(button=>{button.setAttribute('aria-pressed',String(button.dataset.policy===speechPolicy));button.disabled=view.stopping;});
+    dock.querySelector('.speaker-hint').textContent=speechPolicy==='until_done'?'点名字开始连续补充，讲完即停 · 最多 12 次 · 可随时停止或改选下一位':'点名字发言一次'+(view.running?' · 改点其他人可指定下一位':'');
+    const signature=JSON.stringify(room.participants.map(p=>[p.name,p.type]));
+    if(signature!==namesSignature){namesSignature=signature;const row=dock.querySelector('.speaker-names');row.replaceChildren();room.participants.forEach((p,index)=>{const button=document.createElement('button');button.type='button';button.textContent=p.name;button.addEventListener('click',()=>speak(index));row.append(button);});}
+    dock.querySelectorAll('.speaker-names button').forEach((button,index)=>{const p=room.participants[index];button.disabled=p.enabled===false||view.stopping||(p.type!=='human'&&!DreamscapeConfig.getKey(p.provider));button.classList.toggle('speaking',view.speaker===p.name);button.classList.toggle('queued',view.next===p.name);button.setAttribute('aria-label',p.name+(view.speaker===p.name?'，正在发言':view.next===p.name?'，下一位':'，点名发言'));button.title=button.disabled?'请开启角色并配置模型 Key':'';});
     $('speechMode').value=manual?'manual':'auto';$('speechMode').disabled=view.stopping;
     document.querySelector('.discussion-status').hidden=!view.running;
     $('modeNote').textContent=(manual?'补充消息后，点名让一位角色发言。下一位可改选或取消。':'按角色顺序讨论，你可以插话或随时停止。')+(view.running?' 切换方式会在当前发言结束后衔接。':'');
@@ -98,11 +144,11 @@
     $('requestTurnBtn').hidden=manual;$('stopDiscussBtn').style.display=view.running?'inline-flex':'none';
     for(const id of ['addAiBtn','openRoleCreatorBtn','addHumanBtn','discussionGoalInput','roomNameInput','collaborationModeSelect','discussionModeSelect','roundsSelect','autoStartCheck','orderRoles'])$(id).disabled=view.running;
     $('aiList').querySelectorAll('.ai-card').forEach((card,index)=>{
-      const p=room.participants[index];if(!p)return;let button=card.querySelector('.speak-role');
+      const p=room.participants[index];if(!p)return;card.classList.toggle('selected-role',index===selectedRole);let button=card.querySelector('.speak-role');
       const speech=card.querySelector('.ai-speech-btn');
       if(speech){speech.textContent=p.enabled===false?'已静音':'可发言';speech.setAttribute('aria-label',(p.enabled===false?'开启':'关闭')+p.name+'的发言');}
       const expand=card.querySelector('.ai-header-btn');if(expand)expand.setAttribute('aria-label',(p.collapsed?'展开':'收起')+p.name+'的角色设置');
-      if(!button){button=document.createElement('button');button.type='button';button.className='speak-role';card.querySelector('.ai-card-header').after(button);button.addEventListener('click',()=>api.specifySpeaker(index,$('speechPurpose').value));}
+      if(!button){button=document.createElement('button');button.type='button';button.className='speak-role';card.querySelector('.ai-card-header').after(button);button.addEventListener('click',()=>speak(index));}
       button.hidden=!manual;button.textContent=p.type==='human'?'我要发言':view.running?'指定下一位':'让 TA 发言';
       button.disabled=p.enabled===false||view.stopping||(p.type!=='human'&&!DreamscapeConfig.getKey(p.provider));
       button.title=button.disabled?'请开启角色并在全局配置保存模型服务 Key':'';
@@ -113,5 +159,5 @@
   }
   new MutationObserver(refresh).observe($('aiList'),{childList:true});
   window.addEventListener('dreamscape-config-change',refresh);window.addEventListener('storage',refresh);
-  window.DreamscapeRoomUI={refresh};refresh();
+  window.DreamscapeRoomUI={refresh};showPage(new URLSearchParams(location.search).get('view'));
 })();

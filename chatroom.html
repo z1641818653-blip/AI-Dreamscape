@@ -357,6 +357,10 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
   <link rel="stylesheet" href="assets/usability.css">
 <link rel="stylesheet" href="assets/room-view.css">
 <link rel="stylesheet" href="assets/room-tech.css">
+<link rel="stylesheet" href="assets/room-pages.css">
+<script>
+(function(){const view=new URLSearchParams(location.search).get('view');document.documentElement.dataset.roomPage=['classic','roles','settings'].includes(view)?view:'chat';if(view==='classic')document.querySelectorAll('link[href^="assets/room-"]').forEach(link=>link.media='not all');})();
+</script>
 </head>
 <body>
 <div id="toastContainer"></div>
@@ -488,8 +492,8 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 
         <section class="tutorial-section" id="guide-buttons">
           <h2>聊天区按钮</h2>
-          <div class="tutorial-callout"><strong>手动指定发言：</strong>右侧“发言方式”选择手动指定，然后点角色的“让 TA 发言”。补充消息只保存背景，不自动调用模型。生成期间点其他角色会设置下一位，再点会替换尚未开始的选择；可取消，停止会清空待执行选择。普通回应不会自动裁决，需要在“点名任务”中明确选择最终裁决。</div>
-          <p>房间历史位于左侧，本次讨论与角色设置位于右侧。手机点击“角色与设置”打开面板。“更多”集中管理导入、导出、帮助、主题与清空操作。</p>
+          <div class="tutorial-callout"><strong>手动指定发言：</strong>输入框上方选择“指定发言”，再选择“按一下发言一次”或“一直发言直到说完”，点名字即可。连续模式以角色明确标记发言完毕为结束，最多连续 12 次，可随时停止或改点下一位。补充消息只保存背景，不自动调用模型。生成期间点其他角色会设置下一位，再点会替换尚未开始的选择；可取消，停止会清空待执行选择。普通回应不会自动裁决，需要在“点名任务”中明确选择最终裁决。</div>
+          <p>房间历史位于左侧。点击“角色与设置”进入角色管理，点击“讨论设置”进入独立设置页面；顶部可返回讨论。点击“旧版页面”可暂时使用原来的布局，两种布局共用房间记录。“更多”集中管理导入、导出、帮助、主题与清空操作。</p>
           <ul>
             <li><strong>发送：</strong>把输入内容加入当前房间；开启自动讨论时会触发 AI。</li>
             <li><strong>开始自动讨论：</strong>让所有“发言开”的 AI 按当前顺序开始。</li>
@@ -2113,8 +2117,14 @@ judge, fact_checker, moderator, summarizer, debater, counter_side, gentle, force
   let followLatest = true;
   let messageScrollFrame = 0;
   const messageScroller = document.getElementById('messagesArea');
+  let lastMessageViewport = messageScroller.clientHeight;
+  let lastMessageScrollTop = messageScroller.scrollTop;
   messageScroller.addEventListener('scroll', () => {
-    followLatest = messageScroller.scrollHeight - messageScroller.clientHeight - messageScroller.scrollTop <= 24;
+    const height = messageScroller.clientHeight;
+    if (messageScroller.scrollHeight - height - messageScroller.scrollTop <= 24) followLatest = true;
+    else if (messageScroller.scrollTop < lastMessageScrollTop - Math.max(0, height - lastMessageViewport) - 1) followLatest = false;
+    lastMessageScrollTop = messageScroller.scrollTop;
+    lastMessageViewport = height;
   }, {passive:true});
   messageScroller.addEventListener('wheel', event => {
     if (event.deltaY < 0) followLatest = false;
@@ -2125,6 +2135,8 @@ judge, fact_checker, moderator, summarizer, debater, counter_side, gentle, force
     cancelAnimationFrame(messageScrollFrame);
     messageScrollFrame = 0;
     followLatest = true;
+    lastMessageScrollTop = 0;
+    lastMessageViewport = messageScroller.clientHeight;
     const area = document.getElementById('messagesArea');
     const existingEmpty = document.getElementById('emptyChat');
     const empty = existingEmpty ? existingEmpty.cloneNode(true) : document.createElement('div');
@@ -2345,7 +2357,7 @@ judge, fact_checker, moderator, summarizer, debater, counter_side, gentle, force
   }
 
   function buildRoundPrompt(room, participant, round, totalRounds) {
-    if (room.speechMode === 'manual') return `【手动指定发言】\n本次由用户指定你发言。请回应最新讨论记录并推进共同目标，只输出你自己的发言。不模拟其他角色，不自动宣布讨论结束。${state.manualPurpose === 'verdict' ? '【最终裁决阶段】用户明确要求最终裁决：按你的裁判协议给出结论和依据。' : state.manualPurpose === 'summary' ? '用户要求本次总结：整理当前共识、分歧与下一步。' : '当前为普通回应阶段，不提前作最终裁决。'}`;
+    if (room.speechMode === 'manual') return `【手动指定发言】\n${state.manualPolicy === 'until_done' ? '连续发言模式：可以分多次完整补充。继续上一次自己的发言，不重复已有内容；如果观点已经说完，在最后单独一行写【本次发言完毕】，然后停止。不要为了继续而刻意延长。当前是第 ' + ((state.manualContinuation || 0) + 1) + ' 次发言。' : '本次只发言一次。'}本次由用户指定你发言。请回应最新讨论记录并推进共同目标，只输出你自己的发言。不模拟其他角色，不自动宣布讨论结束。${state.manualPurpose === 'verdict' ? '【最终裁决阶段】用户明确要求最终裁决：按你的裁判协议给出结论和依据。' : state.manualPurpose === 'summary' ? '用户要求本次总结：整理当前共识、分歧与下一步。' : '当前为普通回应阶段，不提前作最终裁决。'}`;
     const isFixedFinalRound = state.discussionMode === 'fixed' && round >= totalRounds;
     const previousAI = [...room.messages].reverse().find(message => message.role === 'ai' && message.name !== participant.name);
     const previousNote = previousAI
@@ -2625,7 +2637,7 @@ ${transcript}
       state.autoSuspended = !state.discussStopped && room.speechMode === 'manual';
       finishDiscussion();
       if (!state.discussStopped && room.speechMode === 'manual' && next) {
-        await specifySpeaker(room.participants.indexOf(next.participant), next.purpose);
+        await specifySpeaker(room.participants.indexOf(next.participant), next.purpose, next.policy);
       }
     }
 
@@ -2989,7 +3001,7 @@ ${transcript}
     if (event.key === 'Escape' && document.getElementById('roleCreatorOverlay').classList.contains('open')) closeRoleCreator();
   });
 
-  async function specifySpeaker(index, purpose = 'reply') {
+  async function specifySpeaker(index, purpose = 'reply', policy = 'once') {
     const room = state.room;
     const participant = room?.participants[index];
     if (room?.speechMode !== 'manual' || !participant) return;
@@ -2999,30 +3011,36 @@ ${transcript}
     if (!room.messages.length && !room.discussionGoal.trim()) { showToast('请先填写目标或发送问题','warning'); return; }
     if (state.isDiscussing) {
       if (state.discussStopped) return;
-      state.manualNext = {participant,purpose}; updateHeader(); return;
+      state.manualNext = {participant,purpose,policy}; updateHeader(); return;
     }
     state.isDiscussing = true; state.discussStopped = false; state._aborters = [];
     if (!state.autoSuspended) state.autoCursor = null;
     state.autoSuspended = true;
     let resumeAuto = false;
-    let next = {participant,purpose};
+    let next = {participant,purpose,policy,count:0};
     try {
       while (next && !state.discussStopped && state.room === room) {
         const current = next.participant;
         state.manualNext = null;
         if (!room.participants.includes(current) || current.enabled === false || !getApiKey(current.provider)) break;
         state.manualPurpose = next.purpose;
+        state.manualPolicy = next.policy;
+        state.manualContinuation = next.count || 0;
         state.speakingAI = current.name;
         document.getElementById('stopDiscussBtn').style.display = 'inline-flex'; updateHeader();
         const result = await callSingleAI(room.participants.indexOf(current), 1, 1);
         state._aborters = [];
         state.autoCursor = {room,index:room.participants.indexOf(current) + 1,round:state.autoCursor?.room === room ? state.autoCursor.round : 1};
-        if (!result?.content || room.messages.at(-1)?.incomplete) { state.manualNext = null; break; }
+        if (!result?.content || result.content === '（无响应）' || room.messages.at(-1)?.incomplete) { state.manualNext = null; break; }
         if (room.speechMode === 'auto') { resumeAuto = true; break; }
-        next = state.manualNext;
+        if (state.manualNext) next = state.manualNext;
+        else if (next.policy === 'until_done' && !/【本次发言完毕】\s*$/.test(result.content.trim()) && !state.discussStopped) {
+          next.count = (next.count || 0) + 1;
+          if (next.count >= 12) { showToast('已连续发言 12 次，暂时停止；可再次点名继续。','warning'); next = null; }
+        } else next = null;
       }
     } finally {
-      state.manualNext = null; state.manualPurpose = 'reply';
+      state.manualNext = null; state.manualPurpose = 'reply'; state.manualPolicy = 'once'; state.manualContinuation = 0;
       if (state.discussStopped) state.autoSuspended = false;
       if (state.room === room) finishDiscussion();
     }
@@ -3031,6 +3049,7 @@ ${transcript}
   window.DreamscapeRoom = {
     getView: () => ({room:state.room,running:state.isDiscussing,stopping:state.isDiscussing && state.discussStopped,paused:state.discussionPaused,speaker:state.speakingAI,next:state.manualNext?.participant.name}),
     specifySpeaker,
+    canLeave() { if (state.isDiscussing) { showToast('请先停止讨论再切换版本','warning'); return false; } return true; },
     cancelNext() { state.manualNext = null; updateHeader(); },
     setMode(mode) {
       if (!state.room || (state.isDiscussing && state.discussStopped)) return false;
@@ -3126,6 +3145,7 @@ ${transcript}
 })();
 </script>
 
+<script src="assets/room-classic.js"></script>
 <script src="assets/room-view.js"></script>
 </body>
 </html>
