@@ -14,18 +14,19 @@
   const theme=document.querySelector('.theme-toggle');const font=document.querySelector('.font-size-selector');
   const appearance=group('显示设置',[theme,font]);sidebar.append(appearance);
   const header=document.querySelector('.chat-header');const headerActions=header.lastElementChild;
-  const model=$('chatModelSelector').closest('.sidebar-section');
-  const modelGroup=group('选择模型',[model],'wb-model');header.before(modelGroup);
   const left=document.querySelector('.action-left');
   const status=$('requestStatus');const tokens=$('totalTokenEstimate');
   const compare=$('compareToggleBtn');headerActions.prepend(compare);
   left.before(status);
   const answerAnchor=document.createComment('answer settings');left.before(answerAnchor);
-  answerAnchor.replaceWith(group('回答设置',[left,$('reasoningToggleBtn'),$('clearInputBtn')],'wb-answer'));
+  const answer=group('回答设置',[left,$('reasoningToggleBtn'),$('clearInputBtn')],'wb-answer');
+  answerAnchor.replaceWith(answer);
+  const answerToggle=answer.querySelector('summary');
+  answerToggle.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="2" fill="var(--bg-secondary)"/><circle cx="15" cy="17" r="2" fill="var(--bg-secondary)"/></svg><span>回答设置</span>';
+  answerToggle.setAttribute('aria-controls','answerSettingsPanel');
+  answer.querySelector('.wb-group-body').id='answerSettingsPanel';
+  document.addEventListener('pointerdown',event=>{if(answer.open&&!answer.contains(event.target))answer.open=false;});
   document.querySelector('.input-panel').append(tokens);
-  const text=document.createElement('span');text.className='wb-model-current';modelGroup.querySelector('summary').append(text);
-  function modelLabel(){const selected=model.querySelector('select[aria-label="模型"]');text.textContent=selected?.value?' · '+selected.value:'';}
-  new MutationObserver(modelLabel).observe(model,{childList:true,subtree:true});model.addEventListener('change',modelLabel);modelLabel();
   const importExport=group('导入 / 导出',[$('importBtn'),$('exportAllBtn')]);$('conversationList').after(importExport);
   const search=document.createElement('button');search.type='button';search.className='import-btn';search.textContent='搜索全部对话';
   search.addEventListener('click',()=>document.dispatchEvent(new KeyboardEvent('keydown',{key:'F',ctrlKey:true,shiftKey:true,bubbles:true})));$('newConversationBtn').after(search);
