@@ -72,10 +72,17 @@
   function filterHistory(){const q=historySearch.value.toLowerCase();$('historyList').querySelectorAll('.history-item').forEach(el=>{el.hidden=!el.textContent.toLowerCase().includes(q);});}
   historySearch.addEventListener('input',filterHistory);new MutationObserver(filterHistory).observe($('historyList'),{childList:true});
   menuBody.addEventListener('click',event=>{if(event.target.closest('button,a'))menu.open=false;});
+  $('themeBtn').addEventListener('click',()=>queueMicrotask(refresh));
   sidebar.addEventListener('click',event=>{if(event.target.closest('.history-item')&&!api.getView().running&&innerWidth<=900)close();});
   $('chatInput').addEventListener('input',refresh);
   function refresh() {
     const view=api.getView();if(!view.room)return;const room=view.room;const manual=room.speechMode==='manual';
+    const labels={newRoomBtn:'新讨论',exportTemplateBtn:'模板导出',exportFullRoomBtn:'整体导出',importRoomBtn:'导入房间 / 模板',clearChatBtn:'清空记录',addAiBtn:'添加 AI',addHumanBtn:'添加用户角色',openRoleCreatorBtn:'AI 创建角色',stopDiscussBtn:'停止'};
+    for(const [id,label] of Object.entries(labels))$(id).textContent=label;
+    $('themeBtn').textContent=document.documentElement.dataset.theme==='dark'?'浅色模式':'深色模式';
+    $('roomDeepThinkingBtn').textContent='深度思考：'+(room.deepThinking?'开':'关');
+    menu.querySelector('summary').textContent='更多';
+    add.querySelector('summary').textContent='添加角色';
     const starter=$('emptyChat');if(starter){if(!starter.querySelector('.starter-choices')){starter.innerHTML=starterHTML;decorateStarter(starter);}starter.style.display=room.messages.length?'none':'flex';}
     $('speechMode').value=manual?'manual':'auto';$('speechMode').disabled=view.stopping;
     document.querySelector('.discussion-status').hidden=!view.running;
@@ -92,6 +99,9 @@
     for(const id of ['addAiBtn','openRoleCreatorBtn','addHumanBtn','discussionGoalInput','roomNameInput','collaborationModeSelect','discussionModeSelect','roundsSelect','autoStartCheck','orderRoles'])$(id).disabled=view.running;
     $('aiList').querySelectorAll('.ai-card').forEach((card,index)=>{
       const p=room.participants[index];if(!p)return;let button=card.querySelector('.speak-role');
+      const speech=card.querySelector('.ai-speech-btn');
+      if(speech){speech.textContent=p.enabled===false?'已静音':'可发言';speech.setAttribute('aria-label',(p.enabled===false?'开启':'关闭')+p.name+'的发言');}
+      const expand=card.querySelector('.ai-header-btn');if(expand)expand.setAttribute('aria-label',(p.collapsed?'展开':'收起')+p.name+'的角色设置');
       if(!button){button=document.createElement('button');button.type='button';button.className='speak-role';card.querySelector('.ai-card-header').after(button);button.addEventListener('click',()=>api.specifySpeaker(index,$('speechPurpose').value));}
       button.hidden=!manual;button.textContent=p.type==='human'?'我要发言':view.running?'指定下一位':'让 TA 发言';
       button.disabled=p.enabled===false||view.stopping||(p.type!=='human'&&!DreamscapeConfig.getKey(p.provider));

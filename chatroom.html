@@ -1828,7 +1828,7 @@ judge, fact_checker, moderator, summarizer, debater, counter_side, gentle, force
     button.style.display = state.isDiscussing ? 'inline-flex' : 'none';
     button.disabled = state.discussionPaused;
     button.classList.toggle('active', state.interjectionRequested);
-    button.textContent = state.interjectionRequested ? '✋ 已申请发言' : '✋ 插入发言';
+    button.textContent = state.interjectionRequested ? '已申请插话' : '申请插话';
   }
 
   function initRoom(room) {
