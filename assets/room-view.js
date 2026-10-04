@@ -7,13 +7,20 @@
   const sidebar = $('sidebar');
   const settings = $('roomNameInput').closest('.sidebar-section');
   const roles = $('aiList').closest('.sidebar-section');
-  const panel = document.createElement('aside'); panel.className='room-controls'; panel.id='roomControls';
+  const panel = document.createElement('dialog'); panel.className='room-controls'; panel.id='roomControls';
   panel.setAttribute('aria-label','本次讨论与角色');
   panel.innerHTML='<div class="control-heading"><strong>本次讨论</strong><button type="button" id="closeControls" aria-label="关闭设置">×</button></div><label class="mode-label" for="speechMode">发言方式</label><select id="speechMode"><option value="auto">自动轮流</option><option value="manual">手动指定 · 点谁谁发言</option></select><p class="mode-note" id="modeNote"></p><div class="next-speaker" id="nextSpeaker" hidden><span></span><button type="button" id="cancelNext">取消</button></div>';
   panel.append(settings,roles);layout.append(panel);
   const dock=document.createElement('section');dock.className='speaker-dock';dock.setAttribute('aria-label','发言控制');
   dock.innerHTML='<div class="speaker-toolbar"><label for="quickSpeechMode">发言<select id="quickSpeechMode"><option value="auto">自动轮流</option><option value="manual">指定发言</option></select></label><div class="speaker-policy" role="group" aria-label="指定发言长度"><button type="button" data-policy="once" aria-pressed="true">按一下发言一次</button><button type="button" data-policy="until_done" aria-pressed="false">一直发言直到说完</button></div></div><div class="speaker-names" aria-label="点名发言"></div><p class="speaker-hint"></p>';
-  document.querySelector('.input-area-wrap').prepend(dock);dock.append($('nextSpeaker'));
+  const speechBar=document.createElement('div');speechBar.className='speech-launcher';
+  const speechToggle=document.createElement('button');speechToggle.type='button';speechToggle.id='openSpeaker';speechToggle.textContent='指定发言';speechToggle.setAttribute('aria-controls','speakerFloat');speechToggle.setAttribute('aria-expanded','false');speechBar.append(speechToggle);
+  document.querySelector('.input-area-wrap').prepend(speechBar);layout.append(dock);dock.id='speakerFloat';dock.hidden=true;dock.setAttribute('role','region');
+  const speechHeading=document.createElement('div');speechHeading.className='speaker-float-heading';speechHeading.innerHTML='<strong>指定发言</strong><button type="button" id="closeSpeaker" aria-label="关闭指定发言面板">×</button>';dock.prepend(speechHeading);dock.append($('nextSpeaker'));
+  function closeSpeaker(){dock.hidden=true;speechToggle.setAttribute('aria-expanded','false');}
+  speechToggle.addEventListener('click',()=>{if(!dock.hidden){closeSpeaker();return;}api.setMode('manual');dock.hidden=false;speechToggle.setAttribute('aria-expanded','true');$('quickSpeechMode').focus();});
+  $('closeSpeaker').addEventListener('click',()=>{closeSpeaker();speechToggle.focus();});
+
   let speechPolicy='once',namesSignature='';
   function speak(index){api.specifySpeaker(index,$('speechPurpose').value,speechPolicy);}
   $('quickSpeechMode').addEventListener('change',()=>{api.setMode($('quickSpeechMode').value);refresh();});
@@ -55,41 +62,42 @@
   }
   decorateStarter(empty);
   let lastFocus=null;
-  function open(which) {
-    lastFocus=document.activeElement;sidebar.classList.remove('show-history');panel.classList.remove('open');
-    if(which==='roles')panel.classList.add('open');else sidebar.classList.add('show-history');
-    back.hidden=false;toggle.setAttribute('aria-expanded',String(which==='roles'));
-    (which==='roles'?$('speechMode'):historySearch).focus();
-  }
-  function close() {panel.classList.remove('open');sidebar.classList.remove('show-history');back.hidden=true;toggle.setAttribute('aria-expanded','false');lastFocus?.focus();}
+  function open(){lastFocus=document.activeElement;sidebar.classList.add('show-history');back.hidden=false;historySearch.focus();}
+  function close(){const wasOpen=!back.hidden;sidebar.classList.remove('show-history');back.hidden=true;if(wasOpen)lastFocus?.focus();lastFocus=null;}
   function pageURL(view){const url=new URL(location.href);if(view==='chat')url.searchParams.delete('view');else url.searchParams.set('view',view);return url.pathname+url.search;}
   let currentPage='chat',selectedRole=0,selectedParticipant=null,roleRoom=null,roleCount=0,roleSignature='';
   const settingsLink=document.createElement('a');settingsLink.id='openRoomSettings';settingsLink.textContent='讨论设置';settingsLink.href=pageURL('settings');settingsLink.className='room-page-link';
   const classicLink=document.createElement('a');classicLink.id='openClassic';classicLink.textContent='旧版页面';classicLink.href=pageURL('classic');classicLink.className='room-page-link';
   toggle.after(classicLink,settingsLink);
-  const manager=document.createElement('header');manager.className='manager-header';manager.innerHTML='<nav aria-label="讨论页面"><a id="backToDiscussion" data-room-page="chat">← 返回讨论</a><div><a data-room-page="roles">角色管理</a><a data-room-page="settings">讨论设置</a></div></nav><p class="manager-room-name"></p><h1></h1><p class="manager-description"></p>';
-  panel.prepend(manager);settings.classList.add('room-settings-page');roles.classList.add('room-roles-page');
+  const manager=document.createElement('header');manager.className='manager-header';manager.innerHTML='<nav aria-label="讨论页面"><a id="backToDiscussion" data-room-page="chat">← 返回讨论</a><div><a data-room-page="roles">角色管理</a><a data-room-page="settings">讨论设置</a></div><button type="button" id="closeManager" aria-label="关闭角色与讨论设置">×</button></nav><p class="manager-room-name"></p><h1 id="managerTitle"></h1><p class="manager-description"></p>';
+  panel.setAttribute('aria-labelledby','managerTitle');panel.prepend(manager);settings.classList.add('room-settings-page');roles.classList.add('room-roles-page');
   const picker=document.createElement('div');picker.className='role-picker';picker.setAttribute('role','group');picker.setAttribute('aria-label','选择要编辑的角色');roleTools.before(picker);
   manager.querySelectorAll('[data-room-page]').forEach(link=>{link.href=pageURL(link.dataset.roomPage);link.addEventListener('click',event=>{event.preventDefault();navigate(link.dataset.roomPage);});});
   function showPage(view){
     currentPage=['roles','settings'].includes(view)?view:'chat';document.documentElement.dataset.roomPage=currentPage;
     close();refresh();
+    toggle.setAttribute('aria-expanded',String(currentPage==='roles'));settingsLink.setAttribute('aria-expanded',String(currentPage==='settings'));
+    if(currentPage==='chat'){if(panel.open)panel.close();document.body.append($('roleCreatorOverlay'),$('confirmOverlay'));}else{closeSpeaker();panel.append($('roleCreatorOverlay'),$('confirmOverlay'));if(!panel.open)panel.showModal();}
     document.title=(currentPage==='roles'?'角色管理':currentPage==='settings'?'讨论设置':'AI 聊天室')+' · 灵境';
     if(currentPage!=='chat'){manager.querySelector('h1').textContent=currentPage==='roles'?'角色管理':'讨论设置';manager.querySelector('.manager-description').textContent=currentPage==='roles'?'点选一个角色，调整模型、职责与发言顺序。修改会自动保存。':'设置这场讨论的目标与运行方式。修改会自动保存。';manager.querySelector('h1').tabIndex=-1;manager.querySelector('h1').focus();panel.scrollTop=0;}
-    else toggle.focus();
+
     manager.querySelectorAll('[data-room-page]').forEach(link=>{if(link.dataset.roomPage===currentPage)link.setAttribute('aria-current','page');else link.removeAttribute('aria-current');});
   }
   function navigate(view){history.pushState(null,'',pageURL(view));showPage(view);}
   toggle.addEventListener('click',()=>navigate('roles'));
   settingsLink.addEventListener('click',event=>{event.preventDefault();navigate('settings');});
   classicLink.addEventListener('click',event=>{if(!api.canLeave())event.preventDefault();});
+  $('closeManager').addEventListener('click',()=>navigate('chat'));
+  panel.addEventListener('keydown',event=>{if(event.key!=='Escape')return;if($('roleCreatorOverlay').classList.contains('open')){event.preventDefault();event.stopPropagation();$('roleCreatorCloseBtn').click();}else if($('confirmOverlay').style.display==='flex'){event.preventDefault();event.stopPropagation();$('confirmNo').click();}},true);
+  panel.addEventListener('cancel',event=>{event.preventDefault();navigate('chat');});
+  panel.addEventListener('click',event=>{if(event.target!==panel)return;const rect=panel.getBoundingClientRect();if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom)navigate('chat');});
   window.addEventListener('popstate',()=>showPage(new URLSearchParams(location.search).get('view')));
 
   $('closeControls').addEventListener('click',close);back.addEventListener('click',close);
-  $('sidebarToggle').addEventListener('click',()=>{if(innerWidth<=900){if(sidebar.classList.contains('show-history'))close();else open('history');}});
+  $('sidebarToggle').addEventListener('click',()=>{if(innerWidth<=900||layout.classList.contains('has-discussion')){if(sidebar.classList.contains('show-history'))close();else open();}});
   window.addEventListener('keydown',event=>{
-    if(event.key==='Escape'){if(!back.hidden)close();for(const el of [menu,add])if(el.open){el.open=false;el.querySelector('summary').focus();}}
-    if(event.key==='Tab'&&!back.hidden){const drawer=panel.classList.contains('open')?panel:sidebar;const items=[...drawer.querySelectorAll('button,input,select,textarea,a,summary')].filter(el=>!el.disabled&&el.getClientRects().length);if(!items.length)return;const first=items[0],last=items.at(-1);if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}}
+    if(event.key==='Escape'){if(!dock.hidden){closeSpeaker();speechToggle.focus();}if(!back.hidden)close();for(const el of [menu,add])if(el.open){el.open=false;el.querySelector('summary').focus();}}
+    if(event.key==='Tab'&&!back.hidden){const drawer=sidebar;const items=[...drawer.querySelectorAll('button,input,select,textarea,a,summary')].filter(el=>!el.disabled&&el.getClientRects().length);if(!items.length)return;const first=items[0],last=items.at(-1);if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}}
   });
   $('speechMode').addEventListener('change',()=>{api.setMode($('speechMode').value);refresh();});
   $('cancelNext').addEventListener('click',()=>api.cancelNext());
@@ -103,12 +111,14 @@
   historySearch.addEventListener('input',filterHistory);new MutationObserver(filterHistory).observe($('historyList'),{childList:true});
   menuBody.addEventListener('click',event=>{if(event.target.closest('button,a'))menu.open=false;});
   $('themeBtn').addEventListener('click',()=>queueMicrotask(refresh));
-  sidebar.addEventListener('click',event=>{if(event.target.closest('.history-item')&&!api.getView().running&&innerWidth<=900)close();});
+  sidebar.addEventListener('click',event=>{if(event.target.closest('.history-item,#newRoomBtn')&&!api.getView().running&&!back.hidden)close();});
   $('chatInput').addEventListener('input',refresh);
   layout.addEventListener('input',event=>{if(event.target.closest('#aiList'))queueMicrotask(refresh);});
   function refresh() {
     const view=api.getView();if(!view.room)return;const room=view.room;const manual=room.speechMode==='manual';
     manager.querySelector('.manager-room-name').textContent=room.name;
+    layout.classList.toggle('has-discussion',room.messages.length>0||view.running);title.hidden=room.messages.length>0||view.running;
+    speechToggle.classList.toggle('manual-active',manual);speechToggle.disabled=view.stopping;speechToggle.title=manual?'指定发言已开启，点击显示控制面板':'打开并切换为指定发言';
     if(roleRoom!==room.id){roleRoom=room.id;selectedRole=0;selectedParticipant=null;roleCount=room.participants.length;}
     else if(room.participants.length>roleCount)selectedRole=room.participants.length-1;
     else if(selectedParticipant&&room.participants.includes(selectedParticipant))selectedRole=room.participants.indexOf(selectedParticipant);
@@ -134,7 +144,7 @@
     document.querySelector('.discussion-status').hidden=!view.running;
     $('modeNote').textContent=(manual?'补充消息后，点名让一位角色发言。下一位可改选或取消。':'按角色顺序讨论，你可以插话或随时停止。')+(view.running?' 切换方式会在当前发言结束后衔接。':'');
     $('nextSpeaker').hidden=!view.next;$('nextSpeaker').querySelector('span').textContent=view.next?'下一位：'+view.next:'';
-    title.textContent=(room.discussionGoal?'目标：'+room.discussionGoal:'先写下问题，或在右侧填写长期讨论目标。')+(view.running?' · '+(view.stopping?'正在停止':view.speaker?view.speaker+'正在发言':view.paused?'等待你发言':'正在讨论'):'');
+    title.textContent=(room.discussionGoal?'目标：'+room.discussionGoal:'先写下问题，或在讨论设置中填写长期目标。')+(view.running?' · '+(view.stopping?'正在停止':view.speaker?view.speaker+'正在发言':view.paused?'等待你发言':'正在讨论'):'');
     $('speechPurpose').closest('label').hidden=!manual;
     $('roundCountRow').hidden=manual;advanced.hidden=manual;
     $('sendMsgBtn').textContent=manual?'补充消息':view.paused?'发送并继续':room.autoStart?'发送并开始':'仅发送';

@@ -405,11 +405,15 @@ function source(name) {
   await page.close();
   const uiContext=await browser.newContext();page=await uiContext.newPage();
   page.on('dialog',dialog=>dialog.type()==='beforeunload'?dialog.accept():dialog.dismiss());
+  async function newRoomFromHistory(){if(!await page.locator('#newRoomBtn').isVisible())await page.locator('#sidebarToggle').click();await page.locator('#newRoomBtn').click();if(!await page.evaluate(()=>DreamscapeRoom.getView().running))assert.equal(await page.locator('.drawer-backdrop').isVisible(),false);await page.keyboard.press('Escape');}
+  async function speechPanel(){if(!await page.locator('#speakerFloat').isVisible())await page.locator('#openSpeaker').click();}
+  async function roomMode(mode){await speechPanel();await page.locator('#quickSpeechMode').selectOption(mode);}
+  async function clickSpeaker(index){await speechPanel();await page.locator('.speaker-names button').nth(index).click();}
   async function roomGoal(text,rounds){await page.locator('#openRoomSettings').click();await page.locator('#discussionGoalInput').fill(text);if(rounds)await page.locator('#roundsSelect').selectOption(rounds);await page.locator('#backToDiscussion').click();}
   await page.setViewportSize({width:1280,height:900});await go('chatroom');
   await page.evaluate(()=>{localStorage.removeItem('dp49');localStorage.setItem('dp0',JSON.stringify({deepseek:{apiKey:DreamscapeConfig.encode('dummy-manual')}}));DreamscapeRoom.preset('debate');});
   await roomGoal('Compare two proposals');
-  await page.locator('#quickSpeechMode').selectOption('manual');
+  await roomMode('manual');
   await test('room controls save after relocation and manual mode survives reload',async()=>{
     assert.equal(await page.evaluate(()=>DreamscapeRoom.getView().room.speechMode),'manual');
     await page.reload();assert.equal(await page.locator('#quickSpeechMode').inputValue(),'manual');
@@ -421,11 +425,11 @@ function source(name) {
     let count=0;let sent;
     await page.route('https://api.deepseek.com/**',r=>{count++;sent=r.request().postDataJSON();return r.fulfill({contentType:'text/event-stream',body:'data: {"choices":[{"delta":{"content":"Manual answer"}}]}\n\ndata: [DONE]\n\n'});});
     await page.locator('#chatInput').fill('User background');await page.locator('#sendMsgBtn').click();assert.equal(count,0);
-    await page.locator('.speaker-names button').nth(1).click();
+    await clickSpeaker(1);
     await page.waitForFunction(()=>!DreamscapeRoom.getView().running);
     assert.equal(count,1);assert.match(sent.messages[0].content,/反方/);assert.match(sent.messages[1].content,/User background/);
     assert.equal(await page.evaluate(()=>DreamscapeRoom.getView().room.messages.at(-1).name),'反方');
-    await page.locator('.speaker-names button').nth(1).click();await page.waitForFunction(()=>!DreamscapeRoom.getView().running);
+    await clickSpeaker(1);await page.waitForFunction(()=>!DreamscapeRoom.getView().running);
     assert.equal(count,2);assert.match(sent.messages[1].content,/Manual answer/);
     await page.unroute('https://api.deepseek.com/**');
   });
@@ -434,38 +438,38 @@ function source(name) {
     assert.equal(await page.locator('#roomControls').evaluate(el=>el.classList.contains('open')),false);
     let count=0;const prompts=[];
     await page.route('https://api.deepseek.com/**',r=>{count++;prompts.push(r.request().postDataJSON());return r.fulfill({contentType:'text/event-stream',body:'data: '+JSON.stringify({choices:[{delta:{content:count===3?'结论完整。【本次发言完毕】':'继续补充。'}}]})+'\n\ndata: [DONE]\n\n'});});
-    await page.locator('.speaker-names button').nth(0).click();await page.waitForFunction(()=>!DreamscapeRoom.getView().running);assert.equal(count,1);
-    await page.locator('[data-policy="until_done"]').click();await page.locator('.speaker-names button').nth(1).click();
+    await clickSpeaker(0);await page.waitForFunction(()=>!DreamscapeRoom.getView().running);assert.equal(count,1);
+    await speechPanel();await page.locator('[data-policy="until_done"]').click();await clickSpeaker(1);
     await page.waitForFunction(()=>!DreamscapeRoom.getView().running);assert.equal(count,3);
     assert.match(prompts[1].messages[0].content,/连续发言模式/);assert.match(prompts[2].messages[0].content,/第 2 次发言/);
     assert.equal(await page.locator('#roomControls').evaluate(el=>el.classList.contains('open')),false);
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
     await page.unroute('https://api.deepseek.com/**');
     count=0;await page.route('https://api.deepseek.com/**',r=>{count++;return r.fulfill({contentType:'text/event-stream',body:'data: {"choices":[{"delta":{"content":"还有补充"}}]}\n\ndata: [DONE]\n\n'});});
-    await page.locator('.speaker-names button').nth(0).click();await page.waitForFunction(()=>!DreamscapeRoom.getView().running);assert.equal(count,12);
-    await page.unroute('https://api.deepseek.com/**');await page.locator('[data-policy="once"]').click();await page.setViewportSize({width:1280,height:900});
+    await clickSpeaker(0);await page.waitForFunction(()=>!DreamscapeRoom.getView().running);assert.equal(count,12);
+    await page.unroute('https://api.deepseek.com/**');await speechPanel();await page.locator('[data-policy="once"]').click();await page.setViewportSize({width:1280,height:900});
   });
   await test('continuous speaker can hand off to another name and stop prevents further continuations',async()=>{
     const calls=[];const held=[];
     await page.route('https://api.deepseek.com/**',r=>{calls.push(r.request().postDataJSON());held.push(r);});
     const reply=r=>r.fulfill({contentType:'text/event-stream',body:'data: {"choices":[{"delta":{"content":"尚未讲完"}}]}\n\ndata: [DONE]\n\n'});
-    await page.locator('[data-policy="until_done"]').click();await page.locator('.speaker-names button').nth(0).click();await page.waitForTimeout(100);
-    await page.locator('[data-policy="once"]').click();await page.locator('.speaker-names button').nth(1).click();
+    await speechPanel();await page.locator('[data-policy="until_done"]').click();await clickSpeaker(0);await page.waitForTimeout(100);
+    await speechPanel();await page.locator('[data-policy="once"]').click();await clickSpeaker(1);
     await reply(held[0]);await page.waitForTimeout(100);assert.equal(calls.length,2);assert.match(calls[1].messages[0].content,/反方/);assert.doesNotMatch(calls[1].messages[0].content,/连续发言模式/);
     await reply(held[1]);await page.waitForFunction(()=>!DreamscapeRoom.getView().running);
-    await page.locator('[data-policy="until_done"]').click();await page.locator('.speaker-names button').nth(0).click();await page.waitForTimeout(100);
+    await speechPanel();await page.locator('[data-policy="until_done"]').click();await clickSpeaker(0);await page.waitForTimeout(100);
     await page.locator('#stopDiscussBtn').click();await reply(held[2]).catch(()=>{});await page.waitForFunction(()=>!DreamscapeRoom.getView().running);await page.waitForTimeout(100);assert.equal(calls.length,3);
-    await page.unroute('https://api.deepseek.com/**');await page.locator('[data-policy="once"]').click();
+    await page.unroute('https://api.deepseek.com/**');await speechPanel();await page.locator('[data-policy="once"]').click();
   });
   await test('manual pending choice is visible, replaceable and uses new background after current speaker',async()=>{
     const sent=[];let held;
     await page.route('https://api.deepseek.com/**',r=>{sent.push(r.request().postDataJSON());if(sent.length===1){held=r;return;}return r.fulfill({contentType:'text/event-stream',body:'data: {"choices":[{"delta":{"content":"Second answer"}}]}\n\ndata: [DONE]\n\n'});});
-    await page.locator('.speaker-names button').nth(0).click();await page.waitForFunction(()=>DreamscapeRoom.getView().running);
-    await page.locator('.speaker-names button').nth(1).click();await page.locator('.speaker-names button').nth(2).click();
+    await clickSpeaker(0);await page.waitForFunction(()=>DreamscapeRoom.getView().running);
+    await clickSpeaker(1);await clickSpeaker(2);
     assert.match(await page.locator('#nextSpeaker').textContent(),/裁判/);
     await page.locator('#chatInput').fill('Additional requirement');await page.locator('#sendMsgBtn').click();
     assert.equal(await page.locator('#quickSpeechMode').isEnabled(),true);
-    const roomID=await page.evaluate(()=>DreamscapeRoom.getView().room.id);await page.locator('#newRoomBtn').click();
+    const roomID=await page.evaluate(()=>DreamscapeRoom.getView().room.id);await newRoomFromHistory();
     assert.equal(await page.evaluate(()=>DreamscapeRoom.getView().room.id),roomID);
     await held.fulfill({contentType:'text/event-stream',body:'data: {"choices":[{"delta":{"content":"First answer"}}]}\n\ndata: [DONE]\n\n'});
     await page.waitForFunction(()=>!DreamscapeRoom.getView().running);
@@ -477,8 +481,8 @@ function source(name) {
     let count=0;let held;
     await page.route('https://api.deepseek.com/**',r=>{count++;held=r;});
     const before=await page.evaluate(()=>DreamscapeRoom.getView().room.messages.length);
-    await page.locator('.speaker-names button').nth(0).click();await page.waitForFunction(()=>DreamscapeRoom.getView().running);
-    await page.locator('.speaker-names button').nth(1).click();await page.locator('#stopDiscussBtn').click();
+    await clickSpeaker(0);await page.waitForFunction(()=>DreamscapeRoom.getView().running);
+    await clickSpeaker(1);await page.locator('#stopDiscussBtn').click();
     await page.waitForFunction(()=>!DreamscapeRoom.getView().running);
     assert.equal(count,1);assert.equal(await page.evaluate(()=>DreamscapeRoom.getView().next),undefined);
     assert.equal(await page.evaluate(()=>DreamscapeRoom.getView().room.messages.length),before);
@@ -487,11 +491,11 @@ function source(name) {
   await test('cancel next and explicit verdict operate independently',async()=>{
     let count=0;let held;let system;
     await page.route('https://api.deepseek.com/**',r=>{count++;system=r.request().postDataJSON().messages[0].content;if(count===1){held=r;return;}return r.fulfill({contentType:'text/event-stream',body:'data: {"choices":[{"delta":{"content":"Verdict"}}]}\n\ndata: [DONE]\n\n'});});
-    await page.locator('.speaker-names button').nth(0).click();await page.waitForFunction(()=>DreamscapeRoom.getView().running);
-    await page.locator('.speaker-names button').nth(1).click();await page.locator('#cancelNext').click();
+    await clickSpeaker(0);await page.waitForFunction(()=>DreamscapeRoom.getView().running);
+    await clickSpeaker(1);await page.locator('#cancelNext').click();
     await held.fulfill({contentType:'text/event-stream',body:'data: {"choices":[{"delta":{"content":"Reply"}}]}\n\ndata: [DONE]\n\n'});
     await page.waitForFunction(()=>!DreamscapeRoom.getView().running);assert.equal(count,1);
-    await page.locator('#speechPurpose').selectOption('verdict');await page.locator('.speaker-names button').nth(2).click();
+    await speechPanel();await page.locator('#speechPurpose').selectOption('verdict');await clickSpeaker(2);
     await page.waitForFunction(()=>!DreamscapeRoom.getView().running);assert.match(system,/用户明确要求最终裁决/);
     await page.unroute('https://api.deepseek.com/**');
   });
@@ -503,15 +507,15 @@ function source(name) {
   await test('saved discussions reload with a working role panel and new rooms restore template starters',async()=>{
     const errors=[];const listener=e=>errors.push(e.message);page.on('pageerror',listener);
     await page.reload();assert.deepEqual(errors,[]);assert.equal(await page.locator('#quickSpeechMode').inputValue(),'manual');
-    assert.ok(await page.locator('.speaker-names button').count()>0);
-    await page.locator('#newRoomBtn').click();assert.equal(await page.locator('[data-preset="debate"]').isVisible(),true);
+    assert.ok(await page.locator('.speaker-names button').count()>0);assert.equal(await page.locator('#speakerFloat').isVisible(),false);
+    await newRoomFromHistory();assert.equal(await page.locator('[data-preset="debate"]').isVisible(),true);
     await page.locator('[data-preset="debate"]').click();assert.equal(await page.locator('#aiList .ai-card').count(),3);await page.locator('#backToDiscussion').click();
     page.removeListener('pageerror',listener);
   });
-  await test('mobile roles and settings are separate full pages with direct role selection and browser Back',async()=>{
+  await test('mobile management dialogs keep the conversation behind them, close on Escape, and restore focus',async()=>{
     await page.setViewportSize({width:390,height:844});await page.locator('#openControls').click();
-    assert.equal(await page.locator('.manager-header h1').textContent(),'角色管理');assert.equal(await page.locator('#messagesArea').isVisible(),false);
-    assert.equal(await page.locator('#discussionGoalInput').isVisible(),false);
+    assert.equal(await page.locator('.manager-header h1').textContent(),'角色管理');assert.equal(await page.locator('#messagesArea').isVisible(),true);assert.equal(await page.locator('#roomControls').evaluate(el=>el.open),true);
+    assert.equal(await page.locator('#discussionGoalInput').isVisible(),false);await page.keyboard.press('Escape');assert.equal(await page.locator('#roomControls').evaluate(el=>el.open),false);assert.equal(await page.evaluate(()=>document.activeElement.id),'openControls');await page.locator('#openControls').click();for(let i=0;i<8;i++)await page.keyboard.press('Tab');assert.equal(await page.evaluate(()=>document.getElementById('roomControls').contains(document.activeElement)),true);await page.mouse.click(1,1);assert.equal(await page.locator('#roomControls').evaluate(el=>el.open),false);await page.locator('#openControls').click();
     await page.locator('.role-picker button').nth(1).click();assert.equal(await page.locator('#aiList .ai-card:visible .ai-card-name').inputValue(),'反方');
     await page.locator('#aiList .ai-card:visible .ai-card-name').fill('反方测试');
     await page.locator('.manager-header [data-room-page="settings"]').click();assert.equal(await page.locator('#aiList').isVisible(),false);
@@ -530,15 +534,15 @@ function source(name) {
     await page.route('https://api.deepseek.com/**',r=>{calls.push(r.request().postDataJSON());held.push(r);if(held.length===3)thirdReady();});
     const reply=r=>r.fulfill({contentType:'text/event-stream',body:'data: {"choices":[{"delta":{"content":"Completed turn"}}]}\n\ndata: [DONE]\n\n'});
     await page.locator('#startDiscussBtn').click();await page.waitForFunction(()=>DreamscapeRoom.getView().speaker==='正方');
-    await page.locator('#quickSpeechMode').selectOption('manual');await page.locator('.speaker-names button').nth(1).click();
+    await roomMode('manual');await clickSpeaker(1);
     assert.equal(calls.length,1);assert.equal(await page.locator('#nextSpeaker').isVisible(),true);
     await reply(held[0]);await page.waitForFunction(()=>DreamscapeRoom.getView().speaker==='反方');
     assert.equal(calls.length,2);assert.match(calls[1].messages[0].content,/【手动指定发言】/);
-    await page.locator('.speaker-names button').nth(0).click();await page.locator('#quickSpeechMode').selectOption('auto');
+    await clickSpeaker(0);await roomMode('auto');
     assert.equal(await page.locator('#nextSpeaker').isVisible(),false);assert.equal(calls.length,2);
     await reply(held[1]);await thirdRequest;await page.waitForFunction(()=>DreamscapeRoom.getView().speaker==='裁判');
     assert.equal(calls.length,3);assert.match(calls[2].messages[0].content,/【最终裁决阶段】/);
-    await page.locator('#quickSpeechMode').selectOption('manual');await reply(held[2]);
+    await roomMode('manual');await reply(held[2]);
     await page.waitForFunction(()=>!DreamscapeRoom.getView().running);
     assert.equal(calls.length,3);assert.equal(await page.evaluate(()=>DreamscapeRoom.getView().room.messages.length),3);
     await page.reload();assert.equal(await page.locator('#quickSpeechMode').inputValue(),'manual');
@@ -548,13 +552,13 @@ function source(name) {
     await page.evaluate(()=>{DreamscapeRoom.preset('free');const r=DreamscapeRoom.getView().room;r.participants.unshift({type:'human',name:'你',enabled:true});});
     await roomGoal('Human opening','1');await page.locator('#startDiscussBtn').click();
     await page.waitForFunction(()=>DreamscapeRoom.getView().paused);
-    await page.locator('#quickSpeechMode').selectOption('manual');await page.waitForFunction(()=>!DreamscapeRoom.getView().running);
+    await roomMode('manual');await page.waitForFunction(()=>!DreamscapeRoom.getView().running);
     assert.equal(await page.evaluate(()=>DreamscapeRoom.getView().paused),false);
     await page.locator('#chatInput').fill('Background after switching');await page.locator('#sendMsgBtn').click();
     assert.equal(await page.evaluate(()=>DreamscapeRoom.getView().room.messages.at(-1).content),'Background after switching');
     let calls=0;
     await page.route('https://api.deepseek.com/**',r=>{calls++;return r.fulfill({contentType:'text/event-stream',body:'data: {"choices":[{"delta":{"content":"Resumed answer"}}]}\n\ndata: [DONE]\n\n'});});
-    await page.locator('#quickSpeechMode').selectOption('auto');await page.waitForFunction(()=>!DreamscapeRoom.getView().running);
+    await roomMode('auto');await page.waitForFunction(()=>!DreamscapeRoom.getView().running);
     assert.equal(calls,3);assert.equal(await page.evaluate(()=>DreamscapeRoom.getView().paused),false);
     await page.unroute('https://api.deepseek.com/**');
   });
@@ -563,11 +567,11 @@ function source(name) {
     let calls=0;let held;
     await page.route('https://api.deepseek.com/**',r=>{calls++;held=r;});
     await page.locator('#startDiscussBtn').click();await page.waitForFunction(()=>DreamscapeRoom.getView().speaker==='正方');
-    await page.locator('#quickSpeechMode').selectOption('manual');await page.locator('.speaker-names button').nth(1).click();
-    await page.locator('#quickSpeechMode').selectOption('auto');await page.locator('#stopDiscussBtn').click();
+    await roomMode('manual');await clickSpeaker(1);
+    await roomMode('auto');await page.locator('#stopDiscussBtn').click();
     await page.waitForFunction(()=>!DreamscapeRoom.getView().running);
     await held.fulfill({contentType:'text/event-stream',body:'data: [DONE]\n\n'}).catch(()=>{});
-    await page.locator('#quickSpeechMode').selectOption('manual');await page.locator('#quickSpeechMode').selectOption('auto');
+    await roomMode('manual');await roomMode('auto');
     assert.equal(calls,1);assert.equal(await page.evaluate(()=>DreamscapeRoom.getView().running),false);
     assert.equal(await page.locator('#nextSpeaker').isVisible(),false);await page.unroute('https://api.deepseek.com/**');
   });
@@ -592,16 +596,24 @@ function source(name) {
     assert.equal(await page.locator('#aiList .ai-card').count(),4);
     await page.locator('#addHumanBtn').click();assert.equal(await page.locator('#aiList .human-card').count(),1);
     await page.locator('#openRoleCreatorBtn').click();assert.equal(await page.locator('#roleCreatorOverlay').isVisible(),true);
-    await page.locator('#roleCreatorCloseBtn').click();await page.reload();
+    await page.keyboard.press('Escape');assert.equal(await page.locator('#roleCreatorOverlay').isVisible(),false);assert.equal(await page.locator('#roomControls').evaluate(el=>el.open),true);await page.reload();
     assert.equal(await page.locator('#aiList .ai-card').count(),5);
     assert.equal(await page.evaluate(()=>DreamscapeRoom.getView().room.deepThinking),true);await page.locator('#backToDiscussion').click();
+  });
+  await test('speaker control is a single launcher, floats without resizing messages, and leaves manual mode active when closed',async()=>{
+    await page.evaluate(()=>DreamscapeRoom.setMode('manual'));
+    assert.equal(await page.locator('#speakerFloat').isVisible(),false);
+    const before=await page.locator('#messagesArea').boundingBox();await page.locator('#openSpeaker').click();assert.equal(await page.locator('#speakerFloat').isVisible(),true);
+    assert.equal(await page.locator('#quickSpeechMode').inputValue(),'manual');const after=await page.locator('#messagesArea').boundingBox();assert.deepEqual(after,before);
+    await page.locator('#closeSpeaker').click();assert.equal(await page.locator('#speakerFloat').isVisible(),false);assert.equal(await page.evaluate(()=>DreamscapeRoom.getView().room.speechMode),'manual');
+    await page.locator('#openSpeaker').click();await page.keyboard.press('Escape');assert.equal(await page.locator('#speakerFloat').isVisible(),false);
   });
   await test('role editor keeps selection after reorder and page navigation preserves the live request and input draft',async()=>{
     await page.locator('#openControls').click();await page.locator('.role-picker button').nth(1).click();
     const name=await page.locator('#aiList .ai-card:visible .ai-card-name').inputValue();await page.locator('#orderRoles').click();await page.locator('#aiList .ai-card:visible [data-action="up"]').click();
     assert.equal(await page.locator('#aiList .ai-card:visible .ai-card-name').inputValue(),name);await page.locator('#backToDiscussion').click();
-    await page.locator('#quickSpeechMode').selectOption('manual');await page.locator('#chatInput').fill('Keep this unsent draft');
-    let held,calls=0;await page.route('https://api.deepseek.com/**',r=>{calls++;held=r;});await page.locator('.speaker-names button').nth(0).click();await page.waitForFunction(()=>DreamscapeRoom.getView().running);
+    await roomMode('manual');await page.locator('#chatInput').fill('Keep this unsent draft');
+    let held,calls=0;await page.route('https://api.deepseek.com/**',r=>{calls++;held=r;});await clickSpeaker(0);await page.waitForFunction(()=>DreamscapeRoom.getView().running);
     await page.locator('#openControls').click();assert.equal(await page.locator('#aiList .ai-card:visible .ai-card-name').isDisabled(),true);
     await page.locator('.manager-header [data-room-page="settings"]').click();assert.equal(await page.locator('#discussionGoalInput').isDisabled(),true);
     await page.locator('#backToDiscussion').click();assert.equal(await page.locator('#chatInput').inputValue(),'Keep this unsent draft');assert.equal(await page.evaluate(()=>DreamscapeRoom.getView().running),true);assert.equal(calls,1);
@@ -610,7 +622,7 @@ function source(name) {
     await page.unroute('https://api.deepseek.com/**');await page.locator('#chatInput').fill('');
   });
   await test('classic layout shares saved rooms and returns to the new version without losing history or manual mode',async()=>{
-    await page.locator('#quickSpeechMode').selectOption('manual');await page.locator('#chatInput').fill('Shared history across layouts');await page.locator('#sendMsgBtn').click();
+    await roomMode('manual');await page.locator('#chatInput').fill('Shared history across layouts');await page.locator('#sendMsgBtn').click();
     const id=await page.evaluate(()=>DreamscapeRoom.getView().room.id);await page.locator('#openClassic').click();
     await page.waitForFunction(()=>document.documentElement.dataset.roomPage==='classic');assert.equal(await page.locator('#classicSpeechMode').inputValue(),'manual');
     assert.equal(await page.evaluate(()=>DreamscapeRoom.getView().room.id),id);assert.equal(await page.locator('#roomNameInput').isVisible(),true);
@@ -628,7 +640,7 @@ function source(name) {
       window.__scrollChunk=text=>window.__scrollController.enqueue(new TextEncoder().encode('data: '+JSON.stringify({choices:[{delta:{content:text}}]})+'\n\n'));
       window.__scrollDone=()=>{window.__scrollController.enqueue(new TextEncoder().encode('data: [DONE]\n\n'));window.__scrollController.close();};
     });
-    await page.locator('.speaker-names button').nth(0).click();await page.waitForFunction(()=>window.__scrollCalls===1);
+    await clickSpeaker(0);await page.waitForFunction(()=>window.__scrollCalls===1);
     await page.evaluate(()=>__scrollChunk(Array(60).fill('Streaming answer.').join('\n')));
     await page.waitForFunction(()=>{const a=document.getElementById('messagesArea');return a.scrollHeight>2000&&a.scrollHeight-a.clientHeight-a.scrollTop<25;});
     await page.locator('#messagesArea').evaluate(el=>el.scrollTop=120);await page.waitForFunction(()=>document.getElementById('messagesArea').scrollTop===120);
@@ -636,11 +648,11 @@ function source(name) {
     await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
     assert.equal(await page.locator('#messagesArea').evaluate(el=>el.scrollTop),120);
     await page.evaluate(()=>__scrollDone());await page.waitForFunction(()=>!DreamscapeRoom.getView().running);
-    await page.locator('.speaker-names button').nth(1).click();await page.waitForFunction(()=>window.__scrollCalls===2);
+    await clickSpeaker(1);await page.waitForFunction(()=>window.__scrollCalls===2);
     await page.evaluate(()=>{__scrollChunk('Next speaker.');__scrollDone();});await page.waitForFunction(()=>!DreamscapeRoom.getView().running);
     assert.equal(await page.locator('#messagesArea').evaluate(el=>el.scrollTop),120);
     await page.locator('#messagesArea').evaluate(el=>el.scrollTop=el.scrollHeight);await page.waitForFunction(()=>{const a=document.getElementById('messagesArea');return a.scrollHeight-a.clientHeight-a.scrollTop<25;});
-    await page.locator('.speaker-names button').nth(2).click();await page.waitForFunction(()=>window.__scrollCalls===3);
+    await clickSpeaker(2);await page.waitForFunction(()=>window.__scrollCalls===3);
     await page.evaluate(()=>__scrollChunk(Array(40).fill('Follow latest again.').join('\n')));
     await page.waitForFunction(()=>{const a=document.getElementById('messagesArea');return a.lastElementChild.textContent.includes('Follow latest again.')&&a.scrollHeight-a.clientHeight-a.scrollTop<25;});
     await page.evaluate(()=>{__scrollDone();window.fetch=window.__scrollFetch;});await page.waitForFunction(()=>!DreamscapeRoom.getView().running);
