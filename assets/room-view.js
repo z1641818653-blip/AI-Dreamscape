@@ -155,6 +155,7 @@
     for(const id of ['addAiBtn','openRoleCreatorBtn','addHumanBtn','discussionGoalInput','roomNameInput','collaborationModeSelect','discussionModeSelect','roundsSelect','autoStartCheck','orderRoles'])$(id).disabled=view.running;
     $('aiList').querySelectorAll('.ai-card').forEach((card,index)=>{
       const p=room.participants[index];if(!p)return;card.classList.toggle('selected-role',index===selectedRole);let button=card.querySelector('.speak-role');
+      window.DreamscapeRoleAssist?.mount(card,p,index,view.running);
       const speech=card.querySelector('.ai-speech-btn');
       if(speech){speech.textContent=p.enabled===false?'已静音':'可发言';speech.setAttribute('aria-label',(p.enabled===false?'开启':'关闭')+p.name+'的发言');}
       const expand=card.querySelector('.ai-header-btn');if(expand)expand.setAttribute('aria-label',(p.collapsed?'展开':'收起')+p.name+'的角色设置');

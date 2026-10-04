@@ -20,7 +20,7 @@ function source(name) {
 }
 (async () => {
   await test('first-party JavaScript parses and local page resources exist', () => {
-    for (const name of [...fs.readdirSync(root).filter(x => /\.(html|js)$/.test(x)), 'assets/latexfix.js', 'assets/room-view.js', 'assets/room-classic.js', 'assets/workbench-view.js']) {
+    for (const name of [...fs.readdirSync(root).filter(x => /\.(html|js)$/.test(x)), 'assets/latexfix.js', 'assets/room-view.js', 'assets/room-classic.js', 'assets/room-role-assist.js', 'assets/workbench-view.js']) {
       const text = source(name);
       const scripts = name.endsWith('.js') ? [text] : [...text.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)].filter(m => !m[1].includes('src=')).map(m => m[2]);
       scripts.forEach(s => new vm.Script(s, { filename:name }));
@@ -599,6 +599,26 @@ function source(name) {
     await page.keyboard.press('Escape');assert.equal(await page.locator('#roleCreatorOverlay').isVisible(),false);assert.equal(await page.locator('#roomControls').evaluate(el=>el.open),true);await page.reload();
     assert.equal(await page.locator('#aiList .ai-card').count(),5);
     assert.equal(await page.evaluate(()=>DreamscapeRoom.getView().room.deepThinking),true);await page.locator('#backToDiscussion').click();
+  });
+  await test('existing role AI assistance previews editable suggestions and applies only to the original role',async()=>{
+    await page.locator('#openControls').click();await page.locator('.role-picker button').nth(0).click();
+    const card=page.locator('#aiList .ai-card:visible');const before=await page.evaluate(()=>JSON.parse(JSON.stringify(DreamscapeRoom.getView().room.participants[0])));const count=await page.locator('#aiList .ai-card').count();
+    assert.equal(await card.locator('.role-ai-assist').getAttribute('open'),null);await card.locator('.role-ai-assist summary').click();await card.locator('.assist-instruction').fill('语气温和，保留原职责');
+    let sent;await page.route('https://api.deepseek.com/**',r=>{sent=r.request().postDataJSON();return r.fulfill({contentType:'application/json',body:JSON.stringify({choices:[{message:{content:JSON.stringify({name:'温和审查者',prompt:'温和地分析风险并给出具体改进建议。',temp:0.45,tags:['judge'],message:'保留职责，调整表达。'})}}]})});});
+    await card.locator('.assist-generate').click();await card.locator('.assist-preview').waitFor({state:'visible'});
+    assert.equal(await page.evaluate(()=>DreamscapeRoom.getView().room.participants[0].prompt),before.prompt);assert.match(sent.messages[1].content,/语气温和/);assert.match(sent.messages[1].content,new RegExp(before.name));
+    await card.locator('.assist-prompt').fill('温和地分析风险，给出三条具体建议。');await card.locator('.assist-apply').click();
+    const after=await page.evaluate(()=>DreamscapeRoom.getView().room.participants[0]);assert.equal(after.name,'温和审查者');assert.equal(after.prompt,'温和地分析风险，给出三条具体建议。');assert.equal(after.temp,0.45);
+    for(const key of ['provider','model','enabled','locked','fixedProtocol'])assert.equal(after[key],before[key]);assert.deepEqual(after.roleTags,before.roleTags);assert.equal(await page.locator('#aiList .ai-card').count(),count);
+    await page.unroute('https://api.deepseek.com/**');await page.reload();assert.equal(await page.evaluate(()=>DreamscapeRoom.getView().room.participants[0].prompt),after.prompt);await page.locator('#backToDiscussion').click();
+  });
+  await test('role AI assistance rejects stale suggestions and retains the original on error or cancellation',async()=>{
+    await page.locator('#openControls').click();await page.locator('.role-picker button').nth(0).click();const card=page.locator('#aiList .ai-card:visible');await card.locator('.role-ai-assist summary').click();await card.locator('.assist-instruction').fill('补充职责');
+    let held;await page.route('https://api.deepseek.com/**',r=>{held=r;});await card.locator('.assist-generate').click();await page.waitForTimeout(100);await card.locator('.ai-prompt').fill('用户刚刚手动编辑的内容');
+    await held.fulfill({contentType:'application/json',body:JSON.stringify({choices:[{message:{content:JSON.stringify({name:'过时建议',prompt:'过时的提示',temp:0.5,tags:[]})}}]})});await card.locator('.assist-preview').waitFor({state:'visible'});await card.locator('.assist-apply').click();assert.match(await card.locator('.assist-status').textContent(),/已有修改/);assert.equal(await card.locator('.ai-prompt').inputValue(),'用户刚刚手动编辑的内容');
+    await card.locator('.assist-discard').click();await card.locator('.assist-generate').click();await page.waitForTimeout(100);await card.locator('.assist-cancel').click();await card.locator('.assist-cancel').waitFor({state:'hidden'});await held.abort().catch(()=>{});assert.equal(await card.locator('.ai-prompt').inputValue(),'用户刚刚手动编辑的内容');await page.unroute('https://api.deepseek.com/**');
+    await page.route('https://api.deepseek.com/**',r=>r.fulfill({contentType:'application/json',body:JSON.stringify({choices:[{message:{content:'invalid role'}}]})}));await card.locator('.assist-generate').click();await card.locator('.assist-cancel').waitFor({state:'hidden'});assert.equal(await card.locator('.assist-preview').isVisible(),false);assert.equal(await card.locator('.ai-prompt').inputValue(),'用户刚刚手动编辑的内容');await page.unroute('https://api.deepseek.com/**');
+    await card.locator('.ai-lock-btn').click();assert.equal(await card.locator('.assist-generate').isDisabled(),true);await card.locator('.ai-lock-btn').click();await page.locator('#backToDiscussion').click();
   });
   await test('speaker control is a single launcher, floats without resizing messages, and leaves manual mode active when closed',async()=>{
     await page.evaluate(()=>DreamscapeRoom.setMode('manual'));

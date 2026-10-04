@@ -62,3 +62,17 @@ html[data-room-page="roles"] .add-role-menu:not([open])>.add-role-row{display:no
 .has-discussion #sidebarToggle{display:inline-flex!important}
 .has-discussion .sidebar.show-history{display:flex!important;position:fixed;left:0;top:0;bottom:0;z-index:50;width:280px;min-width:280px;transform:none!important;opacity:1!important;padding:20px 12px!important;box-shadow:8px 0 32px #0b16321a}
 @media(max-width:600px){.speaker-dock{right:16px;bottom:185px;padding:14px 16px;max-height:calc(100dvh - 220px)}.manager-header nav div{gap:0}.manager-header a{font-size:11px;padding:7px}#closeManager{width:28px;height:28px;font-size:21px}.manager-header h1{font-size:23px}.manager-description{font-size:12px}}
+
+.role-ai-assist{border:1px solid var(--border);border-radius:10px;margin:14px 0 20px;background:var(--bg)}
+.role-ai-assist>summary{padding:11px 14px;color:var(--primary);cursor:pointer;font-size:13px}
+.role-assist-body{padding:0 14px 14px}
+.role-assist-note,.assist-status{font-size:12px;color:var(--text2);line-height:1.7;margin:0 0 10px;overflow-wrap:anywhere}
+.role-assist-body label{display:block;font-size:12px;color:var(--text2);margin:10px 0}
+.role-assist-body textarea,.role-assist-body input{display:block;width:100%;margin-top:6px;font:inherit;color:var(--text)}
+html[data-room-page="roles"] .role-assist-body .assist-instruction{min-height:80px}
+html[data-room-page="roles"] .role-assist-body .assist-prompt{min-height:150px}
+.role-assist-body .assist-temp{width:100px}
+.role-assist-actions{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.role-assist-actions button{padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--primary);font-size:12px;cursor:pointer;box-shadow:none}
+.assist-preview{border-top:1px solid var(--border);padding-top:8px;margin-top:12px}
+.role-assist-body [hidden]{display:none!important}
