@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 <title>AI 聊天室 · 灵境</title>
+<script>
+// Start in light mode; only explicit choices made in this version override it.
+(function(){let theme='light';try{if(localStorage.getItem('dreamscape_room_theme')==='dark')theme='dark';}catch{}document.documentElement.dataset.theme=theme;document.documentElement.style.colorScheme=theme;})();
+</script>
 <script src="assets/vendor/marked.umd.js"></script>
 <style>
 :root{--bg:#f5f0ff;--surface:#ffffff;--surface-hover:#f0ebf8;--border:#d4c8e8;--text:#2d1b4e;--text2:#6b5b8a;--primary:#7c5cfc;--primary-glow:rgba(124,92,252,.15);--accent:#ff6b9d;--radius:16px;--radius-sm:10px;--shadow:0 2px 12px rgba(109,63,192,.08);--transition:.2s ease;--success:#2ecc71;--danger:#e74c3c;--warning:#f39c12;--info:#3498db}
@@ -1357,7 +1361,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     isDiscussing: false,
     discussStopped: false,
     currentRound: 0,
-    darkMode: localStorage.getItem('chatroom_dark') === 'true',
+    darkMode: document.documentElement.dataset.theme === 'dark',
     sidebarOpen: localStorage.getItem('chatroom_sidebar') !== 'closed',
     _aborters: [],
     discussionMode: 'fixed',
@@ -1898,8 +1902,9 @@ judge, fact_checker, moderator, summarizer, debater, counter_side, gentle, force
   function applyTheme() {
     const dark = state.darkMode;
     document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+    document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
     document.getElementById('themeBtn').textContent = dark ? '☀️ 亮色模式' : '🌙 暗色模式';
-    localStorage.setItem('chatroom_dark', dark);
+    try { localStorage.setItem('dreamscape_room_theme', dark ? 'dark' : 'light'); localStorage.setItem('chatroom_dark', dark); } catch {}
   }
 
   function updateSidebarState() {
