@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" class="page-home">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -89,12 +89,14 @@
 <script src="backup.js"></script>
 <script src="global-storage.js"></script>
   <link rel="stylesheet" href="assets/usability.css">
+<style>.primary-tools{grid-template-columns:repeat(3,minmax(0,1fr))}.writing-tools a{display:block;padding:9px 0;color:var(--primary);text-decoration:none}.experimental-tools{margin:24px 0;color:var(--muted);padding:16px;border:1px solid var(--line);border-radius:14px}.experimental-tools summary{cursor:pointer}.experimental-tools a{display:block;margin:15px 0;color:var(--primary)}.experimental-tools p{font-size:13px}@media(max-width:780px){.primary-tools{grid-template-columns:1fr}}</style>
+  <link rel="stylesheet" href="assets/site-polish.css">
 </head>
 <body>
   <header>
     <div class="shell nav">
       <a class="brand" href="index.html"><span class="brand-mark">灵</span><span>AI 灵境</span></a>
-      <div class="nav-actions"><span class="nav-note">对话 · 共创 · 表达</span><a class="nav-settings" href="settings.html">⚙ 全局配置</a></div>
+      <div class="nav-actions"><span class="nav-note">对话 · 共创 · 表达</span><a class="nav-settings" href="settings.html">全局配置</a></div>
     </div>
   </header>
 
@@ -102,79 +104,61 @@
     <section class="hero" aria-labelledby="page-title">
       <div class="hero-copy">
         <span class="eyebrow"><span class="eyebrow-dot">✦</span> 欢迎来到 AI 灵境</span>
-        <h1 id="page-title">让每一次提问，<span class="title-gradient">都通向更辽阔的想法。</span></h1>
-        <p class="lead">与 AI 自由对话，邀请多个模型共同讨论，或让文字与公式即时呈现。选择一种方式，开始属于你的探索。</p>
-        <div class="quick-notes" aria-label="主要能力"><span>自然对话</span><span>多模型讨论</span><span>流程编排</span><span>Markdown</span><span>LaTeX</span></div>
+        <h1 id="page-title">从一个问题，<br><span class="title-gradient">开始共同思考。</span></h1>
+        <p class="lead">让不同角色提出、审查和完善想法。也可以独立对话，或打开文稿工具继续创作。</p>
+        <div class="quick-notes" aria-label="主要能力"><span>自然对话</span><span>多模型讨论</span><span>角色协作</span><span>Markdown</span><span>LaTeX</span></div>
         <div class="hero-actions">
-          <a class="button primary" href="chat.html">开始对话 <span aria-hidden="true">→</span></a>
+          <a class="button primary" href="chatroom.html">开始 AI 协作 <span aria-hidden="true">→</span></a>
           <a class="button" href="#tools">探索全部工具</a>
         </div>
       </div>
-      <aside class="status" aria-label="探索方式">
-        <div>
-          <span class="status-kicker">EXPLORE</span>
-          <h2>灵感从一个问题开始</h2>
-          <p class="status-intro">不必准备完整的答案，先说出此刻的想法。</p>
-          <div class="status-list">
-            <div class="status-row"><span>独立思考与问答</span><span class="badge">自由对话</span></div>
-            <div class="status-row"><span>听见不同的观点</span><span class="badge">共同讨论</span></div>
-            <div class="status-row"><span>把内容清晰呈现</span><span class="badge">即时渲染</span></div>
-          </div>
-        </div>
-        <p class="security">🔐 为了保护你的 API 密钥，请只在自己信任的设备与网络中使用，并养成定期更换密钥的习惯。</p>
+      <aside class="status" aria-label="继续使用">
+        <span class="status-kicker">WORKSPACE</span><h2>接着上次的想法</h2><p class="status-intro">你的内容保存在当前浏览器中。</p>
+        <a class="recent-link" href="chatroom.html"><span id="recentRoom">打开 AI 聊天室</span><small>讨论 →</small></a>
+        <a class="recent-link" href="chat.html"><span>继续 AI 对话</span><small>工作台 →</small></a>
+        <a class="recent-link" href="mdtest.html"><span id="recentDoc">打开文稿编辑器</span><small>Markdown →</small></a>
       </aside>
     </section>
 
     <section class="setup-guide" aria-label="开始使用"><strong id="setupTitle">从一次对话开始</strong><p id="setupDescription">先配置模型服务，然后选择工作台或聊天室。</p><a href="settings.html">管理模型与本机数据 →</a></section>
     <section id="tools" aria-labelledby="tools-title">
       <div class="section-head">
-        <h2 id="tools-title">选择你的探索方式</h2>
+        <h2 id="tools-title">从你要做的事开始</h2>
         <p>对话、协作或创作，随时切换</p>
       </div>
-      <div class="tools">
-        <a class="tool" href="chat.html">
-          <div class="tool-top"><span class="icon">💬</span><span class="arrow">→</span></div>
-          <h3>AI 工作台</h3>
-          <p>从一个问题开始，与 AI 深入交流。支持代码、公式、续写、历史记录与思考内容展示。</p>
-          <span class="tool-meta">开始一场对话 · v4.3.0</span>
-        </a>
+      <div class="tools primary-tools">
         <a class="tool" href="chatroom.html">
-          <div class="tool-top"><span class="icon">👥</span><span class="arrow">→</span></div>
+          <div class="tool-top"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d='M4 5h16v10H9l-5 4V5Z'/><path d='M8 9h8M8 12h5'/></svg></span><span class="arrow">→</span></div>
           <h3>AI 聊天室</h3>
           <p>邀请多个模型参与同一场讨论，从不同角度比较观点、推演方案与碰撞灵感。</p>
           <span class="tool-meta">听见更多观点</span>
-        </a>
-        <a class="tool" href="mdtest.html">
-          <div class="tool-top"><span class="icon">📝</span><span class="arrow">→</span></div>
-          <h3>Markdown 测试</h3>
-          <p>一边书写，一边查看 Markdown、代码块、表格与数学公式最终呈现的样子。</p>
-          <span class="tool-meta">让文字即时成形</span>
-        </a>
-        <a class="tool" href="latex.html">
-          <div class="tool-top"><span class="icon">∑</span><span class="arrow">→</span></div>
-          <h3>LaTeX 渲染</h3>
-          <p>编辑 LaTeX 与 Beamer 文稿，根据源码自动选择编译引擎，并使用 AI 辅助检查与优化。</p>
-          <span class="tool-meta">专注公式表达</span>
-        </a>
-        <a class="tool" href="workflow.html">
-          <div class="tool-top"><span class="icon">🌳</span><span class="badge">Beta 可用</span></div>
-          <h3>AI 流程树</h3>
-          <p>把复杂任务拆成可连接的节点，按依赖顺序执行、复用上级结果，并支持流程保存、导入与导出。</p>
-          <div class="tool-upcoming" aria-label="流程树即将更新">
-            <span class="tool-upcoming-label">即将更新</span>
-            <span class="tool-upcoming-item">条件节点</span>
-            <span class="tool-upcoming-item">真假分支</span>
-          </div>
-          <span class="tool-meta">开始编排流程 · Beta</span>
-        </a>
+        </a>        <a class="tool" href="chat.html">
+          <div class="tool-top"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d='M5 4h14v16H5zM8 8h8M8 12h8M8 16h5'/></svg></span><span class="arrow">→</span></div>
+          <h3>AI 工作台</h3>
+          <p>从一个问题开始，与 AI 深入交流。支持代码、公式、续写、历史记录与思考内容展示。</p>
+          <span class="tool-meta">开始一场对话 · v4.3.0</span>
+        </a><div class="tool writing-tools"><div class="tool-top"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d='m5 16-1 4 4-1L20 7l-3-3L5 16ZM14 7l3 3'/></svg></span></div><h3>文稿工具</h3><p>编辑文字、公式与演示文稿。两个编辑器分别保存自己的文档。</p><a href="mdtest.html">Markdown 编辑 →</a><a href="latex.html">LaTeX 工作台 →</a></div>
+
+
+
+
+
       </div>
     </section>
+    <details class="experimental-tools"><summary>实验工具</summary><a href="workflow.html">AI 流程树 →</a><p>暂时保留，后续按需要维护，与 AI 聊天室独立。</p></details>
   </main>
 
   <footer class="shell">AI 灵境 · 愿每一次探索，都有新的回响</footer>
 
 <script src="providers-config.js"></script>
 <script>
+  try {
+    const id=localStorage.getItem('dreamscape_room_current');
+    const room=id?JSON.parse(localStorage.getItem('chatroom_'+id)||'null'):null;
+    if(room&&typeof room.name==='string')document.getElementById('recentRoom').textContent=room.name;
+    const docs=JSON.parse(localStorage.getItem('md_docs')||'[]');
+    if(Array.isArray(docs)&&typeof docs[0]?.title==='string')document.getElementById('recentDoc').textContent=docs[0].title;
+  } catch {}
   const count = Object.keys(DreamscapeConfig.providers).filter(key => DreamscapeConfig.getKey(key)).length;
   document.getElementById('setupTitle').textContent = count ? '模型配置已就绪' : '首次使用：先配置一个模型服务';
   document.getElementById('setupDescription').textContent = count ? `已保存 ${count} 个服务的配置。连接测试可在全局配置中手动运行。` : '在全局配置填写 API Key、选择模型，再返回这里开始对话。数据保存在当前浏览器中，建议定期备份。';

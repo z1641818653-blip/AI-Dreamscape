@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" class="page-workbench">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
@@ -860,6 +860,8 @@
 <script src="global-storage.js"></script>
 <script src="markdown.js"></script>
   <link rel="stylesheet" href="assets/usability.css">
+<link rel="stylesheet" href="assets/workbench-view.css">
+  <link rel="stylesheet" href="assets/site-polish.css">
 </head>
 <body>
   <div class="sidebar-toggle-left" id="sidebarToggleLeft">◀</div>
@@ -874,7 +876,7 @@
   </div>
   <div class="main-content">
     <div class="search-bar" id="searchBar" style="display:none"><span>🔍</span><input type="text" class="search-input" id="searchInput" placeholder="搜索..."><span class="search-count" id="searchCount">0/0</span><button class="search-nav-btn" id="searchPrev" disabled>◀</button><button class="search-nav-btn" id="searchNext" disabled>▶</button><span class="search-close" id="searchClose">✕</span></div>
-    <div class="global-search-bar" id="globalSearchBar"><span>🌐</span><input type="text" class="global-search-input" id="globalSearchInput" placeholder="全局搜索所有对话... (Ctrl+Shift+F)"><span class="global-search-close" id="globalSearchClose">✕</span><div class="global-search-results" id="globalSearchResults"></div></div>
+    <div class="global-search-bar" id="globalSearchBar" hidden><span>🌐</span><input type="text" class="global-search-input" id="globalSearchInput" placeholder="全局搜索所有对话... (Ctrl+Shift+F)"><span class="global-search-close" id="globalSearchClose">✕</span><div class="global-search-results" id="globalSearchResults"></div></div>
     <button class="scroll-bottom-btn" id="scrollBottomBtn">↓ 滚动到底部</button>
     <div class="chat-container" id="chatContainer"><div class="chat-header"><div class="chat-title">📤 <span id="currentConvTitle">新对话</span></div><div style="display:flex;gap:6px"><button id="toggleSearchBtn" class="clear-btn">🔍</button><button id="clearChatBtn" class="clear-btn">清空</button></div></div><div id="messagesWrapper"><div id="messagesContainer"><div class="empty-state">在下方输入内容开始对话...</div></div></div></div>
     <div class="input-panel">
@@ -884,9 +886,9 @@
       <div class="action-row">
         <div class="action-left">
           <span id="requestStatus" class="status-text"></span>
-          <div class="ctx-selector"><span>上下文:</span><select id="ctxSelect" class="ctx-select"><option value="0">无限制</option><option value="20">20条</option><option value="50">50条</option><option value="100">100条</option></select></div>
-          <div class="tok-selector"><span>Max:</span><select id="tokSelect" class="tok-select" disabled><option value="4000">4K</option><option value="8000" selected>8K</option><option value="16000">16K</option></select><button id="tokLockBtn" class="lock-btn" style="font-size:10px;padding:2px 8px;margin-left:4px;">🔒</button></div>
-          <div class="temp-selector"><span>Temp:</span><select id="tempSelect" class="temp-select"><option value="0.1">0.1</option><option value="0.3">0.3</option><option value="0.5">0.5</option><option value="0.7" selected>0.7</option><option value="0.9">0.9</option><option value="1.0">1.0</option></select></div>
+          <div class="ctx-selector"><span>历史消息:</span><select id="ctxSelect" class="ctx-select"><option value="0">无限制</option><option value="20">20条</option><option value="50">50条</option><option value="100">100条</option></select></div>
+          <div class="tok-selector"><span>输出上限:</span><select id="tokSelect" class="tok-select" disabled><option value="4000">4K</option><option value="8000" selected>8K</option><option value="16000">16K</option></select><button id="tokLockBtn" class="lock-btn" style="font-size:10px;padding:2px 8px;margin-left:4px;">🔒</button></div>
+          <div class="temp-selector"><span>发散程度:</span><select id="tempSelect" class="temp-select"><option value="0.1">0.1</option><option value="0.3">0.3</option><option value="0.5">0.5</option><option value="0.7" selected>0.7</option><option value="0.9">0.9</option><option value="1.0">1.0</option></select></div>
           <button id="compareToggleBtn" class="compare-btn">对比模式</button>
           <div class="help-wrapper">
             <button id="helpBtn" class="help-btn">?</button>
@@ -2306,11 +2308,13 @@ S.pe=false;updatePromptUI();setTimeout(function(){if(typeof MathJax!=='undefined
   }
 
   function hideGlobalSearch() {
+    E.gsb.hidden = true;
     E.gsr.style.display = 'none';
     E.gsi.value = '';
   }
 
   function focusGlobalSearch() {
+    E.gsb.hidden = false;
     E.gsi.focus();
     E.gsi.select();
   }
@@ -2485,5 +2489,6 @@ S.pe=false;updatePromptUI();setTimeout(function(){if(typeof MathJax!=='undefined
 
 </script>
 
+<script src="assets/workbench-view.js"></script>
 </body>
 </html>

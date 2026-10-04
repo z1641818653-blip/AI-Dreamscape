@@ -355,6 +355,12 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 <script src="assets/vendor/purify.min.js"></script>
 <script src="markdown.js"></script>
   <link rel="stylesheet" href="assets/usability.css">
+<link rel="stylesheet" href="assets/room-view.css">
+<link rel="stylesheet" href="assets/room-tech.css">
+<link rel="stylesheet" href="assets/room-pages.css">
+<script>
+(function(){const view=new URLSearchParams(location.search).get('view');document.documentElement.dataset.roomPage=['classic','roles','settings'].includes(view)?view:'chat';if(view==='classic')document.querySelectorAll('link[href^="assets/room-"]').forEach(link=>link.media='not all');})();
+</script>
 </head>
 <body>
 <div id="toastContainer"></div>
@@ -396,11 +402,11 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
         <section class="tutorial-section" id="guide-start">
           <h2>这不是普通群聊</h2>
           <p class="tutorial-lead">AI 聊天室是一张可以编排议题、角色、立场和发言顺序的“多人思维桌”。新房间默认没有角色，你可以从零搭建，也可以先加载展示模板观察一场完整辩论。</p>
-          <div class="tutorial-callout"><strong>想先看效果：</strong>在左侧“历史聊天室”中加载展示模板。它包含三名角色、完整目标和 16 条示例记录，不会覆盖你已有的房间。</div>
+          <div class="tutorial-callout"><strong>想先看效果：</strong>在聊天区点击“先阅读一场演示”。它包含三名角色、完整目标和 16 条示例记录，不会覆盖你已有的房间。</div>
           <h3>一分钟开局</h3>
           <ol>
             <li>先填写讨论目标，并选择自由讨论、方案共创或正反辩论；只想随便聊时可以留空。</li>
-            <li>点击“AI 创建”，描述第一个角色；检查右侧的名称、Prompt、标签和温度后应用。</li>
+            <li>在右侧“添加角色”中选择“AI 创建”，描述第一个角色；检查右侧的名称、Prompt、标签和温度后应用。</li>
             <li>继续添加互补角色。辩论建议至少准备正方、AI 反方和裁判。</li>
             <li>第一次建议选择“固定 2～3 轮”，便于观察效果和控制消耗。</li>
             <li>发送第一条消息即可开局；也可以不发消息，直接点击“开始自动讨论”。</li>
@@ -428,7 +434,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 
         <section class="tutorial-section" id="guide-role-creator">
           <h2>第二步：用 AI 创建角色</h2>
-          <p>点击左侧“AI 创建”打开角色共创页。左侧用自然语言描述或继续修改角色，右侧是最终会写入房间的角色卡。</p>
+          <p>在右侧“添加角色”中选择“AI 创建”，打开角色共创页。左侧用自然语言描述或继续修改角色，右侧是最终会写入房间的角色卡。</p>
           <ol>
             <li>先说清楚想要的职责、立场和语气，例如“创建一个严格但不抢话的裁判”。</li>
             <li>选择职责、表达和流程标签；AI 也会根据描述推荐标签。</li>
@@ -486,6 +492,8 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 
         <section class="tutorial-section" id="guide-buttons">
           <h2>聊天区按钮</h2>
+          <div class="tutorial-callout"><strong>手动指定发言：</strong>点击输出区下方的“指定发言”按钮，打开悬浮面板，再选择“按一下发言一次”或“一直发言直到说完”，点名字即可。连续模式以角色明确标记发言完毕为结束，最多连续 12 次，可随时停止或改点下一位。补充消息只保存背景，不自动调用模型。生成期间点其他角色会设置下一位，再点会替换尚未开始的选择；可取消，停止会清空待执行选择。普通回应不会自动裁决，需要在“点名任务”中明确选择最终裁决。</div>
+          <p>房间历史位于左侧。点击“角色与设置”打开角色管理大悬浮窗，点击“讨论设置”打开独立设置大悬浮窗；关闭后回到讨论。点击“旧版页面”可暂时使用原来的布局，两种布局共用房间记录。“更多”集中管理导入、导出、帮助、主题与清空操作。</p>
           <ul>
             <li><strong>发送：</strong>把输入内容加入当前房间；开启自动讨论时会触发 AI。</li>
             <li><strong>开始自动讨论：</strong>让所有“发言开”的 AI 按当前顺序开始。</li>
@@ -813,7 +821,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
   const PROVIDERS = DreamscapeConfig.providers;
   const getApiKey = DreamscapeConfig.getKey;
 
-  const COLORS = ['#7c5cfc', '#f59e0b', '#10b981', '#ff6b9d', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
+  const COLORS = ['#557bc4', '#637199', '#3a92a8', '#8779b1', '#6289a6', '#7b83ac', '#477f9c', '#777d91'];
 
   function esc(t) { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
 
@@ -1205,6 +1213,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
       discussionGoal: room.discussionGoal || '',
       collaborationMode: room.collaborationMode || 'free',
       discussionMode: room.discussionMode || 'fixed',
+      speechMode: room.speechMode || 'auto',
       rounds: Number(room.rounds) || 3,
       autoStart: room.autoStart !== false,
       deepThinking: room.deepThinking === true,
@@ -1314,6 +1323,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     room.collaborationMode = ['free', 'cocreate', 'debate'].includes(source.collaborationMode) ? source.collaborationMode : 'free';
     room.discussionGoal = String(source.discussionGoal || '').slice(0, 30000);
     room.deepThinking = source.deepThinking === true;
+    room.speechMode = source.speechMode === 'manual' ? 'manual' : 'auto';
     room.participants = source.participants.map(sanitizeImportedParticipant);
     room.messages = isTemplate ? [] : sanitizeImportedMessages(source.messages);
     return { room, importType: isTemplate ? '模板' : '整体房间' };
@@ -1347,7 +1357,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     isDiscussing: false,
     discussStopped: false,
     currentRound: 0,
-    darkMode: localStorage.getItem('chatroom_dark') !== 'false',
+    darkMode: localStorage.getItem('chatroom_dark') === 'true',
     sidebarOpen: localStorage.getItem('chatroom_sidebar') !== 'closed',
     _aborters: [],
     discussionMode: 'fixed',
@@ -1822,15 +1832,20 @@ judge, fact_checker, moderator, summarizer, debater, counter_side, gentle, force
     button.style.display = state.isDiscussing ? 'inline-flex' : 'none';
     button.disabled = state.discussionPaused;
     button.classList.toggle('active', state.interjectionRequested);
-    button.textContent = state.interjectionRequested ? '✋ 已申请发言' : '✋ 插入发言';
+    button.textContent = state.interjectionRequested ? '已申请插话' : '申请插话';
   }
 
   function initRoom(room) {
+    try { localStorage.setItem('dreamscape_room_current', room.id); } catch {}
     window.DreamscapeStorage?.setContext(room.id);
     room.participants = room.participants.map(normalizeParticipant);
     room.collaborationMode = ['free', 'cocreate', 'debate'].includes(room.collaborationMode) ? room.collaborationMode : 'free';
     room.discussionGoal = typeof room.discussionGoal === 'string' ? room.discussionGoal : '';
     room.deepThinking = room.deepThinking === true;
+    room.speechMode = room.speechMode === 'manual' ? 'manual' : 'auto';
+    state.manualNext = null;
+    state.autoCursor = null;
+    state.autoSuspended = false;
     state.room = room;
     state.isDiscussing = false;
     state.discussStopped = false;
@@ -1937,6 +1952,7 @@ judge, fact_checker, moderator, summarizer, debater, counter_side, gentle, force
       const disabledAttr = locked ? 'disabled' : '';
 
       const card = document.createElement('div');
+      card.dataset.participant = i;
       card.className = 'ai-card' + (isHuman ? ' human-card' : '') + (enabled ? '' : ' speech-off');
 
       if (isHuman) {
@@ -2054,6 +2070,7 @@ judge, fact_checker, moderator, summarizer, debater, counter_side, gentle, force
 
       card.querySelector('.remove-btn')?.addEventListener('click', (e) => {
         e.stopPropagation();
+        if (state.isDiscussing) { showToast('请先停止讨论再移除角色','warning'); return; }
         showConfirm('确定移除「' + room.participants[i].name + '」吗？', function() {
           room.participants.splice(i, 1);
           saveRoom(room);
@@ -2069,7 +2086,7 @@ judge, fact_checker, moderator, summarizer, debater, counter_side, gentle, force
     document.getElementById('roomTitle').textContent = room.name;
     const modeMap = { fixed: room.rounds + ' 轮', auto: 'AI 判断', infinite: '无限' };
     const collaborationMap = { free: '自由讨论', cocreate: '方案共创', debate: '正反辩论' };
-    const controlText = modeMap[state.discussionMode] || room.rounds + ' 轮';
+    const controlText = room.speechMode === 'manual' ? '手动指定' : modeMap[state.discussionMode] || room.rounds + ' 轮';
     document.getElementById('roomBadge').textContent = (collaborationMap[room.collaborationMode] || '自由讨论') + ' · ' + controlText;
 
     const phaseText = document.getElementById('phaseText');
@@ -2094,9 +2111,32 @@ judge, fact_checker, moderator, summarizer, debater, counter_side, gentle, force
       phaseText.textContent = '';
       progressFill.style.width = '0%';
     }
+    window.DreamscapeRoomUI?.refresh();
   }
 
+  let followLatest = true;
+  let messageScrollFrame = 0;
+  const messageScroller = document.getElementById('messagesArea');
+  let lastMessageViewport = messageScroller.clientHeight;
+  let lastMessageScrollTop = messageScroller.scrollTop;
+  messageScroller.addEventListener('scroll', () => {
+    const height = messageScroller.clientHeight;
+    if (messageScroller.scrollHeight - height - messageScroller.scrollTop <= 24) followLatest = true;
+    else if (messageScroller.scrollTop < lastMessageScrollTop - Math.max(0, height - lastMessageViewport) - 1) followLatest = false;
+    lastMessageScrollTop = messageScroller.scrollTop;
+    lastMessageViewport = height;
+  }, {passive:true});
+  messageScroller.addEventListener('wheel', event => {
+    if (event.deltaY < 0) followLatest = false;
+  }, {passive:true});
+  messageScroller.addEventListener('touchstart', () => { followLatest = false; }, {passive:true});
+
   function renderMessages() {
+    cancelAnimationFrame(messageScrollFrame);
+    messageScrollFrame = 0;
+    followLatest = true;
+    lastMessageScrollTop = 0;
+    lastMessageViewport = messageScroller.clientHeight;
     const area = document.getElementById('messagesArea');
     const existingEmpty = document.getElementById('emptyChat');
     const empty = existingEmpty ? existingEmpty.cloneNode(true) : document.createElement('div');
@@ -2118,7 +2158,8 @@ judge, fact_checker, moderator, summarizer, debater, counter_side, gentle, force
         addMessageDOM('ai', m.name, m.content, COLORS[Math.max(participantIndex, 0) % COLORS.length], m.timestamp);
       }
     });
-    scrollToBottom();
+    if (room.messages.length) scrollToBottom();
+    else area.scrollTop = 0;
   }
 
   function addMessageDOM(role, name, content, color, timestamp) {
@@ -2177,8 +2218,11 @@ judge, fact_checker, moderator, summarizer, debater, counter_side, gentle, force
   }
 
   function scrollToBottom() {
-    const area = document.getElementById('messagesArea');
-    setTimeout(() => { area.scrollTop = area.scrollHeight; }, 30);
+    if (!followLatest || messageScrollFrame) return;
+    messageScrollFrame = requestAnimationFrame(() => {
+      messageScrollFrame = 0;
+      if (followLatest) messageScroller.scrollTop = messageScroller.scrollHeight;
+    });
   }
 
   function setThinking(name) {
@@ -2313,13 +2357,14 @@ judge, fact_checker, moderator, summarizer, debater, counter_side, gentle, force
   }
 
   function buildRoundPrompt(room, participant, round, totalRounds) {
+    if (room.speechMode === 'manual') return `【手动指定发言】\n${state.manualPolicy === 'until_done' ? '连续发言模式：可以分多次完整补充。继续上一次自己的发言，不重复已有内容；如果观点已经说完，在最后单独一行写【本次发言完毕】，然后停止。不要为了继续而刻意延长。当前是第 ' + ((state.manualContinuation || 0) + 1) + ' 次发言。' : '本次只发言一次。'}本次由用户指定你发言。请回应最新讨论记录并推进共同目标，只输出你自己的发言。不模拟其他角色，不自动宣布讨论结束。${state.manualPurpose === 'verdict' ? '【最终裁决阶段】用户明确要求最终裁决：按你的裁判协议给出结论和依据。' : state.manualPurpose === 'summary' ? '用户要求本次总结：整理当前共识、分歧与下一步。' : '当前为普通回应阶段，不提前作最终裁决。'}`;
     const isFixedFinalRound = state.discussionMode === 'fixed' && round >= totalRounds;
     const previousAI = [...room.messages].reverse().find(message => message.role === 'ai' && message.name !== participant.name);
     const previousNote = previousAI
       ? '\n上一位其他角色是「' + previousAI.name + '」。请检查其最近观点，并在有必要时明确回应。'
       : '';
 
-    if (round === 1) {
+    if (round === 1 && !(isFixedFinalRound && participant.roleTags?.includes('judge'))) {
       return `【当前轮任务：建立观点】
 这是第 1 轮。请从你的角色职责出发提出核心判断和关键理由。
 如果前面已经有角色发言，可以回应，但必须保留自己的独立分析。
@@ -2327,7 +2372,7 @@ judge, fact_checker, moderator, summarizer, debater, counter_side, gentle, force
     }
 
     if (isFixedFinalRound) {
-      return `【当前轮任务：收敛结论】
+      return `【当前轮任务：收敛结论】【最终裁决阶段】
 这是最后一轮。请指出已经形成的共识、仍未解决的核心分歧，以及完成讨论目标所需的最终建议。
 不要引入无关的新话题，不要重复此前完整观点。` + previousNote;
     }
@@ -2457,12 +2502,12 @@ ${transcript}
     }
   }
 
-  async function startDiscussion() {
+  async function startDiscussion(resume = null) {
     const room = state.room;
-    if (!room || state.isDiscussing) return;
+    if (!room || state.isDiscussing || room.speechMode === 'manual') return;
     const aiParticipants = room.participants.filter(participant => participant.type !== 'human' && participant.enabled !== false);
     if (aiParticipants.length === 0) { showToast('至少需要一个 AI 参与者', 'warning'); return; }
-    if (room.messages.length === 0) { showToast('请先发送一条消息', 'warning'); return; }
+    if (!room.messages.length && !room.discussionGoal.trim()) { showToast('请先填写目标或发送一条消息', 'warning'); return; }
     const hasConfiguredParticipant = aiParticipants.some(participant => getApiKey(participant.provider));
     if (!hasConfiguredParticipant) {
       showToast('请先在全局配置中设置至少一个参与模型的 API Key', 'error');
@@ -2470,6 +2515,7 @@ ${transcript}
     }
 
     state.isDiscussing = true;
+    state.autoSuspended = false;
     state.discussStopped = false;
     state.currentRound = 0;
     state.discussionPaused = false;
@@ -2495,7 +2541,8 @@ ${transcript}
       && latestMessage.name === (firstEnabledParticipant.name || '你')
         ? latestMessage
         : null;
-    let round = 0;
+    let round = resume?.room === room ? Math.max(0, resume.round - 1) : 0;
+    let resumeIndex = resume?.room === room ? resume.index : 0;
 
     async function collectHumanTurn(name, reason, questionText) {
       const userReply = await waitForHumanTurn(name, reason, questionText);
@@ -2506,7 +2553,7 @@ ${transcript}
 
     try {
       while (true) {
-        if (state.discussStopped) break;
+        if (state.discussStopped || room.speechMode === 'manual') break;
 
         round++;
         state.currentRound = round;
@@ -2518,10 +2565,12 @@ ${transcript}
         }
 
         let queue = room.participants.map((participant, i) => participant.enabled !== false ? i : -1).filter(i => i >= 0);
-        let idx = 0;
+        let idx = queue.findIndex(index => index >= resumeIndex);
+        if (idx < 0) idx = queue.length;
+        resumeIndex = 0;
 
         while (idx < queue.length) {
-          if (state.discussStopped) break;
+          if (state.discussStopped || room.speechMode === 'manual') break;
 
           const participantIdx = queue[idx];
           const participant = room.participants[participantIdx];
@@ -2539,7 +2588,8 @@ ${transcript}
             result = await callSingleAI(participantIdx, round, totalRounds);
           }
 
-          if (state.discussStopped) break;
+          state.autoCursor = {room,index:participantIdx + 1,round};
+          if (state.discussStopped || room.speechMode === 'manual') break;
 
           if (participant.type !== 'human' && result && result.content && !result.content.startsWith('❌') && result.content !== '（无响应）') {
             if (hasQuestion(result.content)) {
@@ -2574,7 +2624,7 @@ ${transcript}
           idx++;
         }
 
-        if (state.discussStopped) break;
+        if (state.discussStopped || room.speechMode === 'manual') break;
         if (mode === 'fixed' && round >= totalRounds) break;
         if (mode === 'auto') {
           const shouldContinue = await checkAutoEnd();
@@ -2582,10 +2632,16 @@ ${transcript}
         }
       }
     } finally {
+      const next = state.manualNext;
+      state.manualNext = null;
+      state.autoSuspended = !state.discussStopped && room.speechMode === 'manual';
       finishDiscussion();
+      if (!state.discussStopped && room.speechMode === 'manual' && next) {
+        await specifySpeaker(room.participants.indexOf(next.participant), next.purpose, next.policy);
+      }
     }
 
-    if (!state.discussStopped) showToast('✅ 讨论完成', 'success');
+    if (!state.discussStopped && room.speechMode === 'auto') showToast('✅ 讨论完成', 'success');
   }
 
   function finishDiscussion() {
@@ -2676,9 +2732,8 @@ ${transcript}
     });
   }
 
-  document.getElementById('sidebar').addEventListener('click', function(e) {
+  document.querySelector('.app-layout').addEventListener('click', function(e) {
     const t = e.target;
-    if (t.id === 'sidebarToggle') { state.sidebarOpen = !state.sidebarOpen; updateSidebarState(); return; }
     if (t.id === 'themeBtn') { state.darkMode = !state.darkMode; applyTheme(); return; }
     if (t.id === 'newRoomBtn') { if (state.isDiscussing) { showToast('请先停止讨论','warning'); return; } newRoom(); return; }
     if (t.id === 'roomDeepThinkingBtn') {
@@ -2691,12 +2746,14 @@ ${transcript}
       return;
     }
     if (t.id === 'addAiBtn') {
+      if (state.isDiscussing) { showToast('请先停止讨论再修改角色','warning'); return; }
       if (!state.room) { showToast('请先创建房间','warning'); return; }
       state.room.participants.push(normalizeParticipant({type:'ai',name:'新 AI',prompt:'你是一个有用的AI助手。',provider:'deepseek',model:'deepseek-chat',temp:0.7}));
       renderSidebar(); saveRoom(state.room); return;
     }
     if (t.id === 'openRoleCreatorBtn') { openRoleCreator(); return; }
     if (t.id === 'addHumanBtn') {
+      if (state.isDiscussing) { showToast('请先停止讨论再修改角色','warning'); return; }
       if (!state.room) { showToast('请先创建房间','warning'); return; }
       if (getHumanParticipant(state.room)) { showToast('房间中已经有一个用户角色', 'warning'); return; }
       state.room.participants.push(normalizeParticipant({type:'human',name:'你'}));
@@ -2709,7 +2766,7 @@ ${transcript}
       startHistoryRename(item);
       return;
     }
-    const del = t.closest('.h-del'); if (del) {
+    const del = t.closest('.h-del'); if (del && state.isDiscussing) { showToast('请先停止讨论再删除房间','warning'); return; } if (del) {
       const item = del.closest('.history-item'); if (!item) return;
       const roomId = item.dataset.roomId;
       const nameEl = item.querySelector('.h-name');
@@ -2726,9 +2783,9 @@ ${transcript}
       });
       return;
     }
-    const hist = t.closest('.history-item'); if (hist) { loadRoomById(hist.dataset.roomId); }
+    const hist = t.closest('.history-item'); if (hist && state.isDiscussing) { showToast('请先停止讨论再切换房间','warning'); return; } if (hist) { loadRoomById(hist.dataset.roomId); }
   });
-  document.getElementById('sidebar').addEventListener('input', function(e) {
+  document.querySelector('.app-layout').addEventListener('input', function(e) {
     if (e.target.id === 'roomNameInput' && state.room) {
       state.room.name = e.target.value.trim() || 'AI 聊天室'; updateHeader(); saveRoom(state.room); updateHistory();
     }
@@ -2737,7 +2794,7 @@ ${transcript}
       saveRoom(state.room);
     }
   });
-  document.getElementById('sidebar').addEventListener('change', function(e) {
+  document.querySelector('.app-layout').addEventListener('change', function(e) {
     if (e.target.id === 'collaborationModeSelect' && state.room) {
       state.room.collaborationMode = e.target.value;
       updateHeader();
@@ -2812,6 +2869,7 @@ ${transcript}
     addMessageDOM('user', userName, text);
     saveRoom(state.room);
 
+    if (state.room.speechMode === 'manual') { updateHeader(); return; }
     if (state.isDiscussing) {
       if (state.discussionPaused && state._pendingUserResolve) {
         const resolve = state._pendingUserResolve;
@@ -2853,7 +2911,7 @@ ${transcript}
   });
 
   document.getElementById('startDiscussBtn').addEventListener('click', async () => {
-    if (!state.room||state.room.messages.length===0) { showToast('请先发送一条消息','warning'); return; }
+    if (!state.room || (!state.room.messages.length && !state.room.discussionGoal.trim())) { showToast('请先发送一条消息','warning'); return; }
     await startDiscussion();
   });
   document.getElementById('requestTurnBtn').addEventListener('click', () => {
@@ -2865,6 +2923,8 @@ ${transcript}
   });
   document.getElementById('stopDiscussBtn').addEventListener('click', () => {
     state.discussStopped = true;
+    state.autoSuspended = false;
+    state.manualNext = null;
     state._aborters.forEach(ac=>{try{ac.abort()}catch(e){}});
     state._aborters = [];
     if (state._pendingUserResolve) {
@@ -2941,12 +3001,118 @@ ${transcript}
     if (event.key === 'Escape' && document.getElementById('roleCreatorOverlay').classList.contains('open')) closeRoleCreator();
   });
 
+  async function specifySpeaker(index, purpose = 'reply', policy = 'once') {
+    const room = state.room;
+    const participant = room?.participants[index];
+    if (room?.speechMode !== 'manual' || !participant) return;
+    if (participant.type === 'human') { document.getElementById('chatInput').focus(); return; }
+    if (participant.enabled === false) { showToast('请先开启该角色发言','warning'); return; }
+    if (!getApiKey(participant.provider)) { showToast('请在全局配置保存该模型服务的 Key','warning'); return; }
+    if (!room.messages.length && !room.discussionGoal.trim()) { showToast('请先填写目标或发送问题','warning'); return; }
+    if (state.isDiscussing) {
+      if (state.discussStopped) return;
+      state.manualNext = {participant,purpose,policy}; updateHeader(); return;
+    }
+    state.isDiscussing = true; state.discussStopped = false; state._aborters = [];
+    if (!state.autoSuspended) state.autoCursor = null;
+    state.autoSuspended = true;
+    let resumeAuto = false;
+    let next = {participant,purpose,policy,count:0};
+    try {
+      while (next && !state.discussStopped && state.room === room) {
+        const current = next.participant;
+        state.manualNext = null;
+        if (!room.participants.includes(current) || current.enabled === false || !getApiKey(current.provider)) break;
+        state.manualPurpose = next.purpose;
+        state.manualPolicy = next.policy;
+        state.manualContinuation = next.count || 0;
+        state.speakingAI = current.name;
+        document.getElementById('stopDiscussBtn').style.display = 'inline-flex'; updateHeader();
+        const result = await callSingleAI(room.participants.indexOf(current), 1, 1);
+        state._aborters = [];
+        state.autoCursor = {room,index:room.participants.indexOf(current) + 1,round:state.autoCursor?.room === room ? state.autoCursor.round : 1};
+        if (!result?.content || result.content === '（无响应）' || room.messages.at(-1)?.incomplete) { state.manualNext = null; break; }
+        if (room.speechMode === 'auto') { resumeAuto = true; break; }
+        if (state.manualNext) next = state.manualNext;
+        else if (next.policy === 'until_done' && !/【本次发言完毕】\s*$/.test(result.content.trim()) && !state.discussStopped) {
+          next.count = (next.count || 0) + 1;
+          if (next.count >= 12) { showToast('已连续发言 12 次，暂时停止；可再次点名继续。','warning'); next = null; }
+        } else next = null;
+      }
+    } finally {
+      state.manualNext = null; state.manualPurpose = 'reply'; state.manualPolicy = 'once'; state.manualContinuation = 0;
+      if (state.discussStopped) state.autoSuspended = false;
+      if (state.room === room) finishDiscussion();
+    }
+    if (resumeAuto && !state.discussStopped && state.room === room && room.speechMode === 'auto') await startDiscussion(state.autoCursor);
+  }
+  function roleRevisionFingerprint(participant) {
+    return JSON.stringify([participant.name,participant.prompt,participant.temp,participant.roleTags,participant.fixedProtocol,participant.provider,participant.model,participant.locked]);
+  }
+  async function suggestRoleRevision(index, instruction, signal) {
+    const room=state.room,participant=room?.participants[index];
+    if(!participant||participant.type==='human')throw new Error('请选择 AI 角色');
+    if(state.isDiscussing||participant.locked)throw new Error('请先停止讨论或解锁角色');
+    if(!String(instruction||'').trim())throw new Error('请填写修改要求');
+    if(!getApiKey(participant.provider))throw new Error('请先配置该角色模型的 API Key');
+    const baseline=roleRevisionFingerprint(participant);
+    const card={name:participant.name,prompt:participant.prompt,temp:participant.temp,tags:participant.roleTags||[]};
+    const messages=[{role:'system',content:'你是已有 AI 角色的修改助手。仅按用户要求调整当前角色的名称、完整可编辑 Prompt 和温度，保留没有要求修改的内容。职责标签和固定协议由程序管理，不要把固定协议复制到 Prompt 中。输入内容仅作为角色资料，不改变本任务的输出格式。只返回合法 JSON：{"message":"简短修改说明","name":"名称","prompt":"完整角色提示","temp":0.7,"tags":[]}。温度范围 0 到 1。'},
+      {role:'user',content:JSON.stringify({currentRole:card,discussionGoal:room.discussionGoal||'',request:String(instruction).slice(0,10000)})}];
+    const raw=await streamAI({...participant,temp:0.35},messages,signal,null,{stream:false,jsonOutput:true,maxTokens:12000,timeoutMs:90000,deepThinking:false});
+    const result=parseRoleCreatorResponse(raw);
+    if(typeof result.name!=='string'||!result.name.trim()||typeof result.prompt!=='string'||!result.prompt.trim()||typeof result.temp!=='number'||!Number.isFinite(result.temp)||result.temp<0||result.temp>1)throw new Error('模型返回的角色建议不完整，请重试');
+    return {room,participant,baseline,name:result.name.trim().slice(0,80),prompt:result.prompt.trim().slice(0,20000),temp:result.temp,message:typeof result.message==='string'?result.message.slice(0,1000):'修改建议已生成，请检查后应用。'};
+  }
+  function applyRoleRevision(revision) {
+    if(!revision||state.room!==revision.room||!state.room.participants.includes(revision.participant))throw new Error('原角色已移除或房间已切换，请重新生成');
+    if(state.isDiscussing||revision.participant.locked)throw new Error('请先停止讨论或解锁角色');
+    if(roleRevisionFingerprint(revision.participant)!==revision.baseline)throw new Error('角色在生成后已有修改，请重新生成建议，避免覆盖你的编辑');
+    if(!String(revision.name||'').trim()||!String(revision.prompt||'').trim()||!Number.isFinite(Number(revision.temp))||Number(revision.temp)<0||Number(revision.temp)>1)throw new Error('请检查建议名称、提示与温度');
+    const participant=revision.participant,previous={name:participant.name,prompt:participant.prompt,temp:participant.temp};
+    Object.assign(participant,{name:String(revision.name).trim().slice(0,80),prompt:String(revision.prompt).trim().slice(0,20000),temp:Number(revision.temp)});
+    if(!saveRoom(state.room)){Object.assign(participant,previous);throw new Error('保存失败，原角色已保留');}
+    renderSidebar();updateHeader();return true;
+  }
+  window.DreamscapeRoom = {
+    getView: () => ({room:state.room,running:state.isDiscussing,stopping:state.isDiscussing && state.discussStopped,paused:state.discussionPaused,speaker:state.speakingAI,next:state.manualNext?.participant.name}),
+    specifySpeaker,
+    suggestRoleRevision, applyRoleRevision,
+    canLeave() { if (state.isDiscussing) { showToast('请先停止讨论再切换版本','warning'); return false; } return true; },
+    cancelNext() { state.manualNext = null; updateHeader(); },
+    setMode(mode) {
+      if (!state.room || (state.isDiscussing && state.discussStopped)) return false;
+      const next = mode === 'manual' ? 'manual' : 'auto';
+      if (state.room.speechMode === next) return true;
+      state.manualNext = null; state.room.speechMode = next;
+      if (next === 'manual') {
+        state.interjectionRequested = false;
+        state._pendingUserResolve?.(null); state._pendingUserResolve = null;
+        state.discussionPaused = false; state.waitingForHuman = null; hideQuestionBanner();
+      }
+      saveRoom(state.room); updateRequestTurnButton(); updateHeader();
+      if (state.isDiscussing) showToast('当前发言结束后使用' + (next === 'manual' ? '手动指定' : '自动轮流'), 'info');
+      else if (next === 'auto' && state.autoSuspended && state.autoCursor?.room === state.room) startDiscussion(state.autoCursor);
+      return true;
+    },
+    preset(kind) {
+      if (state.isDiscussing) { showToast('请先停止讨论','warning'); return; }
+      const specs = kind === 'debate' ? [['正方','支持观点并给出论据'],['反方','针对正方核心论点提出反驳'],['裁判','比较论据并在最终阶段裁决']] : kind === 'cocreate' ? [['提案者','提出可执行的解决方案'],['审查者','检查风险和遗漏'],['整合者','整合有效建议并形成下一步']] : [['探索者','提出独立观点和关键问题'],['质疑者','检验假设与适用边界'],['总结者','梳理共识、分歧与后续问题']];
+      const provider = localStorage.getItem('dcp0') || 'deepseek';
+      const selected = PROVIDERS[provider] ? provider : 'deepseek';
+      const participants = specs.map(([name,prompt]) => normalizeParticipant({name,prompt:'你是'+name+'。'+prompt+'。每次只完成自己的职责，回应具体观点，不重复已有内容。',provider:selected,model:DreamscapeConfig.read()[selected]?.model,collapsed:true,roleTags:name==='裁判'?['judge','stage_summary','final_verdict']:[]}));
+      participants.forEach(p => {p.fixedProtocol = p.roleTags.map(tag => ROLE_TAGS[tag]?.protocol).filter(Boolean).join('\n');});
+      const room = createRoom('新的'+({debate:'正反辩论',cocreate:'方案共创',free:'自由讨论'}[kind]||'讨论'),participants,3,true,'fixed');
+      room.collaborationMode = kind; saveRoom(room); initRoom(room);
+    }
+  };
   function init() {
     applyTheme();
     updateSidebarState();
     const rooms = listRooms();
     if (rooms.length > 0) {
-      loadRoomById(rooms[0].id);
+      const current = localStorage.getItem('dreamscape_room_current');
+      loadRoomById(rooms.some(room => room.id === current) ? current : rooms[0].id);
     } else {
       newRoom();
     }
@@ -3008,5 +3174,8 @@ ${transcript}
 })();
 </script>
 
+<script src="assets/room-classic.js"></script>
+<script src="assets/room-role-assist.js"></script>
+<script src="assets/room-view.js"></script>
 </body>
 </html>
