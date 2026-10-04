@@ -314,6 +314,47 @@ function source(name) {
     const value=await page.evaluate(()=>({header:DreamscapeConfig.providers.claude.authHeader('dummy')['anthropic-dangerous-direct-browser-access'],url:DreamscapeConfig.getUrl('gemini','dummy',false),openai:DreamscapeConfig.providers.openai.buildBody('dummy',[],100,0.7)}));
     assert.equal(value.header,'true');assert.match(value.url,/:generateContent$/);assert.equal(value.openai.max_completion_tokens,100);
   });
+  await test('current reasoning models omit rejected sampling parameters and legacy models retain them', async () => {
+    const bodies = await page.evaluate(() => {
+      const p = DreamscapeConfig.providers;
+      return ['gpt-6.1-sol','gpt-6-astra','gpt-6-luna','gpt-5.6-sol','gpt-4o'].map(id => p.openai.buildBody(id,[{role:'user',content:'hello'}],4000,0.4))
+        .concat(['claude-opus-5-5','claude-sonnet-5-5','claude-haiku-4-5'].map(id => p.claude.buildBody(id,[{role:'user',content:'hello'}],4000,0.4)));
+    });
+    for (const i of [0,1,2,3,5,6]) assert.equal('temperature' in bodies[i],false);
+    for (const i of [4,7]) assert.equal(bodies[i].temperature,0.4);
+    assert.equal(bodies[0].max_completion_tokens,4000);
+  });
+  await test('Claude and Gemini retain all system instructions and separate reasoning from final text', async () => {
+    const value = await page.evaluate(() => {
+      const p=DreamscapeConfig.providers, messages=[{role:'system',content:'role'},{role:'system',content:'protocol'},{role:'user',content:'question'}];
+      return {claude:p.claude.buildBody('claude-sonnet-5-5',messages,4000,0.7),gemini:p.gemini.buildBody('gemini-3.8-flash',messages,4000,0.7),text:p.gemini.parseResponse({candidates:[{content:{parts:[{thought:true,text:'private reasoning'},{text:'answer'}]}}]}),claudeText:p.claude.parseResponse({content:[{type:'thinking',thinking:'reasoning'},{type:'text',text:'answer'}]})};
+    });
+    assert.equal(value.claude.system,'role\n\nprotocol');assert.equal(value.gemini.systemInstruction.parts[0].text,'role\n\nprotocol');
+    assert.equal(value.text,'answer');assert.equal(value.claudeText,'answer');
+  });
+  await test('role-specific model snapshots survive selector rendering without changing global selection', async () => {
+    const value=await page.evaluate(() => {
+      const host=document.createElement('div');document.body.append(host);
+      const before=localStorage.getItem('dp0');
+      DreamscapeModelSelector.mount(host,{provider:'openai',model:'gpt-custom-snapshot',persist:false});
+      const selected=host.querySelector('[aria-label="模型"]').value;host.remove();
+      return {selected,unchanged:before===localStorage.getItem('dp0')};
+    });
+    assert.deepEqual(value,{selected:'gpt-custom-snapshot',unchanged:true});
+  });
+  await test('Gemini role assistance honors nonstream requests and excludes thought parts', async () => {
+    await go('chatroom');
+    const value=await page.evaluate(async () => {
+      localStorage.setItem('dp0',JSON.stringify({gemini:{apiKey:DreamscapeConfig.encode('dummy')}}));
+      const original=window.fetch;let request;
+      try {
+        window.fetch=async(url,opts)=>{request={url,body:JSON.parse(opts.body)};return new Response(JSON.stringify({candidates:[{content:{parts:[{thought:true,text:'reasoning'},{text:'{"name":"role"}'}]}}]}),{headers:{'content-type':'application/json'}});};
+        const text=await __room.streamAI({provider:'gemini',model:'gemini-3.8-flash',name:'test'},[{role:'user',content:'JSON please'}],new AbortController().signal,undefined,{stream:false,maxTokens:12000});
+        return {request,text};
+      } finally {window.fetch=original;}
+    });
+    assert.match(value.request.url,/:generateContent$/);assert.equal('stream' in value.request.body,false);assert.equal(value.text,'{"name":"role"}');
+  });
   await test('legacy key migration is nondestructive and an explicit empty modern key stays empty', async () => {
     await page.evaluate(()=>{localStorage.removeItem('dp0');localStorage.setItem('dk30','legacy-dummy');});await go('settings');
     assert.equal(await page.evaluate(()=>DreamscapeConfig.getKey('deepseek')),'legacy-dummy');assert.equal(await page.evaluate(()=>localStorage.getItem('dk30')),null);

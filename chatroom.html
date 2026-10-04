@@ -940,11 +940,11 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     },
     gemini: {
       'gemini-2.5-flash': 'gemini-3.5-flash',
-      'gemini-2.5-pro': 'gemini-3.5-pro',
+      'gemini-2.5-pro': 'gemini-3.1-pro-preview',
       'gemini-2.0-flash': 'gemini-3.5-flash'
     },
     qwen: {
-      'qwen3-235b': 'qwen3.7-max',
+      'qwen3-235b': 'qwen3.8-max',
       'qwen3-30b': 'qwen3.7-plus',
       'qwen3-turbo': 'qwen3.7-flash'
     }
@@ -964,8 +964,8 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     const provider = PROVIDERS[source.provider] ? source.provider : 'deepseek';
     const availableModels = PROVIDERS[provider].models;
     const migratedModel = MODEL_MIGRATIONS[provider]?.[source.model];
-    const model = availableModels.includes(source.model)
-      ? source.model
+    const model = DreamscapeConfig.normalizeModels([source.model])[0]
+      ? source.model.trim()
       : (availableModels.includes(migratedModel) ? migratedModel : availableModels[0]);
     return {
       ...source,
@@ -2293,13 +2293,11 @@ judge, fact_checker, moderator, summarizer, debater, counter_side, gentle, force
     if (participant.provider === 'deepseek' && options?.jsonOutput) {
       body.response_format = { type: 'json_object' };
     }
-    const useStream = participant.provider === 'gemini' || options?.stream !== false;
+    const useStream = options?.stream !== false;
     if (participant.provider !== 'gemini') body.stream = useStream;
 
     const headers = { 'Content-Type': 'application/json', ...provider.authHeader(apiKey) };
-    const url = typeof provider.endpoint === 'function'
-      ? provider.endpoint(participant.model)
-      : provider.endpoint;
+    const url = DreamscapeConfig.getUrl(participant.provider, participant.model, useStream);
 
     const requestedTimeout = Number(options?.timeoutMs);
     const timeoutMs = Number.isFinite(requestedTimeout) ? Math.min(300000, Math.max(30000, requestedTimeout)) : 90000;

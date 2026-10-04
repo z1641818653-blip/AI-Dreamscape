@@ -4,7 +4,7 @@
     deepseek: {
       name: 'DeepSeek',
       icon: '🟢',
-      models: ['deepseek-v4-pro', 'deepseek-v4-flash'],
+      models: ['deepseek-v4-pro', 'deepseek-flash', 'deepseek-v4-flash'],
       endpoint: 'https://api.deepseek.com/v1/chat/completions',
       streamFormat: 'openai',
       authHeader: (key) => ({ 'Authorization': 'Bearer ' + key }),
@@ -14,17 +14,22 @@
     openai: {
       name: 'OpenAI',
       icon: '🟣',
-      models: ['gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-5.5-latest'],
+      models: ['gpt-6.1-sol', 'gpt-6-astra', 'gpt-6-luna', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna'],
       endpoint: 'https://api.openai.com/v1/chat/completions',
       streamFormat: 'openai',
       authHeader: (key) => ({ 'Authorization': 'Bearer ' + key }),
-      buildBody: (model, messages, mt, temp) => ({ model, messages, temperature: temp ?? 0.7, max_completion_tokens: mt }),
+      buildBody: (model, messages, mt, temp) => {
+        const body = { model, messages, max_completion_tokens: mt };
+        // Reasoning models reject sampling parameters at their default effort.
+        if (!/^(gpt-[56](?:[.-]|$)|o[134](?:-|$))/.test(model)) body.temperature = temp ?? 0.7;
+        return body;
+      },
       parseResponse: (data) => data.choices?.[0]?.message?.content
     },
     claude: {
       name: 'Claude',
       icon: '🟠',
-      models: ['claude-opus-4-6', 'claude-sonnet-4-6', 'claude-haiku-4-5'],
+      models: ['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-4-5', 'claude-opus-4-6', 'claude-sonnet-4-6'],
       endpoint: 'https://api.anthropic.com/v1/messages',
       streamFormat: 'anthropic',
       authHeader: (key) => ({
@@ -33,23 +38,23 @@
         'anthropic-dangerous-direct-browser-access': 'true'
       }),
       buildBody: (model, messages, mt, temp) => {
-        const sm = messages.find(m => m.role === 'system');
+        const system = messages.filter(m => m.role === 'system').map(m => m.content).filter(Boolean).join('\n\n');
         const cm = messages.filter(m => m.role !== 'system');
         const body = {
           model,
           max_tokens: mt,
-          temperature: temp ?? 0.7,
           messages: cm.map(m => ({ role: m.role, content: m.content }))
         };
-        if (sm) body.system = sm.content;
+        if (!/^claude-(?:opus-(?:[5-9]|4-[789])|sonnet-[5-9]|fable-)/.test(model)) body.temperature = temp ?? 0.7;
+        if (system) body.system = system;
         return body;
       },
-      parseResponse: (data) => data.content?.map(block => block.text || '').join('') || ''
+      parseResponse: (data) => data.content?.filter(block => block.type === 'text').map(block => block.text || '').join('') || ''
     },
     gemini: {
       name: 'Gemini',
       icon: '🔵',
-      models: ['gemini-3.5-flash', 'gemini-3.5-pro', 'gemini-omni-flash'],
+      models: ['gemini-3.8-flash', 'gemini-3.5-flash-lite', 'gemini-3.1-pro-preview', 'gemini-3.5-flash'],
       endpoint: (model) => 'https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(model) + ':streamGenerateContent?alt=sse',
       streamFormat: 'gemini',
       authHeader: (key) => ({ 'x-goog-api-key': key }),
@@ -58,17 +63,17 @@
           role: m.role === 'assistant' ? 'model' : 'user',
           parts: [{ text: m.content }]
         }));
-        const sm = messages.find(m => m.role === 'system');
+        const system = messages.filter(m => m.role === 'system').map(m => m.content).filter(Boolean).join('\n\n');
         const body = { contents, generationConfig: { maxOutputTokens: mt, temperature: temp ?? 0.7 } };
-        if (sm) body.systemInstruction = { parts: [{ text: sm.content }] };
+        if (system) body.systemInstruction = { parts: [{ text: system }] };
         return body;
       },
-      parseResponse: (data) => data.candidates?.[0]?.content?.parts?.map(part => part.text || '').join('') || ''
+      parseResponse: (data) => data.candidates?.[0]?.content?.parts?.filter(part => !part.thought).map(part => part.text || '').join('') || ''
     },
     qwen: {
       name: '千问',
       icon: '🔴',
-      models: ['qwen3.7-max', 'qwen3.7-plus', 'qwen3.7-flash'],
+      models: ['qwen3.8-max', 'qwen3.7-plus', 'qwen3.8-flash', 'qwen3.7-flash'],
       endpoint: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
       streamFormat: 'openai',
       authHeader: (key) => ({ 'Authorization': 'Bearer ' + key }),

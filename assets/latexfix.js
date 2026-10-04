@@ -102,7 +102,7 @@
     compileStartedAt: 0,
     aiController: null,
     aiHistory: [],
-    aiSelection: { provider:'deepseek', model:'deepseek-v4-flash' },
+    aiSelection: { provider:'deepseek', model:'deepseek-flash' },
     saveTimer: null,
     outlineTimer: null
   };

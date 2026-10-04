@@ -46,7 +46,8 @@
 
   function getInitialModel(providerKey, requested) {
     const models = PROVIDERS[providerKey].models;
-    if (requested && models.includes(requested)) return requested;
+    const pinned = DreamscapeConfig.normalizeModels([requested])[0];
+    if (pinned) return pinned;
     const saved = readConfig()?.[providerKey]?.model;
     return models.includes(saved) ? saved : models[0];
   }
@@ -112,10 +113,10 @@
 
     function renderModels(requestedModel) {
       modelSelect.replaceChildren();
-      PROVIDERS[provider].models.forEach(modelId => {
+      model = getInitialModel(provider, requestedModel);
+      [...new Set([...PROVIDERS[provider].models, model])].forEach(modelId => {
         const option = document.createElement('option'); option.value = modelId; option.textContent = modelId; modelSelect.append(option);
       });
-      model = getInitialModel(provider, requestedModel);
       modelSelect.value = model;
       const ready = hasApiKey(provider);
       state.textContent = ready ? `${PROVIDERS[provider].name} API 已配置` : `${PROVIDERS[provider].name} API 未配置`;
