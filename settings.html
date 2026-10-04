@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" class="page-settings">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -88,6 +88,7 @@
 <script src="backup.js"></script>
 <script src="global-storage.js"></script>
   <link rel="stylesheet" href="assets/usability.css">
+  <link rel="stylesheet" href="assets/site-polish.css">
 </head>
 <body>
   <header>
@@ -106,7 +107,7 @@
       <button class="tab" type="button" role="tab" aria-selected="false" data-panel="dataPanel">数据备份</button>
     </div>
     <section class="panel active" id="apiPanel" role="tabpanel">
-      <div class="summary"><div><strong id="apiSummary">正在读取配置…</strong><span>保存后，AI 工作台、聊天室和流程树会共享这些设置。</span></div><button class="save-all" id="saveApiBtn" type="button">保存全部配置</button></div>
+      <div class="summary"><div><strong id="apiSummary">正在读取配置…</strong><span id="configSaveState" role="status">修改后请保存，所有 AI 工具共用此配置。</span></div><button class="save-all" id="saveApiBtn" type="button">保存全部配置</button></div>
       <div class="provider-grid" id="providerGrid"></div>
     </section>
     <section class="panel" id="dataPanel" role="tabpanel">
@@ -152,6 +153,7 @@
     const PROVIDERS = DreamscapeConfig.providers;
     const $ = id => document.getElementById(id);
     const state = { providers:{}, currentProvider:'deepseek' };
+    let configDirty=false;
 
     function decodeKey(value) {
       if (!value) return '';
@@ -179,13 +181,17 @@
     }
     function renderProviders() {
       const grid = $('providerGrid');
+      const opened=new Set([...grid.querySelectorAll('.provider-card[open]')].map(card=>card.dataset.provider));
       grid.innerHTML = '';
-      Object.entries(PROVIDERS).forEach(([key, provider]) => {
+      Object.entries(PROVIDERS).sort(([a],[b])=>Number(Boolean(state.providers[b].apiKey))-Number(Boolean(state.providers[a].apiKey))).forEach(([key, provider]) => {
         const config = state.providers[key];
-        const card = document.createElement('article');
+        const card = document.createElement('details');
+        card.open=opened.has(key)||Boolean(config.apiKey)||state.currentProvider===key;
         card.className = 'provider-card';
         card.dataset.provider = key;
         card.innerHTML = `<div class="provider-head"><div class="provider-name"><span class="provider-icon">${provider.icon}</span><span>${provider.name}</span></div><span class="state ${config.apiKey ? 'ready' : ''}" data-state>${config.apiKey ? '已配置' : '未配置'}</span></div><div class="field"><label for="key-${key}">API Key</label><div class="input-wrap"><input id="key-${key}" data-key data-unsaved data-no-page-cache type="password" autocomplete="off" spellcheck="false" placeholder="输入 ${provider.name} API Key"><button class="reveal" data-reveal type="button">显示</button></div></div><div class="field"><label for="model-${key}">默认模型</label><select id="model-${key}" data-model data-unsaved></select></div><details class="custom-model-details"><summary style="font-size:12px;cursor:pointer">自定义模型</summary><div class="field"><label for="custom-${key}">自定义模型 ID（逗号分隔）</label><input id="custom-${key}" data-custom data-unsaved spellcheck="false" placeholder="填写服务商实际提供的模型 ID"></div></details><div class="provider-foot"><span>${provider.info}</span><button class="default-btn ${state.currentProvider === key ? 'active' : ''}" data-default type="button">${state.currentProvider === key ? '✓ 当前默认' : '设为默认'}</button></div>`;
+        card.querySelector('.provider-icon').textContent=key.slice(0,2).toUpperCase();
+        const heading=card.querySelector('.provider-head'),summary=document.createElement('summary');summary.className='provider-head';summary.append(...heading.childNodes);heading.replaceWith(summary);
         card.querySelector('[data-key]').value = config.apiKey;
         card.querySelector('[data-model]').value = config.model;
         const modelSelect = card.querySelector('[data-model]');
@@ -203,6 +209,7 @@
         diagnostic.innerHTML = '<button class="secondary-btn" type="button" data-test>测试当前模型连接</button><span data-test-status role="status" style="font-size:12px">会发送一次简短请求，可能消耗少量额度；测试不会保存配置。</span>';
         diagnostic.querySelector('[data-test]').addEventListener('click', () => testConnection(card));
         card.append(diagnostic);
+        const fields=document.createElement('div');fields.className='provider-fields';fields.append(...[...card.children].filter(node=>node!==summary));card.append(fields);
         grid.appendChild(card);
       });
       updateSummary();
@@ -220,7 +227,7 @@
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
         localStorage.setItem(CURRENT_PROVIDER_KEY, state.currentProvider);
-        renderProviders();
+        configDirty=false;renderProviders();
         window.dispatchEvent(new Event('dreamscape-config-change'));
         window.DreamscapeStorage?.markSaved();
         showToast('全局 API 配置已保存');
@@ -260,6 +267,8 @@
     }
     function updateSummary() {
       const count = Object.values(state.providers).filter(item => item.apiKey).length;
+      $('configSaveState').textContent=configDirty?'有未保存的更改':'修改后请保存，所有 AI 工具共用此配置。';
+      $('saveApiBtn').textContent=configDirty?'保存更改':'保存全部配置';
       $('apiSummary').textContent = `已配置 ${count} / ${Object.keys(PROVIDERS).length} 个模型服务`;
     }
     const sanitizedStorage = DreamscapeBackup.snapshot;
@@ -286,7 +295,7 @@
       const conflicts = prepared.conflicts.length ? `\n将覆盖 ${prepared.conflicts.length} 项同名数据：${prepared.conflicts.slice(0, 8).join('、')}。` : '';
       if (!confirm(`将恢复 ${prepared.writes.length} 项数据。${conflicts}\n同名聊天、房间、流程及文档会整体替换，请先导出当前备份。${warning}\n确定继续吗？`)) { status.textContent = '已取消导入'; return; }
       DreamscapeBackup.restore(prepared);
-      loadConfig(); renderProviders(); updateStorageStats();
+      loadConfig();configDirty=false; renderProviders(); updateStorageStats();
       status.className = 'status-box success'; status.textContent = `已恢复 ${prepared.writes.length} 项数据`;
       showToast('数据恢复完成');
     }
@@ -342,9 +351,10 @@
     $('providerGrid').addEventListener('click', event => {
       const card = event.target.closest('.provider-card'); if (!card) return;
       if (event.target.matches('[data-reveal]')) { const input = card.querySelector('[data-key]'); const hidden = input.type === 'password'; input.type = hidden ? 'text' : 'password'; event.target.textContent = hidden ? '隐藏' : '显示'; }
-      if (event.target.matches('[data-default]')) { state.currentProvider = card.dataset.provider; collectForm(); renderProviders(); window.DreamscapeStorage?.markDirty(); }
+      if (event.target.matches('[data-default]')) { state.currentProvider = card.dataset.provider; configDirty=true;collectForm(); renderProviders(); window.DreamscapeStorage?.markDirty(); }
     });
     $('providerGrid').addEventListener('input', event => {
+      if(event.target.matches('[data-key],[data-model],[data-custom]')){configDirty=true;collectForm();updateSummary();}
       if (!event.target.matches('[data-key]')) return;
       const card = event.target.closest('.provider-card'); const ready = Boolean(event.target.value.trim()); const badge = card.querySelector('[data-state]'); badge.textContent = ready ? '待保存' : '未配置'; badge.classList.toggle('ready', ready); collectForm(); updateSummary();
     });

@@ -495,7 +495,7 @@ function source(name) {
     await clickSpeaker(1);await page.locator('#cancelNext').click();
     await held.fulfill({contentType:'text/event-stream',body:'data: {"choices":[{"delta":{"content":"Reply"}}]}\n\ndata: [DONE]\n\n'});
     await page.waitForFunction(()=>!DreamscapeRoom.getView().running);assert.equal(count,1);
-    await speechPanel();await page.locator('#speechPurpose').selectOption('verdict');await clickSpeaker(2);
+    await speechPanel();await page.locator('.speaker-options summary').click();await page.locator('#speechPurpose').selectOption('verdict');await clickSpeaker(2);
     await page.waitForFunction(()=>!DreamscapeRoom.getView().running);assert.match(system,/用户明确要求最终裁决/);
     await page.unroute('https://api.deepseek.com/**');
   });
@@ -603,7 +603,7 @@ function source(name) {
   await test('existing role AI assistance previews editable suggestions and applies only to the original role',async()=>{
     await page.locator('#openControls').click();await page.locator('.role-picker button').nth(0).click();
     const card=page.locator('#aiList .ai-card:visible');const before=await page.evaluate(()=>JSON.parse(JSON.stringify(DreamscapeRoom.getView().room.participants[0])));const count=await page.locator('#aiList .ai-card').count();
-    assert.equal(await card.locator('.role-ai-assist').getAttribute('open'),null);await card.locator('.role-ai-assist summary').click();await card.locator('.assist-instruction').fill('语气温和，保留原职责');
+    assert.equal(await card.locator('.role-ai-assist').getAttribute('open'),null);await card.locator('.role-ai-assist > summary').click();await card.locator('.assist-instruction').fill('语气温和，保留原职责');
     let sent;await page.route('https://api.deepseek.com/**',r=>{sent=r.request().postDataJSON();return r.fulfill({contentType:'application/json',body:JSON.stringify({choices:[{message:{content:JSON.stringify({name:'温和审查者',prompt:'温和地分析风险并给出具体改进建议。',temp:0.45,tags:['judge'],message:'保留职责，调整表达。'})}}]})});});
     await card.locator('.assist-generate').click();await card.locator('.assist-preview').waitFor({state:'visible'});
     assert.equal(await page.evaluate(()=>DreamscapeRoom.getView().room.participants[0].prompt),before.prompt);assert.match(sent.messages[1].content,/语气温和/);assert.match(sent.messages[1].content,new RegExp(before.name));
@@ -613,7 +613,7 @@ function source(name) {
     await page.unroute('https://api.deepseek.com/**');await page.reload();assert.equal(await page.evaluate(()=>DreamscapeRoom.getView().room.participants[0].prompt),after.prompt);await page.locator('#backToDiscussion').click();
   });
   await test('role AI assistance rejects stale suggestions and retains the original on error or cancellation',async()=>{
-    await page.locator('#openControls').click();await page.locator('.role-picker button').nth(0).click();const card=page.locator('#aiList .ai-card:visible');await card.locator('.role-ai-assist summary').click();await card.locator('.assist-instruction').fill('补充职责');
+    await page.locator('#openControls').click();await page.locator('.role-picker button').nth(0).click();const card=page.locator('#aiList .ai-card:visible');await card.locator('.role-ai-assist > summary').click();await card.locator('.assist-instruction').fill('补充职责');
     let held;await page.route('https://api.deepseek.com/**',r=>{held=r;});await card.locator('.assist-generate').click();await page.waitForTimeout(100);await card.locator('.ai-prompt').fill('用户刚刚手动编辑的内容');
     await held.fulfill({contentType:'application/json',body:JSON.stringify({choices:[{message:{content:JSON.stringify({name:'过时建议',prompt:'过时的提示',temp:0.5,tags:[]})}}]})});await card.locator('.assist-preview').waitFor({state:'visible'});await card.locator('.assist-apply').click();assert.match(await card.locator('.assist-status').textContent(),/已有修改/);assert.equal(await card.locator('.ai-prompt').inputValue(),'用户刚刚手动编辑的内容');
     await card.locator('.assist-discard').click();await card.locator('.assist-generate').click();await page.waitForTimeout(100);await card.locator('.assist-cancel').click();await card.locator('.assist-cancel').waitFor({state:'hidden'});await held.abort().catch(()=>{});assert.equal(await card.locator('.ai-prompt').inputValue(),'用户刚刚手动编辑的内容');await page.unroute('https://api.deepseek.com/**');
@@ -671,7 +671,7 @@ function source(name) {
     await clickSpeaker(1);await page.waitForFunction(()=>window.__scrollCalls===2);
     await page.evaluate(()=>{__scrollChunk('Next speaker.');__scrollDone();});await page.waitForFunction(()=>!DreamscapeRoom.getView().running);
     assert.equal(await page.locator('#messagesArea').evaluate(el=>el.scrollTop),120);
-    await page.locator('#messagesArea').evaluate(el=>el.scrollTop=el.scrollHeight);await page.waitForFunction(()=>{const a=document.getElementById('messagesArea');return a.scrollHeight-a.clientHeight-a.scrollTop<25;});
+    await page.locator('#jumpLatest').click();await page.waitForFunction(()=>{const a=document.getElementById('messagesArea');return a.scrollHeight-a.clientHeight-a.scrollTop<25;});
     await clickSpeaker(2);await page.waitForFunction(()=>window.__scrollCalls===3);
     await page.evaluate(()=>__scrollChunk(Array(40).fill('Follow latest again.').join('\n')));
     await page.waitForFunction(()=>{const a=document.getElementById('messagesArea');return a.lastElementChild.textContent.includes('Follow latest again.')&&a.scrollHeight-a.clientHeight-a.scrollTop<25;});
@@ -685,6 +685,36 @@ function source(name) {
     await page.getByRole('button',{name:'搜索全部对话'}).click();assert.equal(await page.locator('#globalSearchInput').isVisible(),true);
   });
 
+  await test('provider disclosures retain unsaved edits and save state survives model and default changes',async()=>{
+    await go('settings');
+    const openai=page.locator('[data-provider="openai"]');
+    if(!(await openai.getAttribute('open')))await openai.locator(':scope > summary').click();
+    await openai.locator('[data-key]').fill('ui-disclosure-test');
+    await openai.locator(':scope > summary').click();await openai.locator(':scope > summary').click();
+    assert.equal(await openai.locator('[data-key]').inputValue(),'ui-disclosure-test');
+    assert.match(await page.locator('#configSaveState').textContent(),/未保存/);
+    await openai.locator('[data-default]').click();
+    assert.equal(await openai.locator('[data-key]').inputValue(),'ui-disclosure-test');
+    await page.locator('#saveApiBtn').click();assert.doesNotMatch(await page.locator('#configSaveState').textContent(),/未保存/);
+    await page.reload();assert.equal(await openai.locator('[data-key]').inputValue(),'ui-disclosure-test');
+  });
+  await test('Markdown export contains current editor text and displays its saved title',async()=>{
+    await go('mdtest');const text='# 布局优化验收\n\nUnicode: 你好，灵境。\n';await page.locator('#editor').fill(text);
+    await page.waitForFunction(()=>document.getElementById('documentTitle').textContent==='布局优化验收');
+    assert.match(await page.locator('#documentSaveState').textContent(),/已保存/);
+    const pending=page.waitForEvent('download');await page.locator('#exportMarkdown').click();const file=await pending;
+    assert.equal(fs.readFileSync(await file.path(),'utf8'),text);
+  });
+  await test('role switching and close remain visible while the editor scrolls on narrow screens',async()=>{
+    await go('chatroom');await page.setViewportSize({width:390,height:740});await page.locator('#openControls').click();
+    const before=await page.locator('#closeManager').boundingBox();const card=page.locator('#aiList .ai-card:visible');
+    await card.locator('.role-ai-assist > summary').click();await card.locator('.model-parameters > summary').click();
+    await page.locator('#aiList').evaluate(el=>el.scrollTop=el.scrollHeight);
+    assert.deepEqual(await page.locator('#closeManager').boundingBox(),before);
+    const picker=await page.locator('.role-picker').boundingBox();assert.ok(picker.y>0&&picker.y+picker.height<740);
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+    await page.locator('.role-picker button').nth(1).click();await page.locator('#closeManager').click();assert.equal(await page.locator('#roomControls').isVisible(),false);
+  });
   if (process.env.VISUAL_REPORT_DIR) {
     await page.screenshot({path:path.join(process.env.VISUAL_REPORT_DIR,'optimization-home-mobile.png'),fullPage:true});
     await go('settings');await page.screenshot({path:path.join(process.env.VISUAL_REPORT_DIR,'optimization-settings-mobile.png'),fullPage:true});

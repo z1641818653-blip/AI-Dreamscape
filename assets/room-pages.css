@@ -76,3 +76,63 @@ html[data-room-page="roles"] .role-assist-body .assist-prompt{min-height:150px}
 .role-assist-actions button{padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--primary);font-size:12px;cursor:pointer;box-shadow:none}
 .assist-preview{border-top:1px solid var(--border);padding-top:8px;margin-top:12px}
 .role-assist-body [hidden]{display:none!important}
+
+/* Keep navigation in view; only the selected editor scrolls. */
+html:is([data-room-page="roles"],[data-room-page="settings"]) .room-controls{display:flex!important;flex-direction:column;padding:20px 24px;overflow:hidden;width:min(980px,calc(100vw - 48px))}
+.room-controls .manager-header{flex:none;margin-bottom:16px!important;position:relative}
+.manager-header nav{margin-bottom:12px}
+.manager-header nav a{font-size:13px;padding:8px 10px}
+.manager-header a[aria-current="page"]{background:var(--role-wash);color:var(--primary)}
+.manager-header h1{font-size:21px;margin:0 0 6px;line-height:1.4}
+.manager-room-name{position:absolute;right:4px;top:61px;max-width:45%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px}
+.manager-description{font-size:13px;line-height:1.6}
+html[data-room-page="roles"] .manager-settings-scroll{display:none}
+html[data-room-page="settings"] .room-controls{width:min(760px,calc(100vw - 48px))}
+.manager-settings-scroll{overflow-y:auto;min-height:0;padding:4px 4px 16px;overscroll-behavior:contain;scrollbar-gutter:stable}
+html[data-room-page="roles"] .room-roles-page{display:flex;flex-direction:column;flex:1;min-height:0;padding:0;border:0;overflow:hidden}
+.role-picker{flex:none;flex-wrap:nowrap;overflow-x:auto;gap:6px;margin:0;padding:0 0 10px;scrollbar-width:thin}
+.role-picker button{flex:none;padding:8px 14px;border-radius:8px;font-size:14px}
+.room-roles-page{position:relative}
+.room-roles-page .role-picker{padding-right:90px}
+.role-tools{position:absolute;right:4px;top:2px;justify-content:flex-end;margin:0;background:var(--surface)}
+html[data-room-page="roles"] #aiList{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable;padding-right:4px}
+html[data-room-page="roles"] .ai-card{padding:18px;border-radius:12px;margin-bottom:0;box-shadow:none}
+html[data-room-page="roles"] .ai-card:hover{border-color:var(--border)}
+html[data-room-page="roles"] .ai-card-body{padding-top:12px}
+html[data-room-page="roles"] .ai-card-body textarea{min-height:130px;font-size:14px}
+.room-controls .ai-card-field label,.room-controls .mode-label,.room-controls .setting-row>label{font-size:13px}
+.room-controls .ai-card-field input,.room-controls .ai-card-field select,.room-controls .setting-row select{font-size:14px}
+.room-controls .ai-lock-btn,.room-controls .remove-btn{flex:0 0 auto!important;padding:6px 10px;font-size:12px;border-radius:7px}
+.room-controls .ai-speech-btn{font-size:12px;padding:6px 8px}
+html[data-room-page="roles"] .add-role-menu{flex:none;margin:10px 0 0;padding:8px 0 0;border-top:1px solid var(--border)}
+.model-parameters{border-top:1px solid var(--border);padding:12px 0 0;margin-top:12px}
+.model-parameters>summary,.assist-original>summary{cursor:pointer;font-size:13px;color:var(--text2)}
+.model-parameters[open]>summary{margin-bottom:14px}
+.model-parameters .ai-card-field{margin-bottom:14px}
+.role-ai-assist{margin:12px 0;border-radius:9px}
+.role-assist-note,.assist-status,.role-assist-body label{font-size:13px}
+.assist-draft-notice{font-size:13px;font-weight:600;color:var(--primary);margin:4px 0 12px}
+.assist-original{padding:10px 12px;border:1px solid var(--border);border-radius:8px;margin-bottom:14px}
+.assist-original pre{white-space:pre-wrap;overflow-wrap:anywhere;font:13px/1.8 inherit;max-height:220px;overflow-y:auto;margin-top:12px;color:var(--text2)}
+.assist-config-link,.speaker-availability a{font-size:13px;color:var(--primary);margin-left:4px}
+.assist-preview>.role-assist-actions{position:sticky;bottom:0;background:var(--bg);padding:12px 0 4px;margin-bottom:0;border-top:1px solid var(--border)}
+.role-assist-actions .assist-apply{background:#315fd8;border-color:#315fd8;color:white}
+.speech-launcher{justify-content:space-between;min-height:34px}
+#jumpLatest{font:inherit;font-size:12px;padding:5px 10px;border:1px solid var(--border);border-radius:20px;background:var(--surface);color:var(--primary);cursor:pointer}
+.speech-launcher [hidden]{display:none!important}
+.speaker-dock{width:min(400px,calc(100vw - 32px));padding:16px;display:flex;flex-direction:column}
+.speaker-dock[hidden]{display:none!important}
+.speaker-dock.dock-left{left:24px;right:auto}
+.speaker-float-heading{order:0;margin-bottom:10px;gap:10px}
+.speaker-position{margin-left:auto;background:transparent;border:0;color:var(--text2);font-size:12px;cursor:pointer;padding:5px}
+.speaker-names{order:1;padding:6px 0 12px;gap:8px}
+.speaker-names button{font-size:14px;padding:9px 16px;border-radius:9px}
+.speaker-availability{order:2;font-size:12px;line-height:1.7;color:var(--text2);margin:0 0 10px}
+.speaker-toolbar{order:3;border-top:1px solid var(--border);padding-top:12px}
+.speaker-hint{order:4;font-size:12px;color:var(--text2)}
+.speaker-options{order:5;font-size:12px;color:var(--text2);margin-top:10px}
+.speaker-options>summary{cursor:pointer}.speaker-options label{display:flex;align-items:center;gap:10px;margin-top:10px}
+.speaker-options select{padding:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:7px}
+.speaker-dock .next-speaker{order:6}
+.role-model-summary{font-size:12px!important}
+@media(max-width:600px){html:is([data-room-page="roles"],[data-room-page="settings"]) .room-controls{width:calc(100vw - 20px);height:calc(100dvh - 24px);padding:14px 12px}.manager-header nav{gap:2px;margin-bottom:10px}.manager-header nav a{padding:7px;font-size:12px}.manager-header nav div{gap:0}.manager-room-name{display:none}.manager-header h1{font-size:19px}.manager-description{font-size:12px}.room-controls .manager-header{margin-bottom:12px!important}html[data-room-page="roles"] .ai-card{padding:12px}.speaker-dock.dock-left{left:16px}.speaker-position{display:none}.room-controls .ai-card-name{min-width:0}.role-picker button{padding:8px 12px}.role-assist-body{padding:0 10px 10px}}

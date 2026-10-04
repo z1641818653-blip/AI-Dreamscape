@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" class="page-markdown">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -117,6 +117,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Inter','PingFang SC',sans-ser
 <script src="assets/vendor/purify.min.js"></script>
 <script src="markdown.js"></script>
   <link rel="stylesheet" href="assets/usability.css">
+  <link rel="stylesheet" href="assets/site-polish.css">
 </head>
 <body>
 <div class="layout">
@@ -133,6 +134,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Inter','PingFang SC',sans-ser
   <button class="sidebar-toggle" id="sidebarToggle">◀</button>
 
   <main class="main-area">
+    <div class="document-toolbar"><div><strong id="documentTitle">未命名</strong><span id="documentSaveState" role="status">自动保存到当前浏览器</span></div><button type="button" id="exportMarkdown">导出 .md</button></div>
     <div class="split" id="split">
       <div class="pane pane-left" id="paneLeft">
         <div class="pane-header"><span style="flex:1;text-align:center">Markdown</span><span class="count" id="charCount">0 字符</span><button class="pane-btn" id="collapseLeft" style="margin-left:8px">◀ 折叠</button></div>
@@ -185,7 +187,7 @@ const editor=document.getElementById('editor'),preview=document.getElementById('
   if(docs.length===0){const id=Date.now().toString();docs.push({id:id,title:'欢迎',content:'# Markdown 编辑\n\n## 支持\n\n- **加粗** *斜体* ~~删除线~~\n- `行内代码` 和代码块\n- LaTeX 公式 $E=mc^2$\n\n```python\nprint("Hello")\n```\n\n> 左侧编辑，右侧实时预览'});activeDocId=id;}
 })();
 
-function saveDocs(){try{localStorage.setItem('md_docs',JSON.stringify(docs));window.DreamscapeStorage?.markSaved();return true;}catch(e){window.DreamscapeStorage?.markDirty();showToast('文档保存失败，请先复制内容并清理存储','warning');return false;}}
+function saveDocs(){try{localStorage.setItem('md_docs',JSON.stringify(docs));window.DreamscapeStorage?.markSaved();document.getElementById('documentSaveState').textContent='已保存到当前浏览器';return true;}catch(e){window.DreamscapeStorage?.markDirty();document.getElementById('documentSaveState').textContent='保存失败，请导出备份';showToast('文档保存失败，请先复制内容并清理存储','warning');return false;}}
 function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
 
 function renderMD(content){return DreamscapeMarkdown.render(content,{math:true});}
@@ -197,7 +199,7 @@ function updatePreview(){
   if(typeof hljs!=='undefined'){preview.querySelectorAll('pre code').forEach(function(b){hljs.highlightElement(b);});}
   if(typeof MathJax!=='undefined'){MathJax.typesetPromise([preview]).catch(function(){});}
   const doc=docs.find(d=>d.id===activeDocId);
-  if(doc){doc.content=text;doc.title=text.split('\n')[0].replace(/^#\s*/,'').slice(0,30)||'未命名';saveDocs();renderHistory();}
+  if(doc){doc.content=text;doc.title=text.split('\n')[0].replace(/^#\s*/,'').slice(0,30)||'未命名';document.getElementById('documentTitle').textContent=doc.title;saveDocs();renderHistory();}
 }
 
 function renderHistory(){
@@ -226,7 +228,8 @@ function newDoc(){
 
 // ── Preview debounce ──
 let timer=null;
-editor.addEventListener('input',function(){clearTimeout(timer);timer=setTimeout(updatePreview,30);});
+editor.addEventListener('input',function(){document.getElementById('documentSaveState').textContent='正在保存…';clearTimeout(timer);timer=setTimeout(updatePreview,30);});
+document.getElementById('exportMarkdown').addEventListener('click',function(){const doc=docs.find(d=>d.id===activeDocId);const url=URL.createObjectURL(new Blob([editor.value],{type:'text/markdown;charset=utf-8'}));const link=document.createElement('a');link.href=url;link.download=(doc?.title||'未命名').replace(/[<>:"/\\|?*\x00-\x1f]/g,'_')+'.md';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);});
 
 // ── Sidebar toggle ──
 document.getElementById('sidebarToggle').addEventListener('click',function(){
