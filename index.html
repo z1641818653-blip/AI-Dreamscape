@@ -89,61 +89,73 @@
 <script src="backup.js"></script>
 <script src="global-storage.js"></script>
   <link rel="stylesheet" href="assets/usability.css">
-<style>.primary-tools{grid-template-columns:repeat(3,minmax(0,1fr))}.writing-tools a{display:block;padding:9px 0;color:var(--primary);text-decoration:none}.experimental-tools{margin:24px 0;color:var(--muted);padding:16px;border:1px solid var(--line);border-radius:14px}.experimental-tools summary{cursor:pointer}.experimental-tools a{display:block;margin:15px 0;color:var(--primary)}.experimental-tools p{font-size:13px}@media(max-width:780px){.primary-tools{grid-template-columns:1fr}}</style>
+<style>
+.hero{grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr)}
+.home-description{margin:22px 0 0;color:var(--muted);font-size:15px;line-height:1.9}
+.usage-list{margin:20px 0 0;padding-left:22px;display:grid;gap:16px}
+.usage-list li{padding-left:4px;font-size:14px}.usage-list li::marker{color:var(--primary);font-weight:700}
+.usage-list p,.free-framework p{margin:5px 0 0;color:var(--muted);font-size:13px;line-height:1.8}
+.free-framework{margin-top:22px;padding-top:18px;border-top:1px solid var(--line);font-size:14px}
+.primary-tools{grid-template-columns:repeat(2,minmax(0,1fr))}.tool p{line-height:1.8}
+.experimental-tools{margin:24px 0;color:var(--muted);padding:16px;border:1px solid var(--line);border-radius:14px}.experimental-tools summary{cursor:pointer}.experimental-tools a{display:block;margin:15px 0;color:var(--primary)}.experimental-tools p{font-size:13px}
+@media(max-width:820px){.hero{grid-template-columns:1fr}}
+@media(max-width:780px){.primary-tools{grid-template-columns:1fr}}
+</style>
 </head>
 <body>
   <header>
     <div class="shell nav">
       <a class="brand" href="index.html"><span class="brand-mark">灵</span><span>AI 灵境</span></a>
-      <div class="nav-actions"><span class="nav-note">对话 · 共创 · 表达</span><a class="nav-settings" href="settings.html">⚙ 全局配置</a></div>
+      <div class="nav-actions"><span class="nav-note">AI 对话 · 多角色讨论 · 文档编辑</span><a class="nav-settings" href="settings.html">⚙ 全局配置</a></div>
     </div>
   </header>
 
   <main class="shell">
     <section class="hero" aria-labelledby="page-title">
       <div class="hero-copy">
-        <span class="eyebrow"><span class="eyebrow-dot">✦</span> 欢迎来到 AI 灵境</span>
-        <h1 id="page-title">让每一次提问，<span class="title-gradient">都通向更辽阔的想法。</span></h1>
-        <p class="lead">与 AI 自由对话，邀请多个模型共同讨论，或让文字与公式即时呈现。选择一种方式，开始属于你的探索。</p>
-        <div class="quick-notes" aria-label="主要能力"><span>自然对话</span><span>多模型讨论</span><span>角色协作</span><span>Markdown</span><span>LaTeX</span></div>
+        <h1 id="page-title">AI <span class="title-gradient">灵境</span></h1>
+        <p class="lead">AI 对话、多角色讨论，以及 Markdown 和 LaTeX 编辑工具。</p>
+        <p class="home-description">在工作台与一个模型对话，或在聊天室设置多个角色一起讨论。需要整理文字和公式时，可以分别打开 Markdown 编辑器和 LaTeX 工作台。</p>
+        <div class="quick-notes" aria-label="主要能力"><span>模型回答对比</span><span>指定角色发言</span><span>AI 辅助修改角色</span><span>文档预览与导出</span></div>
         <div class="hero-actions">
-          <a class="button primary" href="chatroom.html">开始 AI 协作 <span aria-hidden="true">→</span></a>
-          <a class="button" href="#tools">探索全部工具</a>
+          <a class="button primary" href="chatroom.html">打开聊天室 <span aria-hidden="true">→</span></a>
+          <a class="button" href="#tools">查看工具介绍</a>
         </div>
       </div>
-      <aside class="status" aria-label="探索方式">
+      <aside class="status" aria-label="AI 聊天室使用方法">
         <div>
-          <span class="status-kicker">EXPLORE</span>
-          <h2>灵感从一个问题开始</h2>
-          <p class="status-intro">不必准备完整的答案，先说出此刻的想法。</p>
-          <div class="status-list">
-            <div class="status-row"><span>独立思考与问答</span><span class="badge">自由对话</span></div>
-            <div class="status-row"><span>听见不同的观点</span><span class="badge">共同讨论</span></div>
-            <div class="status-row"><span>把内容清晰呈现</span><span class="badge">即时渲染</span></div>
-          </div>
+          <span class="status-kicker">AI 聊天室</span>
+          <h2>三种使用方法</h2>
+          <ol class="usage-list">
+            <li><strong>完善方案</strong><p>一个角色提出方案，另一个指出问题，再由第三个整理修改建议。适合项目规划、产品设计或写作思路。</p></li>
+            <li><strong>比较观点</strong><p>给角色设置不同立场，让它们分别说明理由、回应质疑，帮助你看清分歧和各自的依据。</p></li>
+            <li><strong>分工审阅</strong><p>让不同角色分别检查内容、逻辑和表达，再汇总修改建议。适合文稿、需求说明或技术方案。</p></li>
+          </ol>
         </div>
-        <p class="security">🔐 为了保护你的 API 密钥，请只在自己信任的设备与网络中使用，并养成定期更换密钥的习惯。</p>
+        <div class="free-framework"><strong>也可以自由组合</strong><p>这三种用法只是参考。聊天室提供一套可自由探索的讨论框架：自行安排角色、模型和发言顺序，直接加入讨论，也可以在过程中调整规则。</p></div>
       </aside>
     </section>
 
     <section class="setup-guide" aria-label="开始使用"><strong id="setupTitle">从一次对话开始</strong><p id="setupDescription">先配置模型服务，然后选择工作台或聊天室。</p><a href="settings.html">管理模型与本机数据 →</a></section>
     <section id="tools" aria-labelledby="tools-title">
       <div class="section-head">
-        <h2 id="tools-title">从你要做的事开始</h2>
-        <p>对话、协作或创作，随时切换</p>
+        <h2 id="tools-title">工具介绍</h2>
+        <p>各模块独立使用，分别保存自己的内容</p>
       </div>
       <div class="tools primary-tools">
         <a class="tool" href="chatroom.html">
           <div class="tool-top"><span class="icon">👥</span><span class="arrow">→</span></div>
           <h3>AI 聊天室</h3>
-          <p>邀请多个模型参与同一场讨论，从不同角度比较观点、推演方案与碰撞灵感。</p>
-          <span class="tool-meta">听见更多观点</span>
+          <p>让多个 AI 角色围绕同一个问题讨论。每个角色可以使用不同模型、提示词和发言规则；支持轮流讨论、指定谁来回答，或让一个角色持续补充直到讲完。讨论过程中可以切换发言方式，也可以用 AI 辅助修改角色。</p>
+          <span class="tool-meta">打开聊天室 →</span>
         </a>        <a class="tool" href="chat.html">
           <div class="tool-top"><span class="icon">💬</span><span class="arrow">→</span></div>
           <h3>AI 工作台</h3>
-          <p>从一个问题开始，与 AI 深入交流。支持代码、公式、续写、历史记录与思考内容展示。</p>
-          <span class="tool-meta">开始一场对话 · v4.3.0</span>
-        </a><div class="tool writing-tools"><div class="tool-top"><span class="icon">✎</span></div><h3>文稿工具</h3><p>编辑文字、公式与演示文稿。两个编辑器分别保存自己的文档。</p><a href="mdtest.html">Markdown 编辑 →</a><a href="latex.html">LaTeX 工作台 →</a></div>
+          <p>与一个 AI 模型对话，支持代码和公式显示。可以设置回答规则、调整历史消息范围，或对比不同模型的回答。对话保存在当前浏览器中，支持搜索、导入和导出。</p>
+          <span class="tool-meta">打开工作台 →</span>
+        </a>
+        <a class="tool" href="mdtest.html"><div class="tool-top"><span class="icon">✎</span><span class="arrow">→</span></div><h3>Markdown 编辑器</h3><p>编写 Markdown 文档，实时预览排版、代码和公式，支持保存文档与导出 Markdown 文件。</p><span class="tool-meta">编辑 Markdown →</span></a>
+        <a class="tool" href="latex.html"><div class="tool-top"><span class="icon">∑</span><span class="arrow">→</span></div><h3>LaTeX 工作台</h3><p>编写 LaTeX 文档、编译并预览 PDF。可根据文档内容自动选择编译器，也支持手动切换和 AI 辅助修改。</p><span class="tool-meta">打开 LaTeX →</span></a>
 
 
 
@@ -151,10 +163,10 @@
 
       </div>
     </section>
-    <details class="experimental-tools"><summary>实验工具</summary><a href="workflow.html">AI 流程树 →</a><p>暂时保留，后续按需要维护，与 AI 聊天室独立。</p></details>
+    <details class="experimental-tools"><summary>AI 流程树 · 实验功能</summary><p>把任务组织成有依赖关系的节点，逐步执行并保存各节点的结果。目前保留为实验功能，与聊天室独立。</p><a href="workflow.html">查看流程树 →</a></details>
   </main>
 
-  <footer class="shell">AI 灵境 · 愿每一次探索，都有新的回响</footer>
+  <footer class="shell">AI 灵境</footer>
 
 <script src="providers-config.js"></script>
 <script>
