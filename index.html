@@ -96,6 +96,9 @@
 .usage-list li{padding-left:4px;font-size:14px}.usage-list li::marker{color:var(--primary);font-weight:700}
 .usage-list p,.free-framework p{margin:5px 0 0;color:var(--muted);font-size:13px;line-height:1.8}
 .free-framework{margin-top:22px;padding-top:18px;border-top:1px solid var(--line);font-size:14px}
+.tool-uses{list-style:none;padding:0;margin:14px 0 0;display:grid;gap:7px;color:var(--muted);font-size:13px}
+.tool-uses strong{color:var(--text);font-weight:600;margin-right:8px}
+.tool .framework-note{margin-top:12px;font-size:13px}
 .primary-tools{grid-template-columns:repeat(2,minmax(0,1fr))}.tool p{line-height:1.8}
 .experimental-tools{margin:24px 0;color:var(--muted);padding:16px;border:1px solid var(--line);border-radius:14px}.experimental-tools summary{cursor:pointer}.experimental-tools a{display:block;margin:15px 0;color:var(--primary)}.experimental-tools p{font-size:13px}
 @media(max-width:820px){.hero{grid-template-columns:1fr}}
@@ -122,17 +125,17 @@
           <a class="button" href="#tools">查看工具介绍</a>
         </div>
       </div>
-      <aside class="status" aria-label="AI 聊天室使用方法">
+      <aside class="status" aria-label="灵境发展思路">
         <div>
-          <span class="status-kicker">AI 聊天室</span>
-          <h2>三种使用方法</h2>
+          <span class="status-kicker">关于灵境</span>
+          <h2>发展思路</h2>
           <ol class="usage-list">
-            <li><strong>完善方案</strong><p>一个角色提出方案，另一个指出问题，再由第三个整理修改建议。适合项目规划、产品设计或写作思路。</p></li>
-            <li><strong>比较观点</strong><p>给角色设置不同立场，让它们分别说明理由、回应质疑，帮助你看清分歧和各自的依据。</p></li>
-            <li><strong>分工审阅</strong><p>让不同角色分别检查内容、逻辑和表达，再汇总修改建议。适合文稿、需求说明或技术方案。</p></li>
+            <li><strong>最初</strong><p>尝试把复杂项目拆成流程，交给 AI 逐步处理。</p></li>
+            <li><strong>现在</strong><p>各工具独立使用，重点转向 AI 对话与多角色协作。</p></li>
+            <li><strong>接下来</strong><p>打磨聊天室、降低使用门槛，完善线上使用体验。</p></li>
           </ol>
         </div>
-        <div class="free-framework"><strong>也可以自由组合</strong><p>这三种用法只是参考。聊天室提供一套可自由探索的讨论框架：自行安排角色、模型和发言顺序，直接加入讨论，也可以在过程中调整规则。</p></div>
+        <div class="free-framework"><p>流程树暂时保留，后续再看如何使用。</p></div>
       </aside>
     </section>
 
@@ -143,16 +146,23 @@
         <p>各模块独立使用，分别保存自己的内容</p>
       </div>
       <div class="tools primary-tools">
+        <a class="tool" href="chat.html">
+          <div class="tool-top"><span class="icon">💬</span><span class="arrow">→</span></div>
+          <h3>AI 工作台</h3>
+          <p>AI 对话＋参数控制台。调整模型、提示词和回答参数。</p>
+          <span class="tool-meta">打开工作台 →</span>
+        </a>
         <a class="tool" href="chatroom.html">
           <div class="tool-top"><span class="icon">👥</span><span class="arrow">→</span></div>
           <h3>AI 聊天室</h3>
-          <p>让多个 AI 角色围绕同一个问题讨论。每个角色可以使用不同模型、提示词和发言规则；支持轮流讨论、指定谁来回答，或让一个角色持续补充直到讲完。讨论过程中可以切换发言方式，也可以用 AI 辅助修改角色。</p>
+          <p>多角色 AI 讨论，自行设置角色与发言规则。</p>
+          <ul class="tool-uses">
+            <li><strong>完善方案</strong>提案、质疑、修订</li>
+            <li><strong>比较观点</strong>让不同立场相互讨论</li>
+            <li><strong>分工审阅</strong>分别检查内容、逻辑与表达</li>
+          </ul>
+          <p class="framework-note">也可自由组合角色与模型，探索自己的讨论方式。</p>
           <span class="tool-meta">打开聊天室 →</span>
-        </a>        <a class="tool" href="chat.html">
-          <div class="tool-top"><span class="icon">💬</span><span class="arrow">→</span></div>
-          <h3>AI 工作台</h3>
-          <p>与一个 AI 模型对话，支持代码和公式显示。可以设置回答规则、调整历史消息范围，或对比不同模型的回答。对话保存在当前浏览器中，支持搜索、导入和导出。</p>
-          <span class="tool-meta">打开工作台 →</span>
         </a>
         <a class="tool" href="mdtest.html"><div class="tool-top"><span class="icon">✎</span><span class="arrow">→</span></div><h3>Markdown 编辑器</h3><p>编写 Markdown 文档，实时预览排版、代码和公式，支持保存文档与导出 Markdown 文件。</p><span class="tool-meta">编辑 Markdown →</span></a>
         <a class="tool" href="latex.html"><div class="tool-top"><span class="icon">∑</span><span class="arrow">→</span></div><h3>LaTeX 工作台</h3><p>编写 LaTeX 文档、编译并预览 PDF。可根据文档内容自动选择编译器，也支持手动切换和 AI 辅助修改。</p><span class="tool-meta">打开 LaTeX →</span></a>
