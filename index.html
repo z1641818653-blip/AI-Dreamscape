@@ -118,7 +118,7 @@
     <section class="hero" aria-labelledby="page-title">
       <div class="hero-copy">
         <h1 id="page-title">AI <span class="title-gradient">灵境</span></h1>
-        <p class="lead">AI 对话、多角色讨论，以及 Markdown 和 LaTeX 编辑工具。</p>
+        <p class="lead">AI 对话、多角色讨论、文献与数据检索，以及 Markdown 和 LaTeX 编辑工具。</p>
         <p class="home-description">在工作台与一个模型对话，或在聊天室设置多个角色一起讨论。需要整理文字和公式时，可以分别打开 Markdown 编辑器和 LaTeX 工作台。</p>
         <div class="quick-notes" aria-label="主要能力"><span>模型回答对比</span><span>指定角色发言</span><span>AI 辅助修改角色</span><span>文档预览与导出</span></div>
         <div class="hero-actions">
@@ -141,13 +141,21 @@
       </aside>
     </section>
 
-    <section class="setup-guide" aria-label="开始使用"><strong id="setupTitle">从一次对话开始</strong><p id="setupDescription">先配置模型服务，然后选择工作台或聊天室。</p><a href="settings.html">管理模型与本机数据 →</a></section>
+    <section class="setup-guide" aria-label="开始使用"><strong id="setupTitle">从一次对话开始</strong><p id="setupDescription">先配置模型服务，再选择对话、聊天室或资料工作台。资料检索也可直接使用关键词。</p><a href="settings.html">管理模型与本机数据 →</a></section>
     <section id="tools" aria-labelledby="tools-title">
       <div class="section-head">
         <h2 id="tools-title">工具介绍</h2>
         <p>各模块独立使用，分别保存自己的内容</p>
       </div>
       <div class="tools primary-tools">
+        <a class="tool research-tool" href="research.html">
+          <div class="tool-top"><span class="icon">⌕</span><span class="badge">新项目</span></div>
+          <h3>资料工作台</h3>
+          <p>用对话搜集文献与数据，查看来源链路，筛选后选择下载。</p>
+          <ul class="tool-uses"><li><strong>跨来源检索</strong>汇集文献、摘要与数据集，按 DOI 合并重复项</li><li><strong>模型匹配</strong>复用全局配置，解析需求并解释资源相关性</li><li><strong>选择下载</strong>查看文件地址、导出清单或打包下载可获取文件</li></ul>
+          <span class="tool-meta">打开资料工作台 →</span>
+        </a>
+
         <a class="tool" href="chat.html">
           <div class="tool-top"><span class="icon">💬</span><span class="arrow">→</span></div>
           <h3>AI 工作台</h3>
