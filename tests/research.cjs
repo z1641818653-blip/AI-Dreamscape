@@ -6,6 +6,7 @@ module.exports=async function({browser,base,test}){
   const crossref={message:{items:[{DOI:'10.test/shared',title:['Urban heat evidence'],abstract:'Urban heat remote sensing',published:{'date-parts':[[2024]]},URL:'https://doi.org/10.test/shared'}]}};
   const pmc={resultList:{result:[{doi:'10.test/shared',title:'Urban heat evidence',pubYear:'2024',source:'MED',id:'123',abstractText:'<p>Urban heat evidence abstract</p>',fullTextUrlList:{fullTextUrl:[{documentStyle:'pdf',availabilityCode:'OA',url:'https://files.example.test/paper.pdf'}]}}]}};
   const datacite={data:[{id:'10.test/data',attributes:{doi:'10.test/data',titles:[{title:'Urban temperature data'}],publicationYear:2023,url:'https://example.test/dataset',formats:['CSV'],contentUrl:['https://files.example.test/data.csv'],types:{resourceTypeGeneral:'Dataset'},descriptions:[{descriptionType:'Abstract',description:'Urban heat observations'}]}}]};
+  const custom={items:[{name:'Custom urban heat video',summary:'Video from a user-defined JSON source',published:2025,author:'Open course team',page:'https://custom.test/items/1',kind:'movie',format:'MP4'}]};
   await context.addInitScript(()=>{
     const config={};for(const provider of ['deepseek','openai','claude','gemini','qwen'])config[provider]={apiKey:btoa(encodeURIComponent('integration-test-key')),model:'integration-custom',customModels:['integration-custom']};localStorage.setItem('dp0',JSON.stringify(config));localStorage.setItem('dcp0','deepseek');
   });
@@ -17,7 +18,9 @@ module.exports=async function({browser,base,test}){
       if(holdModel)await new Promise(resolve=>releaseModel=resolve);
       let payload;
       const last=body.messages?.at(-1)?.content||body.contents?.at(-1)?.parts?.[0]?.text||'{}';let input={};try{input=JSON.parse(last);}catch{}
-      const content=malformed?'invalid model structure':JSON.stringify(input.candidates?{rankings:input.candidates.map((r,i)=>({id:r.id,score:96-i,reason:'Relevant to urban heat research'}))}:{query:'urban heat island',topic:'城市热岛',type:'all',year:2023,reply:'检索条件已解析'});
+      const system=body.messages?.[0]?.content||body.system_instruction?.parts?.[0]?.text||'';
+      const sourceDraft={name:'Custom Video API',description:'User-defined public video API',homepage:'https://custom.test/',searchUrl:'https://api.custom.test/search?q={query}&page={page}',resultPath:'items',types:['video'],defaultType:'video',fields:{title:'name',abstract:'summary',year:'published',authors:'author',url:'page',downloadUrl:'',doi:'',type:'kind',format:'format',license:'',size:''},typeMap:{movie:'video'}};
+      const content=malformed?'invalid model structure':JSON.stringify(system.includes('公开 JSON 检索接口配置助手')?sourceDraft:input.candidates?{rankings:input.candidates.map((r,i)=>({id:r.id,score:96-i,reason:'Relevant to urban heat research'}))}:{query:'urban heat island',topic:'城市热岛',type:'all',year:2023,reply:'检索条件已解析'});
       if(url.hostname==='api.anthropic.com')payload={content:[{type:'text',text:content}]};else if(url.hostname==='generativelanguage.googleapis.com')payload={candidates:[{content:{parts:[{text:content}]}}]};else payload={choices:[{message:{content}}]};
       return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(payload)}).catch(()=>{});
     }
@@ -26,6 +29,7 @@ module.exports=async function({browser,base,test}){
     if(url.hostname==='www.ebi.ac.uk')return route.fulfill(sourceFailure?{status:503,body:'Service unavailable'}:{json:pmc});
     if(url.hostname==='api.datacite.org')return route.fulfill({json:datacite});
     if(url.hostname==='archive.org')return route.fulfill({json:{response:{docs:[]}}});
+    if(url.hostname==='api.custom.test')return route.fulfill({json:custom});
     if(url.hostname==='files.example.test')return route.fulfill({status:200,contentType:url.pathname.endsWith('.pdf')?(pdfBroken?'text/html':'application/pdf'):'text/csv',body:url.pathname.endsWith('.pdf')?(pdfBroken?'<html>Login required</html>':'%PDF-1.4\nfixture'): 'temperature,time\n30,2024\n'});
     return route.abort();
   });
@@ -74,6 +78,16 @@ module.exports=async function({browser,base,test}){
   });
   await test('research: resource choice retains focus and narrow layouts do not overflow',async()=>{
     await page.locator('#resourceBody [data-select]').first().check();assert.equal(await page.evaluate(()=>document.activeElement.matches('[data-select]')),true);for(const width of [320,390,768,1024,1440]){await page.setViewportSize({width,height:900});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);}assert.deepEqual(errors,[]);
+  });
+  await test('research: declarative sources reject private or credential-bearing endpoints',async()=>{
+    const messages=await page.evaluate(()=>['https://127.0.0.1/search?q={query}','https://[::1]/search?q={query}','https://[fd00::1]/search?q={query}','https://api.example.test/search?api_key=secret&q={query}'].map(searchUrl=>{try{DreamscapeResearch.sanitizeDefinition({name:'Unsafe source',homepage:'https://example.test/',searchUrl,resultPath:'items',types:['other'],defaultType:'other',fields:{title:'title'}});return '';}catch(error){return error.message;}}));
+    assert.match(messages[0],/公开 HTTPS/);assert.match(messages[1],/公开 HTTPS/);assert.match(messages[2],/公开 HTTPS/);assert.match(messages[3],/密钥|认证/);
+  });
+  await test('research: AI drafts, tests and persists a declarative custom source',async()=>{
+    await page.setViewportSize({width:1280,height:900});await page.locator('#configBtn').click();await page.locator('#manageSourcesBtn').click();await page.locator('#sourceBrief').fill('Add the public custom video API described in its JSON documentation.');await page.locator('#sourceAiBtn').click();await page.waitForFunction(()=>document.getElementById('sourceManagerStatus').textContent.includes('模型草案已生成'));assert.equal(await page.locator('#sourceName').inputValue(),'Custom Video API');
+    await page.locator('#sourceTestQuery').fill('urban heat');await page.locator('#sourceTestBtn').click();await page.waitForFunction(()=>document.getElementById('sourceManagerStatus').textContent.includes('测试通过'));assert.match(await page.locator('#sourcePreview').innerText(),/Custom urban heat video/);await page.locator('#sourceSaveBtn').click();assert.match(await page.locator('#sourceManagerStatus').innerText(),/已保存/);assert.equal(await page.evaluate(()=>Boolean(DreamscapeResearch.sources['Custom Video API']?.custom)),true);assert.equal(JSON.parse(await page.evaluate(()=>localStorage.getItem('dreamscape_research_sources_v1'))).sources.length,1);
+    await page.getByRole('button',{name:'关闭自定义来源管理'}).click();await page.locator('#configBtn').click();assert.equal(await page.locator('[data-source="Custom Video API"]').isChecked(),true);for(const source of ['Crossref','Europe PMC','DataCite','Internet Archive'])await page.locator(`[data-source="${source}"]`).uncheck();await page.getByRole('button',{name:'关闭采集设置'}).click();await page.locator('#useAI').uncheck();await page.locator('#prompt').fill('urban heat video');await page.locator('#chatForm button[type=submit]').click();await page.waitForFunction(()=>document.getElementById('crawlStatus').textContent==='已完成');assert.equal(await page.locator('#resourceBody tr').count(),1);assert.match(await page.locator('#resourceBody').innerText(),/Custom urban heat video/);
+    await page.reload();assert.equal(await page.evaluate(()=>Boolean(DreamscapeResearch.sources['Custom Video API']?.custom)),true);assert.deepEqual(errors,[]);
   });
   await context.close();
 };
