@@ -25,9 +25,51 @@
     r.size=text(r.size)||'大小未知';r.available=Boolean(r.downloadUrl);r.sourceRank=index+1;r.origins=[{source,url:r.url,downloadUrl:r.downloadUrl}];r.score=Math.max(1,100-index*3);r.reason='按来源内检索顺序排列，尚未经过模型排序。';r.scoreKind='source';return r;
   }
   function registerSource(name, config) {
-    if(!/^[\w .-]{2,80}$/i.test(name)||!config||!safeURL(config.url)||!Array.isArray(config.types)||!config.types.every(validType)||typeof config.buildURL!=='function'||typeof config.items!=='function'||typeof config.normalize!=='function')throw new Error('来源配置不完整');
+    if(!/^[\p{L}\p{N} ._-]{2,80}$/u.test(name)||!config||!safeURL(config.url)||!Array.isArray(config.types)||!config.types.every(validType)||typeof config.buildURL!=='function'||typeof config.items!=='function'||typeof config.normalize!=='function')throw new Error('来源配置不完整');
     sources[name]=Object.freeze({name,description:'',...config,types:[...new Set(config.types)]});return sources[name];
   }
+  function publicURL(value) {
+    const href=safeURL(value);if(!href)return '';
+    const url=new URL(href),host=url.hostname.toLowerCase().replace(/^\[|\]$/g,'');
+    if(host==='localhost'||host==='::'||host==='::1'||host.endsWith('.local'))return '';
+    if(host.includes(':')){
+      const first=host.split(':').find(Boolean)||'';
+      if(/^f[cd]/.test(first)||/^fe[89ab]/.test(first)||host.startsWith('::ffff:'))return '';
+    }
+    const parts=host.split('.').map(Number);
+    if(parts.length===4&&parts.every(n=>Number.isInteger(n)&&n>=0&&n<=255)){
+      const [a,b]=parts;if(a===0||a===10||a===127||a>=224||(a===100&&b>=64&&b<=127)||(a===169&&b===254)||(a===172&&b>=16&&b<=31)||(a===192&&b===168)||(a===198&&(b===18||b===19)))return '';
+    }
+    return href;
+  }
+  const PATH=/^(?:[A-Za-z_$][\w$-]*|\d+)(?:\.(?:[A-Za-z_$][\w$-]*|\d+))*$/;
+  function cleanPath(value,required=false){const path=String(value||'').trim();if(!path&&!required)return '';if(!path||path.length>200||!PATH.test(path)||/(?:^|\.)(?:__proto__|prototype|constructor)(?:\.|$)/.test(path))throw new Error('字段路径格式不正确');return path;}
+  function resolvePath(value,path){if(!path)return value;return path.split('.').reduce((item,key)=>item==null?undefined:item[key],value);}
+  function sanitizeDefinition(value) {
+    if(!value||typeof value!=='object')throw new Error('来源配置不是对象');
+    const name=text(value.name).slice(0,40);if(!/^[\p{L}\p{N} ._-]{2,40}$/u.test(name))throw new Error('来源名称应为 2–40 个文字、数字、空格或连接符');
+    const homepage=publicURL(value.homepage);if(!homepage)throw new Error('来源主页必须是公开 HTTPS 地址');
+    const searchUrl=String(value.searchUrl||'').trim();if(searchUrl.length>2000||!searchUrl.includes('{query}'))throw new Error('查询地址必须包含 {query}，且不超过 2000 字符');
+    const probe=searchUrl.replaceAll('{query}','test').replaceAll('{year}','2024').replaceAll('{page}','1');if(/[{}]/.test(probe)||!publicURL(probe))throw new Error('查询地址只允许 {query}、{year}、{page} 占位符，并须指向公开 HTTPS 地址');
+    const probeURL=new URL(probe);if([...probeURL.searchParams.keys()].some(key=>/(?:api.?key|token|secret|auth)/i.test(key)))throw new Error('本版自定义来源不保存密钥或认证参数');
+    const rawTypes=Array.isArray(value.types)?value.types:[];if(!rawTypes.length||rawTypes.length>10||rawTypes.some(type=>!validType(type)))throw new Error('请至少选择一种有效资料类型');
+    const defaultType=validType(value.defaultType)&&rawTypes.includes(value.defaultType)?value.defaultType:rawTypes[0];
+    const fields=value.fields&&typeof value.fields==='object'?value.fields:{},cleanFields={};
+    for(const key of ['title','abstract','year','authors','url','downloadUrl','doi','type','format','license','size'])cleanFields[key]=cleanPath(fields[key],key==='title');
+    const typeMap={};if(value.typeMap&&typeof value.typeMap==='object')for(const [key,type] of Object.entries(value.typeMap).slice(0,50))if(validType(type))typeMap[text(key).slice(0,80)]=type;
+    return {version:1,name,description:text(value.description).slice(0,200),homepage,searchUrl,resultPath:cleanPath(value.resultPath),types:[...new Set(rawTypes)],defaultType,fields:cleanFields,typeMap};
+  }
+  function compileDefinition(value) {
+    const definition=sanitizeDefinition(value),absolute=input=>{try{return publicURL(new URL(String(input||''),definition.homepage).href);}catch{return '';}};
+    return {definition,url:definition.homepage,domain:new URL(definition.homepage).hostname,description:definition.description||'用户添加的公开 JSON 来源',types:definition.types,custom:true,
+      buildURL(query,year,page=1){return definition.searchUrl.replaceAll('{query}',encodeURIComponent(String(query||''))).replaceAll('{year}',year?String(year):'').replaceAll('{page}',String(Number(page)||1));},
+      items:data=>resolvePath(data,definition.resultPath),
+      normalize(item){const get=key=>resolvePath(item,definition.fields[key]),rawType=text(get('type')),mapped=validType(rawType)?rawType:definition.typeMap[rawType]||definition.defaultType;return {title:get('title'),abstract:get('abstract'),year:get('year'),authors:Array.isArray(get('authors'))?get('authors').join(', '):get('authors'),url:absolute(get('url')),downloadUrl:absolute(get('downloadUrl')),doi:get('doi'),type:mapped,format:get('format')||resourceTypes[mapped].label,license:get('license'),size:get('size')};}
+    };
+  }
+  function registerDeclarativeSource(value){const compiled=compileDefinition(value),prior=sources[compiled.definition.name];if(prior&&!prior.custom)throw new Error('不能覆盖内置来源');return registerSource(compiled.definition.name,compiled);}
+  function removeDeclarativeSource(name){if(sources[name]?.custom)delete sources[name];}
+  async function testDeclarativeSource(value,query='test',signal){const compiled=compileDefinition(value),url=compiled.buildURL(query,0,1),controller=new AbortController(),abort=()=>controller.abort();if(signal?.aborted)controller.abort();else signal?.addEventListener('abort',abort,{once:true});const timer=setTimeout(abort,15000);try{const response=await fetch(url,{signal:controller.signal,credentials:'omit',referrerPolicy:'no-referrer'});if(!response.ok)throw new Error(`测试请求 HTTP ${response.status}`);const length=Number(response.headers.get('content-length'))||0;if(length>2*1024*1024)throw new Error('测试响应超过 2 MB');const body=await response.text();if(body.length>2*1024*1024)throw new Error('测试响应超过 2 MB');let data;try{data=JSON.parse(body);}catch{throw new Error('来源未返回有效 JSON');}const items=compiled.items(data);if(!Array.isArray(items))throw new Error('结果路径没有指向数组');const records=items.slice(0,3).map((item,index)=>normalizeRecord(compiled.definition.name,compiled.normalize(item,index),index)).filter(Boolean);if(!records.length)throw new Error('没有从前三条结果中解析出标题');return {definition:compiled.definition,records,url};}catch(error){if(error.name==='AbortError')throw new Error('来源测试超时');throw error;}finally{clearTimeout(timer);signal?.removeEventListener('abort',abort);}}
   function sourceSupports(source, types) {const config=sources[source];return Boolean(config&&config.types.some(type=>normalizeTypes(types).includes(type)));}
   const crossrefType=value=>({'book':'book','book-chapter':'book','book-section':'book','edited-book':'book','monograph':'book','reference-book':'book','report':'report','report-series':'report','standard':'report','standard-series':'report','dataset':'dataset'})[String(value||'').toLowerCase()]||'paper';
   const dataciteType=value=>({audiovisual:'video',book:'book',bookchapter:'book',collection:'other',computationalnotebook:'software',dataset:'dataset',dissertation:'paper',event:'other',image:'image',interactiveresource:'web',journal:'paper',journalarticle:'paper',model:'dataset',outputmanagementplan:'report',peerreview:'paper',physicalobject:'other',preprint:'paper',report:'report',service:'web',software:'software',sound:'audio',standard:'report',text:'report',workflow:'software',other:'other'})[String(value||'').replace(/\s+/g,'').toLowerCase()]||'other';
@@ -40,7 +82,7 @@
   registerSource('Europe PMC',{
     url:'https://europepmc.org/',domain:'europepmc.org',description:'生命科学论文、摘要与开放全文',types:['paper'],
     buildURL(query,year){const url=new URL('https://www.ebi.ac.uk/europepmc/webservices/rest/search');url.searchParams.set('query',year?`(${query}) AND FIRST_PDATE:[${year}-01-01 TO 3000-12-31]`:query);url.searchParams.set('format','json');url.searchParams.set('resultType','core');url.searchParams.set('pageSize','20');return url.href;},items:data=>data.resultList?.result,
-    normalize(item){const links=item.fullTextUrlList?.fullTextUrl||[],pdf=links.find(link=>link.documentStyle==='pdf'&&link.availabilityCode==='OA'&&safeURL(link.url));return {doi:item.doi,title:item.title,abstract:item.abstractText,year:item.pubYear,authors:item.authorString,url:`https://europepmc.org/article/${encodeURIComponent(item.source)}/${encodeURIComponent(item.id)}`,downloadUrl:pdf?.url,type:'paper',format:pdf?'PDF':'论文',license:item.license};}
+    normalize(item){const links=item.fullTextUrlList?.fullTextUrl||[],pdf=links.find(link=>link.documentStyle==='pdf'&&(link.availabilityCode==='OA'||item.isOpenAccess==='Y'&&link.availabilityCode==='F')&&safeURL(link.url));return {doi:item.doi,title:item.title,abstract:item.abstractText,year:item.pubYear,authors:item.authorString,url:`https://europepmc.org/article/${encodeURIComponent(item.source)}/${encodeURIComponent(item.id)}`,downloadUrl:pdf?.url,type:'paper',format:pdf?'PDF':'论文',license:item.license};}
   });
   registerSource('DataCite',{
     url:'https://datacite.org/',domain:'api.datacite.org',description:'数据、软件、报告及其他 DOI 资料',types:Object.keys(resourceTypes),
@@ -54,9 +96,9 @@
   });
   function normalize(source,item,index){const config=sources[source];return config?normalizeRecord(source,config.normalize(item,index),index):null;}
   function requestURL(source,query,year=0,types=['all']){const config=sources[source];if(!config)throw new Error('未知检索来源');return config.buildURL(query,year,types);}
-  async function search(source,query,year,signal,types=['all']){const config=sources[source],url=requestURL(source,query,year,types),controller=new AbortController(),abort=()=>controller.abort();if(signal?.aborted)controller.abort();else signal?.addEventListener('abort',abort,{once:true});const timer=setTimeout(abort,30000);try{const response=await fetch(url,{signal:controller.signal,credentials:'omit',referrerPolicy:'no-referrer'});if(!response.ok)throw new Error(`${source} HTTP ${response.status}`);const data=await response.json(),items=config.items(data);if(!Array.isArray(items))throw new Error(`${source} 返回格式不正确`);const wanted=normalizeTypes(types);return items.map((item,index)=>normalize(source,item,index)).filter(record=>record&&wanted.includes(record.type));}catch(error){if(signal?.aborted)throw error;if(error.name==='AbortError')throw new Error(`${source} 查询超时`);throw error;}finally{clearTimeout(timer);signal?.removeEventListener('abort',abort);}}
+  async function search(source,query,year,signal,types=['all']){const config=sources[source],url=requestURL(source,query,year,types),controller=new AbortController(),abort=()=>controller.abort();if(signal?.aborted)controller.abort();else signal?.addEventListener('abort',abort,{once:true});const timer=setTimeout(abort,30000);try{let data;if(await window.DreamscapeResearchService?.ready)data=await DreamscapeResearchService.source(url,controller.signal);else{const response=await fetch(url,{signal:controller.signal,credentials:'omit',referrerPolicy:'no-referrer'});if(!response.ok)throw new Error(`${source} HTTP ${response.status}`);data=await response.json();}const items=config.items(data);if(!Array.isArray(items))throw new Error(`${source} 返回格式不正确`);const wanted=normalizeTypes(types);return items.map((item,index)=>normalize(source,item,index)).filter(record=>record&&wanted.includes(record.type));}catch(error){if(signal?.aborted)throw error;if(error.name==='AbortError')throw new Error(`${source} 查询超时`);throw error;}finally{clearTimeout(timer);signal?.removeEventListener('abort',abort);}}
   function merge(existing,incoming){const map=new Map(existing.map(r=>[r.id,r]));for(const r of incoming){const prior=map.get(r.id);if(!prior){map.set(r.id,r);continue;}prior.origins=[...prior.origins,...r.origins.filter(o=>!prior.origins.some(p=>p.source===o.source&&p.url===o.url))];if(!prior.abstract&&r.abstract)prior.abstract=r.abstract;if(!prior.downloadUrl&&r.downloadUrl){prior.downloadUrl=r.downloadUrl;prior.available=true;prior.format=r.format;}prior.score=Math.max(prior.score,r.score);}return [...map.values()];}
   function plan(value,fallback){const types=normalizeTypes(value?.types||value?.type||'all');return {query:text(value?.query||fallback).slice(0,300),topic:text(value?.topic||fallback).slice(0,100),reply:text(value?.reply||'检索条件已整理。'),types,type:types.length===1?types[0]:'all',year:Number.isInteger(value?.year)&&value.year>=1900&&value.year<=2100?value.year:0};}
   function applyRanking(records,value){const ranked=Array.isArray(value?.rankings)?value.rankings:[],map=new Map(records.map(r=>[r.id,r])),seen=new Set();for(const item of ranked){const r=map.get(item.id);if(!r||seen.has(item.id)||!Number.isFinite(item.score))continue;seen.add(item.id);r.score=Math.round(Math.max(0,Math.min(100,item.score)));r.reason=text(item.reason)||'模型未提供匹配理由';r.scoreKind='model';}return records;}
-  window.DreamscapeResearch={resourceTypes,sources,registerSource,sourceSupports,normalizeTypes,matchTypes,validType,safeURL,text,normalize,requestURL,search,merge,plan,applyRanking};
+  window.DreamscapeResearch={resourceTypes,sources,registerSource,registerDeclarativeSource,removeDeclarativeSource,testDeclarativeSource,sanitizeDefinition,sourceSupports,normalizeTypes,matchTypes,validType,safeURL,publicURL,text,normalize,requestURL,search,merge,plan,applyRanking};
 })();
