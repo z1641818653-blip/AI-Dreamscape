@@ -3,7 +3,7 @@
   "private": true,
   "version": "4.3.0",
   "scripts": {
-    "test": "node --test tests/research-service.cjs tests/research-projects.cjs && node tests/regression.cjs",
+    "test": "node --test tests/research-service.cjs tests/research-projects.cjs tests/research-collection.cjs && node tests/regression.cjs",
     "start": "node server/research-service.cjs",
     "test:service": "node --test tests/research-service.cjs",
     "test:live": "node tests/research-live.cjs"
