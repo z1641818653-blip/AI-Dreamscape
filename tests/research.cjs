@@ -2,7 +2,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 module.exports=async function({browser,base,test}){
   const context=await browser.newContext();
-  let page=await context.newPage(),modelRequests=[],sourceRequests=[],pdfBroken=false,sourceFailure=false,malformed=false,holdModel=false,releaseModel;
+  let page=await context.newPage(),modelRequests=[],sourceRequests=[],pdfBroken=false,sourceFailure=false,malformed=false,holdModel=false,releaseModel,archiveFiles=null,pendingModels=[];
   const crossref={message:{items:[{DOI:'10.test/shared',title:['Urban heat evidence'],abstract:'Urban heat remote sensing',published:{'date-parts':[[2024]]},URL:'https://doi.org/10.test/shared'}]}};
   const pmc={resultList:{result:[{doi:'10.test/shared',title:'Urban heat evidence',pubYear:'2024',source:'MED',id:'123',abstractText:'<p>Urban heat evidence abstract</p>',fullTextUrlList:{fullTextUrl:[{documentStyle:'pdf',availabilityCode:'OA',url:'https://files.example.test/paper.pdf'}]}}]}};
   const datacite={data:[{id:'10.test/data',attributes:{doi:'10.test/data',titles:[{title:'Urban temperature data'}],publicationYear:2023,url:'https://example.test/dataset',formats:['CSV'],contentUrl:['https://files.example.test/data.csv'],types:{resourceTypeGeneral:'Dataset'},descriptions:[{descriptionType:'Abstract',description:'Urban heat observations'}]}}]};
@@ -15,7 +15,7 @@ module.exports=async function({browser,base,test}){
     if(req.url().startsWith(base)){return route.continue();}
     if(['api.deepseek.com','api.openai.com','api.anthropic.com','generativelanguage.googleapis.com','dashscope.aliyuncs.com'].includes(url.hostname)){
       const body=req.postDataJSON();modelRequests.push({url:req.url(),body,headers:req.headers()});
-      if(holdModel)await new Promise(resolve=>releaseModel=resolve);
+      if(holdModel)await new Promise(resolve=>{pendingModels.push(resolve);releaseModel=()=>pendingModels.splice(0).forEach(done=>done());});
       let payload;
       const last=body.messages?.at(-1)?.content||body.contents?.at(-1)?.parts?.[0]?.text||'{}';let input={};try{input=JSON.parse(last);}catch{}
       const system=body.messages?.[0]?.content||body.system_instruction?.parts?.[0]?.text||'';
@@ -28,7 +28,7 @@ module.exports=async function({browser,base,test}){
     if(url.hostname==='api.crossref.org')return route.fulfill({json:crossref});
     if(url.hostname==='www.ebi.ac.uk')return route.fulfill(sourceFailure?{status:503,body:'Service unavailable'}:{json:pmc});
     if(url.hostname==='api.datacite.org')return route.fulfill({json:datacite});
-    if(url.hostname==='archive.org')return route.fulfill({json:url.pathname.startsWith('/metadata/')?{files:[{name:'urban-heat.mp4',format:'MPEG4',size:'1048576',source:'original'},{name:'item_meta.xml',format:'Metadata',size:'100',source:'original'}]}:{response:{docs:[]}}});
+    if(url.hostname==='archive.org')return route.fulfill({json:url.pathname.startsWith('/metadata/')?{files:archiveFiles||[{name:'urban-heat.mp4',format:'MPEG4',size:'1048576',source:'original'},{name:'item_meta.xml',format:'Metadata',size:'100',source:'original'}]}:{response:{docs:[]}}});
     if(url.hostname==='api.custom.test')return route.fulfill({json:custom});
     if(url.hostname==='files.example.test')return route.fulfill({status:200,contentType:url.pathname.endsWith('.pdf')?(pdfBroken?'text/html':'application/pdf'):'text/csv',body:url.pathname.endsWith('.pdf')?(pdfBroken?'<html>Login required</html>':'%PDF-1.4\nfixture'): 'temperature,time\n30,2024\n'});
     return route.abort();
@@ -58,11 +58,33 @@ module.exports=async function({browser,base,test}){
   await test('research: secondary Archive discovery selects a real media file',async()=>{
     const result=await page.evaluate(()=>DreamscapeDownload.resolveFile({title:'Archive video',type:'video',url:'https://archive.org/details/demo-item',downloadUrl:''},new AbortController().signal));assert.match(result.url,/archive\.org\/download\/demo-item\/urban-heat\.mp4$/);assert.equal(result.externalOnly,false);assert.equal(result.size,'1 MB');
   });
+  await test('research: downloadable media derivatives outrank oversized originals',async()=>{
+    archiveFiles=[{name:'original.mp4',format:'MPEG4',size:String(100*1024*1024),source:'original'},{name:'small.webm',format:'WebM',size:'1048576',source:'derivative'},{name:'private.mp4',size:'1000',source:'original',private:true}];
+    try{const result=await page.evaluate(()=>DreamscapeDownload.resolveFile({type:'video',url:'https://archive.org/details/demo-item'}));assert.match(result.url,/small\.webm$/);assert.equal(result.externalOnly,false);
+      archiveFiles=archiveFiles.slice(0,1);const large=await page.evaluate(()=>DreamscapeDownload.resolveFile({type:'video',url:'https://archive.org/details/demo-item'}));assert.equal(large.externalOnly,true);
+    }finally{archiveFiles=null;}
+  });
+  await test('research: fetched media and ZIP entries retain their file extensions',async()=>{
+    const result=await page.evaluate(async()=>{const file=await DreamscapeDownload.fetchFile({title:'Video',format:'MPEG4',downloadUrl:'https://files.example.test/video.mp4'});return {name:file.name,zip:Array.from(DreamscapeDownload.zip([file])),audio:DreamscapeDownload.filename('Audio','MP3'),book:DreamscapeDownload.filename('Book','EPUB'),image:DreamscapeDownload.filename('Image','JPEG'),compound:DreamscapeDownload.filename('Data','unknown','https://files.example.test/data.tar.gz?download=1')};});
+    assert.equal(result.name,'Video.mp4');assert.ok(Buffer.from(result.zip).includes(Buffer.from('01-Video.mp4')));assert.equal(result.audio,'Audio.mp3');assert.equal(result.book,'Book.epub');assert.equal(result.image,'Image.jpg');assert.equal(result.compound,'Data.tar.gz');
+  });
   await test('research: HTML responses fail downloads and preserve actual file link',async()=>{
     pdfBroken=true;await page.getByRole('button',{name:'再下载 Urban heat evidence',exact:true}).click();await page.waitForFunction(()=>document.querySelector('.download-hint').textContent==='浏览器无法直接保存');assert.match(await page.locator('#logList').innerText(),/地址返回网页/);assert.equal(await page.getByRole('button',{name:'直接打开 Urban heat evidence',exact:true}).count(),1);assert.equal(await page.locator('.file-link').count(),2);pdfBroken=false;
   });
   await test('research: per-resource AI overview uses metadata and persists',async()=>{
     await page.getByRole('button',{name:'AI 总结 Urban heat evidence',exact:true}).click();await page.waitForFunction(()=>document.getElementById('summaryContent').textContent.includes('这项资料介绍城市热岛'));assert.match(await page.locator('#summaryContent').innerText(),/具体方法和结论需阅读原文/);const request=modelRequests.at(-1);assert.match(JSON.stringify(request.body),/学术资料介绍助手/);assert.doesNotMatch(JSON.stringify(request.body),/integration-test-key/);await page.getByRole('button',{name:'关闭 AI 资料介绍'}).click();assert.equal(await page.getByRole('button',{name:'AI 总结 Urban heat evidence',exact:true}).innerText(),'查看总结');
+  });
+  await test('research: switching summaries cancels the old task and allows retry',async()=>{
+    await page.evaluate(()=>{const saved=JSON.parse(localStorage.getItem('dreamscape_research_v1'));saved.records.forEach(r=>delete r.aiSummary);localStorage.setItem('dreamscape_research_v1',JSON.stringify(saved));});await page.reload();
+    const button=page.getByRole('button',{name:'AI 总结 Urban temperature data',exact:true});holdModel=true;
+    try{await button.click();await page.waitForFunction(()=>document.querySelector('[data-summary].running'));
+      await page.getByRole('button',{name:'关闭 AI 资料介绍'}).click();
+      await page.getByRole('button',{name:'AI 总结 Urban heat evidence',exact:true}).click();
+      await page.waitForFunction(()=>!Array.from(document.querySelectorAll('[data-summary]')).find(b=>b.getAttribute('aria-label')==='AI 总结 Urban temperature data').disabled);
+      assert.equal(await button.isEnabled(),true);
+    }finally{holdModel=false;releaseModel?.();}
+    await page.waitForFunction(()=>!document.querySelector('[data-summary].running'));
+    await page.getByRole('button',{name:'关闭 AI 资料介绍'}).click();await button.click();await page.waitForFunction(()=>document.getElementById('summaryContent').textContent.includes('这项资料介绍城市热岛'));await page.getByRole('button',{name:'关闭 AI 资料介绍'}).click();
   });
   await test('research: matching explanations cannot add invented resources or URLs',async()=>{
     const result=await page.evaluate(()=>{const rows=[{id:'known',score:2,scoreKind:'source',url:'https://example.test/original'}];DreamscapeResearch.applyRanking(rows,{rankings:[{id:'invented',score:100,reason:'Fake',url:'https://evil.test'},{id:'known',score:120,reason:'Bounded score'},{id:'known',score:0,reason:'Duplicate'}]});return rows;});assert.equal(result.length,1);assert.equal(result[0].score,100);assert.equal(result[0].url,'https://example.test/original');assert.equal(result[0].reason,'Bounded score');
