@@ -70,6 +70,8 @@ PR 和 main 提交会自动运行浏览器回归检查。正式发布前检查 P
 
 ## 验证维护改动
 
+资料工作台 V0.5 第一批支持多项目、最近 5 次检索历史、收藏备注、当前清单追加筛选和 CSV/JSON/Markdown 导出。使用 `npm start` 启动同域采集与下载服务；完整功能需要 Node.js 托管，GitHub Pages 仅提供静态功能。实施边界与下一批分页、增量检索和后台任务的验收要求见 [资料工作台后续计划](docs/research-roadmap.md)。
+
 ```sh
 npm ci
 npx playwright install chromium

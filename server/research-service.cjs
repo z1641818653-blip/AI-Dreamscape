@@ -108,9 +108,9 @@ function createServer({root=path.resolve(__dirname,'..'),fetcher=fetchPublic,ori
       return;
     }
     if(req.method!=='GET'&&req.method!=='HEAD'){res.writeHead(405);return res.end();}
-    const mime={'.html':'text/html; charset=utf-8','.js':'application/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.ico':'image/x-icon','.woff2':'font/woff2'};
-    let name;try{name=decodeURIComponent(target.pathname);}catch{res.writeHead(400);return res.end();}if(name==='/')name='/index.html';const file=path.resolve(root,'.'+name),relative=path.relative(root,file);
-    if(!file.startsWith(root+path.sep)||relative.split(path.sep).some(part=>part.startsWith('.')||['node_modules','server','tests','docs'].includes(part))||!mime[path.extname(file)]||!fs.existsSync(file)||!fs.statSync(file).isFile()){res.writeHead(404);return res.end();}
+    const mime={'.html':'text/html; charset=utf-8','.js':'application/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.ico':'image/x-icon','.woff2':'font/woff2','.md':'text/markdown; charset=utf-8'};
+    let name;try{name=decodeURIComponent(target.pathname);}catch{res.writeHead(400);return res.end();}if(name==='/')name='/index.html';const file=path.resolve(root,'.'+name),relative=path.relative(root,file),publicDoc=['docs/research-workbench.md','docs/research-service.md','docs/research-roadmap.md'].includes(relative.split(path.sep).join('/'));
+    if(!file.startsWith(root+path.sep)||relative.split(path.sep).some(part=>part.startsWith('.')||(['node_modules','server','tests'].includes(part)||(part==='docs'&&!publicDoc)))||!mime[path.extname(file)]||!fs.existsSync(file)||!fs.statSync(file).isFile()){res.writeHead(404);return res.end();}
     res.writeHead(200,{'Content-Type':mime[path.extname(file)],'Cache-Control':'no-cache'});if(req.method==='HEAD')return res.end();fs.createReadStream(file).pipe(res);
   });
 }
