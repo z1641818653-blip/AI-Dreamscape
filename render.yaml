@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: ai-dreamscape-research
+    runtime: node
+    plan: free
+    branch: main
+    buildCommand: npm ci --omit=dev
+    startCommand: npm start
+    healthCheckPath: /api/research/health
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: HOST
+        value: 0.0.0.0
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production

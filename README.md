@@ -95,3 +95,9 @@ npm test
 指定发言同一时间只运行一个请求，下一位可改选或取消；停止保留已收到内容并清理待执行选择。新增普通回应、总结与明确的最终裁决任务。生成期间的角色编辑与房间切换受到限制。
 
 聊天室仍待用户体验确认，预览分支不会触发 main 的 GitHub Pages 发布。本机通过普通 HTTP 服务预览，预览地址的浏览器数据与正式站点独立。
+
+## V0.6 迭代采集与完整服务部署
+
+支持目标数量、最大数量、独立来源分页、继续采集、模型辅助网页发现和自动二次文件查找；说明见 [采集指南](docs/research-collection.md)。
+
+[部署完整 Node.js 版本到 Render](https://render.com/deploy?repo=https://github.com/z1641818653-blip/AI-Dreamscape)。仓库 Blueprint 已配置免费实例、健康检查、同域地址自动识别和 CI 通过后发布；首次需在 Render 登录并确认创建。GitHub Pages 仍是静态版本。

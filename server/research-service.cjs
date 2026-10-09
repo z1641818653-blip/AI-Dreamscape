@@ -8,6 +8,7 @@ const ipaddr=require('ipaddr.js');
 const cheerio=require('cheerio');
 const LIMIT=64*1024*1024, PAGE_LIMIT=4*1024*1024;
 const EXTENSIONS={paper:['pdf','xml','txt'],report:['pdf','txt','xml'],book:['pdf','epub','txt'],dataset:['csv','json','zip','xml','parquet','nc','tif','xlsx'],video:['mp4','webm','mkv','mov'],audio:['mp3','m4a','ogg','flac','wav'],image:['jpg','jpeg','png','tif','tiff','jp2','svg'],software:['zip','7z','tar.gz','iso'],web:['html','htm','warc.gz'],other:['pdf','zip','csv','json','txt','xml','mp4','mp3']};
+EXTENSIONS.all=[...new Set(Object.values(EXTENSIONS).flat())];
 class ServiceError extends Error{constructor(message,code='unavailable',status=422){super(message);this.code=code;this.status=status;}}
 function publicAddress(address){try{let parsed=ipaddr.parse(address);if(parsed.kind()==='ipv6'&&parsed.isIPv4MappedAddress())parsed=parsed.toIPv4Address();return parsed.range()==='unicast';}catch{return false;}}
 function publicURL(value,base){let url;try{url=new URL(value,base);}catch{throw new ServiceError('文件地址无效','invalid_url');}if(url.protocol!=='https:'||url.username||url.password||(url.port&&url.port!=='443'))throw new ServiceError('仅支持公开 HTTPS 地址','blocked_url');const host=url.hostname.replace(/^\[|\]$/g,'').toLowerCase();if(host==='localhost'||host.endsWith('.localhost')||host.endsWith('.local')||host.endsWith('.internal')||host.includes('%')||(ipaddr.isValid(host)&&!publicAddress(host)))throw new ServiceError('不允许访问本机或私网地址','blocked_url');url.hash='';return url;}
@@ -80,7 +81,19 @@ async function discoverResource(resource,{signal,fetcher=fetchPublic}={}){
   }
   const special=attempts.find(a=>a.code==='needs_login')||attempts.find(a=>a.code==='restricted'),network=attempts.find(a=>['ETIMEDOUT','timeout','ABORT_ERR','ENOTFOUND','ECONNRESET'].includes(a.code));return {status:special?.code||(network?'timeout':'not_found'),message:special?.message||(network?'来源连接超时或中断，未完成文件发现':'未发现可验证的公开文件'),attempts};
 }
-function createServer({root=path.resolve(__dirname,'..'),fetcher=fetchPublic,origin=process.env.SITE_ORIGIN||'',maxActive=4}={}){
+async function inspectPage(value,{signal,fetcher=fetchPublic,keywords=''}={}){
+  const address=publicURL(value).href,response=await fetcher(address,{signal,maxBytes:PAGE_LIMIT});signal?.throwIfAborted();
+  const mime=String(response.headers['content-type']||'');if(!/html|xhtml/.test(mime))throw new ServiceError('候选地址未返回可采集的 HTML 页面','not_page');
+  const $=cheerio.load(response.bytes.toString()),base=response.url||address,clean=value=>String(value||'').replace(/\s+/g,' ').trim().slice(0,12000);
+  const title=clean($('meta[property="og:title"]').attr('content')||$('title').first().text()||$('h1').first().text());if(!title)throw new ServiceError('页面没有可验证的标题','invalid_page');
+  const description=clean($('meta[name="description"]').attr('content')||$('meta[property="og:description"]').attr('content')||$('main p,article p').first().text()).slice(0,2400);
+  const links=[],seen=new Set(),tokens=String(keywords).toLowerCase().split(/[\s,，]+/).filter(v=>v.length>2).slice(0,12);
+  $('a[href]').each((i,el)=>{if(links.length>=150)return;let url;try{url=publicURL($(el).attr('href'),base);}catch{return;}const label=clean($(el).text()).slice(0,200);if(url.origin!==new URL(base).origin||seen.has(url.href)||extension(url.href)||url.href===base||/login|logout|signin|signup|privacy|terms/i.test(url.pathname))return;seen.add(url.href);links.push({url:url.href,label,score:tokens.filter(t=>(label+' '+url.pathname).toLowerCase().includes(t)).length});});
+  const formats={pdf:'paper',xml:'paper',epub:'book',mp4:'video',webm:'video',mkv:'video',mov:'video',mp3:'audio',m4a:'audio',wav:'audio',flac:'audio',ogg:'audio',jpg:'image',jpeg:'image',png:'image',svg:'image',tif:'image',tiff:'image',jp2:'image',csv:'dataset',json:'dataset',xlsx:'dataset',parquet:'dataset',nc:'dataset',zip:'other'};
+  const files=extractCandidates(response.bytes.toString(),base,'all').slice(0,12).map(file=>({...file,type:formats[file.format.toLowerCase()]||'other',label:clean(new URL(file.url).pathname.split('/').at(-1)||'文件')}));
+  return {url:base,title,description,license:clean($('link[rel="license"]').attr('href')||''),links:links.sort((a,b)=>b.score-a.score).slice(0,12),files,checkedAt:new Date().toISOString()};
+}
+function createServer({root=path.resolve(__dirname,'..'),fetcher=fetchPublic,origin=process.env.SITE_ORIGIN||process.env.RENDER_EXTERNAL_URL||'',maxActive=4}={}){
   let active=0;
   return http.createServer(async(req,res)=>{
     res.setHeader('X-Content-Type-Options','nosniff');const json=(status,data)=>{if(res.destroyed)return;res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(data));};
@@ -90,13 +103,14 @@ function createServer({root=path.resolve(__dirname,'..'),fetcher=fetchPublic,ori
       if(!allowed||host!==allowed||(req.headers.origin&&req.headers.origin!==(origin||`http://${host}`)))return json(403,{error:'来源未获允许',code:'origin'});
       if(target.pathname==='/api/research/health'&&req.method==='GET')return json(200,{service:'dreamscape-research',version:1,maxFileBytes:LIMIT});
       if(req.method!=='POST'||req.headers['x-research-client']!=='1'||!String(req.headers['content-type']).startsWith('application/json'))return json(400,{error:'请求格式不正确'});
-      if(!['resolve','download','source'].includes(target.pathname.split('/').at(-1)))return json(404,{error:'接口不存在'});
+      if(!['resolve','download','source','inspect'].includes(target.pathname.split('/').at(-1)))return json(404,{error:'接口不存在'});
       if(active>=maxActive)return json(429,{error:'采集服务繁忙，请稍后重试',code:'busy'});active++;
       const controller=new AbortController(),timer=setTimeout(()=>controller.abort(new ServiceError('采集任务超时','timeout')),target.pathname.endsWith('/download')?300000:55000);res.on('close',()=>{if(!res.writableEnded)controller.abort();});req.on('aborted',()=>controller.abort());
       try{
         req.setTimeout(10000,()=>req.destroy());const chunks=[];let size=0;for await(const chunk of req){size+=chunk.length;if(size>32768)throw new ServiceError('请求内容过大','invalid_request',413);chunks.push(chunk);}let data;try{data=JSON.parse(Buffer.concat(chunks).toString());}catch{throw new ServiceError('请求 JSON 无效','invalid_request',400);}if(!data||typeof data!=='object')throw new ServiceError('请求内容无效','invalid_request',400);
         req.setTimeout(0);const action=target.pathname.split('/').at(-1),signal=controller.signal;
         if(action==='resolve')return json(200,await discoverResource(data,{signal,fetcher}));
+        if(action==='inspect')return json(200,await inspectPage(data.url,{signal,fetcher,keywords:String(data.keywords||'').slice(0,300)}));
         if(action==='source'){const upstream=await fetcher(data.url,{signal,maxBytes:PAGE_LIMIT});let body;try{body=JSON.parse(upstream.bytes.toString());}catch{throw new ServiceError('来源未返回有效 JSON','invalid_response');}return json(200,body);}
         let started=false;
         const write=(bytes,meta)=>{if(!started){const info=fileInfo({...meta,bytes},data.format);if(info.externalOnly)throw new ServiceError('文件超过 64 MB，请直接打开文件地址','too_large');res.writeHead(200,{'Content-Type':info.contentType||'application/octet-stream','Cache-Control':'no-store','X-Research-Format':info.format,'Content-Disposition':'attachment',...(meta.headers['content-length']?{'Content-Length':meta.headers['content-length']}:{})});started=true;}res.write(bytes);};
@@ -109,10 +123,10 @@ function createServer({root=path.resolve(__dirname,'..'),fetcher=fetchPublic,ori
     }
     if(req.method!=='GET'&&req.method!=='HEAD'){res.writeHead(405);return res.end();}
     const mime={'.html':'text/html; charset=utf-8','.js':'application/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.ico':'image/x-icon','.woff2':'font/woff2','.md':'text/markdown; charset=utf-8'};
-    let name;try{name=decodeURIComponent(target.pathname);}catch{res.writeHead(400);return res.end();}if(name==='/')name='/index.html';const file=path.resolve(root,'.'+name),relative=path.relative(root,file),publicDoc=['docs/research-workbench.md','docs/research-service.md','docs/research-roadmap.md'].includes(relative.split(path.sep).join('/'));
+    let name;try{name=decodeURIComponent(target.pathname);}catch{res.writeHead(400);return res.end();}if(name==='/')name='/index.html';const file=path.resolve(root,'.'+name),relative=path.relative(root,file),publicDoc=['docs/research-workbench.md','docs/research-service.md','docs/research-roadmap.md','docs/research-collection.md'].includes(relative.split(path.sep).join('/'));
     if(!file.startsWith(root+path.sep)||relative.split(path.sep).some(part=>part.startsWith('.')||(['node_modules','server','tests'].includes(part)||(part==='docs'&&!publicDoc)))||!mime[path.extname(file)]||!fs.existsSync(file)||!fs.statSync(file).isFile()){res.writeHead(404);return res.end();}
     res.writeHead(200,{'Content-Type':mime[path.extname(file)],'Cache-Control':'no-cache'});if(req.method==='HEAD')return res.end();fs.createReadStream(file).pipe(res);
   });
 }
 if(require.main===module){const server=createServer();server.listen(Number(process.env.PORT)||8787,process.env.HOST||'127.0.0.1',()=>console.log(`Dreamscape research: http://${process.env.HOST||'127.0.0.1'}:${server.address().port}/research.html`));}
-module.exports={LIMIT,ServiceError,publicAddress,publicURL,fetchPublic,extractCandidates,fileInfo,discoverResource,createServer};
+module.exports={LIMIT,ServiceError,publicAddress,publicURL,fetchPublic,extractCandidates,fileInfo,discoverResource,inspectPage,createServer};
