@@ -1,7 +1,20 @@
 (function(){
   'use strict';
   const LIMIT=64*1024*1024;
+  const archiveExtensions={video:['mp4','webm','mkv','mov'],audio:['mp3','m4a','ogg','flac','wav'],book:['pdf','epub','txt'],paper:['pdf','txt'],report:['pdf','txt'],image:['jpg','jpeg','png','tif','tiff','jp2'],software:['zip','7z','tar.gz','iso'],web:['html','htm','warc.gz'],dataset:['csv','json','zip','xml','parquet','nc','tif'],other:['pdf','mp4','mp3','zip','csv','json','txt']};
   function filename(title,format){const clean=String(title||'resource').replace(/[\\/:*?"<>|\x00-\x1f]/g,'_').replace(/[. ]+$/,'').slice(0,100)||'resource';const ext=({pdf:'pdf',csv:'csv',json:'json',geotiff:'tif',netcdf:'nc',zip:'zip'})[String(format).toLowerCase()]||'bin';return `${clean}.${ext}`;}
+  function archiveIdentifier(resource){try{const url=new URL(resource.url);if(!/(?:^|\.)archive\.org$/.test(url.hostname))return '';const match=url.pathname.match(/^\/details\/([^/]+)/);return match?decodeURIComponent(match[1]):'';}catch{return '';}}
+  function canResolve(resource){return Boolean(!resource?.isDemo&&!resource?.downloadUrl&&archiveIdentifier(resource));}
+  function archiveScore(file,type){const name=String(file.name||'').toLowerCase(),extensions=archiveExtensions[type]||archiveExtensions.other,index=extensions.findIndex(ext=>name.endsWith('.'+ext));if(index<0||file.private==='true'||/_(?:meta|files)\.(?:xml|sqlite)$|\.torrent$/.test(name))return -1;const size=Number(file.size)||0;return (file.source==='original'?1000:0)+(extensions.length-index)*100+(size&&size<=LIMIT?60:0)-Math.min(size/LIMIT,20);}
+  async function resolveFile(resource,signal){
+    const direct=DreamscapeResearch.safeURL(resource.downloadUrl);if(direct)return {url:direct,format:resource.format,size:resource.size};
+    const identifier=archiveIdentifier(resource);if(!identifier)throw new Error('该来源没有可自动发现的文件，请打开来源页');
+    const response=await fetch(`https://archive.org/metadata/${encodeURIComponent(identifier)}`,{credentials:'omit',referrerPolicy:'no-referrer',signal});if(!response.ok)throw new Error(`二次采集失败（HTTP ${response.status}）`);
+    const data=await response.json(),files=Array.isArray(data.files)?data.files:[],file=files.map(item=>({item,score:archiveScore(item,resource.type)})).filter(value=>value.score>=0).sort((a,b)=>b.score-a.score)[0]?.item;
+    if(!file?.name)throw new Error('来源记录中没有找到适合当前资料类型的文件');
+    const path=String(file.name).split('/').map(encodeURIComponent).join('/'),url=`https://archive.org/download/${encodeURIComponent(identifier)}/${path}`;return {url,format:file.format||String(file.name).split('.').pop()?.toUpperCase()||resource.format,size:file.size?`${Math.max(1,Math.round(Number(file.size)/1024/1024*10)/10)} MB`:resource.size,externalOnly:Number(file.size)>LIMIT};
+  }
+  function openDirect(url){const safe=DreamscapeResearch.safeURL(url);if(!safe)return false;const a=document.createElement('a');a.href=safe;a.target='_blank';a.rel='noopener noreferrer';document.body.append(a);a.click();a.remove();return true;}
   async function fetchFile(resource,onProgress,signal){
     const url=DreamscapeResearch.safeURL(resource.downloadUrl);if(!url)throw new Error('来源没有提供直接文件地址');
     const response=await fetch(url,{credentials:'omit',referrerPolicy:'no-referrer',signal});
@@ -35,5 +48,5 @@
     const centralSize=central.reduce((n,c)=>n+c.length,0),end=new Uint8Array(22),v=new DataView(end.buffer);v.setUint32(0,0x06054b50,true);v.setUint16(8,files.length,true);v.setUint16(10,files.length,true);v.setUint32(12,centralSize,true);v.setUint32(16,offset,true);
     const result=new Uint8Array(offset+centralSize+22);let p=0;for(const block of [...locals,...central,end]){result.set(block,p);p+=block.length;}return result;
   }
-  window.DreamscapeDownload={LIMIT,filename,fetchFile,save,zip,crc32};
+  window.DreamscapeDownload={LIMIT,filename,archiveIdentifier,canResolve,resolveFile,openDirect,fetchFile,save,zip,crc32};
 })();
