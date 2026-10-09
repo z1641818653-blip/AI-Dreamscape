@@ -12,7 +12,7 @@ async function test(name, task) {
   catch (error) { results.push({ name, passed:false, error:error.message }); console.error('FAIL', name, error.message); }
 }
 function source(name) {
-  let text = fs.readFileSync(path.join(root, name), 'utf8');
+  let text = fs.readFileSync(path.join(root, name), 'utf8').replace(/\r\n/g, '\n');
   if (name === 'chat.html') text = text.replace('  load(function(){ init();', '  window.__chat={StreamModule,S,send,createC,switchC,compareSend}; load(function(){ init();');
   if (name === 'chatroom.html') text = text.replace('  init();\n})();', '  window.__room={renderMD,streamAI,state,newRoom,callSingleAI}; init();\n})();');
   if (name === 'assets/latexfix.js') text = text.replace('  init();\n})();', '  window.__latex={state,compile,sendAi}; init();\n})();');

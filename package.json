@@ -3,9 +3,16 @@
   "private": true,
   "version": "4.3.0",
   "scripts": {
-    "test": "node tests/regression.cjs"
+    "test": "node --test tests/research-service.cjs tests/research-projects.cjs && node tests/regression.cjs",
+    "start": "node server/research-service.cjs",
+    "test:service": "node --test tests/research-service.cjs",
+    "test:live": "node tests/research-live.cjs"
   },
   "devDependencies": {
     "playwright": "1.62.1"
+  },
+  "dependencies": {
+    "cheerio": "^1.2.0",
+    "ipaddr.js": "^2.5.0"
   }
 }
