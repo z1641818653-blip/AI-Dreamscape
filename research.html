@@ -4,8 +4,8 @@
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>灵境 · 资料工作台</title>
 <meta name="description" content="灵境资料工作台：通过对话检索论文、数据、视频、网页、图书、音频、图片与软件资料，查看来源链路并选择性下载。">
-<link rel="icon" href="assets/research-icon.svg" type="image/svg+xml"><link rel="stylesheet" href="research.css?v=0.4.1">
-<script src="providers-config.js"></script><script src="request.js"></script><script src="model-client.js"></script><script src="model-selector.js"></script><script src="backup.js"></script><script src="global-storage.js"></script><script defer src="research-sources.js?v=0.4.1"></script><script defer src="research-download.js?v=0.4.1"></script><script defer src="research-source-manager.js?v=0.4.1"></script><script defer src="research.js?v=0.4.1"></script>
+<link rel="icon" href="assets/research-icon.svg" type="image/svg+xml"><link rel="stylesheet" href="research.css?v=0.4.2">
+<script src="providers-config.js"></script><script src="request.js"></script><script src="model-client.js"></script><script src="model-selector.js"></script><script src="backup.js"></script><script src="global-storage.js"></script><script defer src="research-service.js?v=0.4.2"></script><script defer src="research-sources.js?v=0.4.2"></script><script defer src="research-download.js?v=0.4.2"></script><script defer src="research-source-manager.js?v=0.4.2"></script><script defer src="research.js?v=0.4.2"></script>
 </head>
 <body>
 <header class="topbar">
@@ -17,6 +17,7 @@
 <aside class="chat-panel panel" aria-label="需求对话">
   <div class="panel-heading"><div><span class="section-kicker">RESEARCH ASSISTANT</span><h1>和灵境一起找资料</h1></div><span class="assistant-symbol" aria-hidden="true">✦</span></div>
   <div class="research-model-controls"><div id="researchModelSelector"></div><label class="ai-toggle"><input id="useAI" type="checkbox" checked> 使用模型解析与排序</label><button class="text-button" id="stopModel" hidden>停止当前任务</button></div>
+  <p class="note" id="collectionServiceStatus" role="status">正在检查文件采集服务…</p>
   <div class="chat-feed" id="chatFeed" aria-live="polite" aria-relevant="additions"><div class="message assistant"><div class="message-meta"><span class="avatar">灵</span> 灵境</div><p>告诉我主题、年份和资料类型。我会从公开来源整理论文、数据、视频和其他资料，再由你选择。</p><div class="query-card"><span>检索示例</span><strong>城市热岛的论文、数据与公开视频</strong><div class="tags"><span>Crossref</span><span>DataCite</span><span>Internet Archive</span></div></div><p class="note">模型复用全局配置。未配置模型时，可关闭“使用模型解析与排序”，直接输入检索关键词。</p></div></div>
   <div class="chat-bottom"><div class="suggestions"><button data-prompt="只保留论文">只保留论文</button><button data-prompt="只看视频">只看视频</button><button data-prompt="只看数据集">只看数据集</button><button data-prompt="2023年以后">2023 年以后</button><button data-prompt="只看可下载">只看可下载</button></div>
     <form id="chatForm"><label for="prompt" class="sr-only">输入研究需求</label><textarea id="prompt" rows="3" data-page-cache maxlength="4000" placeholder="例如：查找具身智能的视频课程、论文、代码和公开数据集…"></textarea><div class="composer-footer"><span>Enter 检索 · Shift + Enter 换行</span><button type="submit" class="send-button" aria-label="发送需求">发送 <span aria-hidden="true">✦</span></button></div></form>

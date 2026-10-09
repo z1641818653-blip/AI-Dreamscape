@@ -1,6 +1,6 @@
 # AI 灵境（AI Dreamscape）
 
-AI 灵境是一组部署在 GitHub Pages 上的纯前端 AI 工具。目前由少量测试用户共同验证，仓库以稳定运行和可回退维护为优先目标。
+AI 灵境是一组部署在 GitHub Pages 上的 AI 工具，并提供可选的资料采集服务。目前由少量测试用户共同验证，仓库以稳定运行和可回退维护为优先目标。
 
 ## 在线地址
 
@@ -56,7 +56,7 @@ docs(index): 更新工具状态说明
 
 从主页的“资料工作台”进入 `research.html`，使用全局模型配置解析研究需求，检索 Crossref、Europe PMC 与 DataCite，按 DOI 合并重复项，并查看来源链路、模型匹配解释和实际文件地址。支持多条件筛选、选择性下载、ZIP 合集与 CSV 清单。未配置模型时可关闭模型开关直接检索关键词；示例体验与真实结果分开。
 
-`model-client.js` 复用现有五家提供商适配与流式解析，研究模块不单独保存密钥。浏览器下载受来源跨域与登录要求限制；没有直接文件地址的资源只展示来源，详细范围见 [资料工作台项目表](docs/research-workbench.md)。
+`model-client.js` 复用现有五家提供商适配与流式解析，研究模块不单独保存密钥。通过 `npm start` 启动同域采集服务后，可解析公开来源页的附件并保存跨域文件，支持 Internet Archive、Europe PMC、Zenodo 与通用 HTML 二次采集。静态部署仍受跨域限制，详细启动与部署方式见 [采集服务](docs/research-service.md)，项目范围见 [资料工作台项目表](docs/research-workbench.md)。
 
 ## v4.3 使用与后续方向
 
