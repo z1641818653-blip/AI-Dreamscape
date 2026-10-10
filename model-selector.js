@@ -115,7 +115,7 @@
       modelSelect.replaceChildren();
       model = getInitialModel(provider, requestedModel);
       [...new Set([...PROVIDERS[provider].models, model])].forEach(modelId => {
-        const option = document.createElement('option'); option.value = modelId; option.textContent = modelId; modelSelect.append(option);
+        const option = document.createElement('option'); option.value = modelId; option.textContent = DreamscapeConfig.getModelLabel(provider, modelId); modelSelect.append(option);
       });
       modelSelect.value = model;
       const ready = hasApiKey(provider);

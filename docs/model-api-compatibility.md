@@ -4,13 +4,13 @@
 
 | 服务 | 新版内置模型 |
 | --- | --- |
-| DeepSeek | deepseek-v4.1-flash |
+| DeepSeek | deepseek-flash（界面显示 DeepSeek V4.1 Flash） |
 | OpenAI | gpt-6.1-sol、gpt-6-astra、gpt-6-luna；保留 GPT 5.6 三档 |
 | Claude | claude-opus-5-5、claude-sonnet-5-5、claude-haiku-4-5；保留 Opus/Sonnet 4.6 |
 | Gemini | gemini-3.8-flash、gemini-3.5-flash-lite、gemini-3.1-pro-preview、gemini-3.5-flash |
 | 千问 | qwen3.8-max、qwen3.7-plus、qwen3.8-flash、qwen3.7-flash |
 
-模型列表是可维护的内置目录，不是账户实时权限列表。Gemini Pro 当前入口为预览模型。DeepSeek 的旧内置型号会自动迁移到 deepseek-v4.1-flash；其他服务保存的模型、自定义模型和角色专用模型继续保留。
+模型列表是可维护的内置目录，不是账户实时权限列表。Gemini Pro 当前入口为预览模型。DeepSeek V4.1 Flash 的官方 API ID 是 `deepseek-flash`；旧内置型号和误用的展示名称会自动迁移到该 ID。其他服务保存的模型、自定义模型和角色专用模型继续保留。
 
 ## 调用兼容性
 
