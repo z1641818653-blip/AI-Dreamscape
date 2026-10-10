@@ -60,10 +60,19 @@ function source(name) {
   }
   await page.setViewportSize({ width:1280, height:720 });
   await go('settings');
+  await test('DeepSeek only exposes V4.1 Flash and migrates retired built-in models', async () => {
+    await page.evaluate(() => localStorage.setItem('dp0', JSON.stringify({deepseek:{model:'deepseek-v4-pro',customModels:['deepseek-v4-flash','my-deepseek-model']}})));
+    await page.reload({waitUntil:'networkidle'});
+    const value = await page.evaluate(() => ({config:DreamscapeConfig.read().deepseek,builtins:DreamscapeConfig.providers.deepseek.builtinModels}));
+    assert.deepEqual(value.builtins, ['deepseek-v4.1-flash']);
+    assert.equal(value.config.model, 'deepseek-v4.1-flash');
+    assert.deepEqual(value.config.customModels, ['my-deepseek-model']);
+    assert.deepEqual(await page.locator('#model-deepseek option').allTextContents(), ['deepseek-v4.1-flash','my-deepseek-model']);
+  });
   await test('revealed API keys never enter cache or key-free downloaded backup', async () => {
     await page.locator('#key-deepseek').fill('dummy-secret');
     await page.locator('[data-provider="deepseek"] [data-reveal]').click();
-    await page.locator('#model-deepseek').selectOption('deepseek-v4-flash');
+    await page.locator('#model-deepseek').selectOption('deepseek-v4.1-flash');
     await page.evaluate(() => DreamscapeStorage.persist());
     const downloading = page.waitForEvent('download');
     await page.locator('#exportDataBtn').evaluate(el => el.click());
@@ -84,7 +93,7 @@ function source(name) {
     const value = await page.evaluate(() => {
       localStorage.setItem('dp0', JSON.stringify({ deepseek:{apiKey:DreamscapeConfig.encode('current-secret'),model:'original'} }));
       localStorage.setItem('dc0', JSON.stringify([{id:'original',messages:[]}]));
-      const prepared = DreamscapeBackup.plan({kind:'ai-dreamscape-browser-backup',schemaVersion:1,includesApiKeys:false,storage:{dp0:JSON.stringify({deepseek:{apiKey:DreamscapeConfig.encode('unexpected-secret'),model:'deepseek-v4-flash'}}),dc0:JSON.stringify([{id:'incoming',messages:[]}])}});
+      const prepared = DreamscapeBackup.plan({kind:'ai-dreamscape-browser-backup',schemaVersion:1,includesApiKeys:false,storage:{dp0:JSON.stringify({deepseek:{apiKey:DreamscapeConfig.encode('unexpected-secret'),model:'deepseek-v4.1-flash'}}),dc0:JSON.stringify([{id:'incoming',messages:[]}])}});
       DreamscapeBackup.restore(prepared);
       return { key:DreamscapeConfig.getKey('deepseek'), conflicts:prepared.conflicts, id:JSON.parse(localStorage.getItem('dc0'))[0].id };
     });
@@ -122,15 +131,15 @@ function source(name) {
     assert.equal(value.settings.exitProtection, false); assert.match(value.cache, /keep me/);
   });
   await test('chat does not overwrite keys changed after page load', async () => {
-    await page.evaluate(() => localStorage.setItem('dp0', JSON.stringify({deepseek:{apiKey:DreamscapeConfig.encode('changed-secret'),model:'deepseek-v4-flash'}})));
+    await page.evaluate(() => localStorage.setItem('dp0', JSON.stringify({deepseek:{apiKey:DreamscapeConfig.encode('changed-secret'),model:'deepseek-v4.1-flash'}})));
     await page.locator('#themeToggleBtn').evaluate(el => el.click());
     assert.equal(await page.evaluate(() => DreamscapeConfig.getKey('deepseek')), 'changed-secret');
   });
   await test('real storage event refreshes model selection in another tab', async () => {
     const other = await context.newPage(); await other.goto(base + '/settings.html');
     await other.evaluate(() => localStorage.setItem('dp0', JSON.stringify({deepseek:{apiKey:DreamscapeConfig.encode('other-tab-secret'),model:'deepseek-v4-pro'}})));
-    await page.waitForFunction(() => __chat.S.providers.deepseek.model === 'deepseek-v4-pro');
-    assert.equal(await page.locator('#chatModelSelector select').last().inputValue(), 'deepseek-v4-pro');
+    await page.waitForFunction(() => __chat.S.providers.deepseek.model === 'deepseek-v4.1-flash');
+    assert.equal(await page.locator('#chatModelSelector select').last().inputValue(), 'deepseek-v4.1-flash');
     await other.close();
   });
   await test('browser syntax highlighting loads and native Response remains intact', async () => {

@@ -1,16 +1,16 @@
 # 模型接口维护记录
 
-核对日期：2026-10-04。适用范围：设置页、工作台、聊天室、角色辅助修改、LaTeX 辅助和实验流程树共享的五个服务适配器。
+核对日期：2026-10-10。适用范围：设置页、工作台、聊天室、角色辅助修改、LaTeX 辅助和实验流程树共享的五个服务适配器。
 
 | 服务 | 新版内置模型 |
 | --- | --- |
-| DeepSeek | deepseek-v4-pro、deepseek-flash；保留 deepseek-v4-flash 兼容名称 |
+| DeepSeek | deepseek-v4.1-flash |
 | OpenAI | gpt-6.1-sol、gpt-6-astra、gpt-6-luna；保留 GPT 5.6 三档 |
 | Claude | claude-opus-5-5、claude-sonnet-5-5、claude-haiku-4-5；保留 Opus/Sonnet 4.6 |
 | Gemini | gemini-3.8-flash、gemini-3.5-flash-lite、gemini-3.1-pro-preview、gemini-3.5-flash |
 | 千问 | qwen3.8-max、qwen3.7-plus、qwen3.8-flash、qwen3.7-flash |
 
-模型列表是可维护的内置目录，不是账户实时权限列表。Gemini Pro 当前入口为预览模型。保存的模型、自定义模型和角色专用模型继续保留；用户可自行切换型号，更新目录不会自动改写已有角色。旧型号能否继续调用由服务商和账户权限决定。
+模型列表是可维护的内置目录，不是账户实时权限列表。Gemini Pro 当前入口为预览模型。DeepSeek 的旧内置型号会自动迁移到 deepseek-v4.1-flash；其他服务保存的模型、自定义模型和角色专用模型继续保留。
 
 ## 调用兼容性
 

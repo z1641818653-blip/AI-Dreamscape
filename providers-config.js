@@ -1,10 +1,12 @@
 (function () {
   'use strict';
+  const DEEPSEEK_MODEL = 'deepseek-v4.1-flash';
+  const DEEPSEEK_LEGACY_MODELS = new Set(['deepseek-v4-pro', 'deepseek-flash', 'deepseek-v4-flash', 'deepseek-chat', 'deepseek-reasoner']);
   const PROVIDERS = {
     deepseek: {
       name: 'DeepSeek',
       icon: '🟢',
-      models: ['deepseek-v4-pro', 'deepseek-flash', 'deepseek-v4-flash'],
+      models: [DEEPSEEK_MODEL],
       endpoint: 'https://api.deepseek.com/v1/chat/completions',
       streamFormat: 'openai',
       authHeader: (key) => ({ 'Authorization': 'Bearer ' + key }),
@@ -87,6 +89,21 @@
     const items = Array.isArray(value) ? value : String(value || '').split(/[,，\n]/);
     return [...new Set(items.filter(x => typeof x === 'string').map(x => x.trim()).filter(x => /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,159}$/.test(x)))].slice(0, 40);
   }
+  function normalizeModel(provider, value) {
+    const model = normalizeModels([value])[0] || '';
+    return provider === 'deepseek' && DEEPSEEK_LEGACY_MODELS.has(model) ? DEEPSEEK_MODEL : model;
+  }
+  function normalizeConfig(data) {
+    const config = data && typeof data === 'object' && !Array.isArray(data) ? { ...data } : {};
+    if (config.deepseek && typeof config.deepseek === 'object' && !Array.isArray(config.deepseek)) {
+      config.deepseek = {
+        ...config.deepseek,
+        model: normalizeModel('deepseek', config.deepseek.model),
+        customModels: normalizeModels(config.deepseek.customModels).filter(model => !DEEPSEEK_LEGACY_MODELS.has(model))
+      };
+    }
+    return config;
+  }
   Object.entries(PROVIDERS).forEach(([key, provider]) => {
     const builtins = provider.models;
     provider.builtinModels = [...builtins];
@@ -95,10 +112,11 @@
       return [...new Set([...builtins, ...normalizeModels(config.customModels), ...normalizeModels(config.model)])];
     }});
   });
-  function read() {
+  function readRaw() {
     try { const data = JSON.parse(localStorage.getItem(KEY) || '{}'); return data && typeof data === 'object' && !Array.isArray(data) ? data : {}; }
     catch { return {}; }
   }
+  function read() { return normalizeConfig(readRaw()); }
   function decode(value) {
     if (!value) return '';
     try { return decodeURIComponent(atob(value)).trim(); } catch { return ''; }
@@ -107,13 +125,13 @@
   function getKey(provider) { return decode(read()[provider]?.apiKey); }
   function saveSelection(provider, model, saveProvider) {
     const config = read();
-    config[provider] = { ...config[provider], model };
+    config[provider] = { ...config[provider], model:normalizeModel(provider, model) };
     localStorage.setItem(KEY, JSON.stringify(config));
     if (saveProvider) localStorage.setItem('dcp0', provider);
     window.dispatchEvent(new Event('dreamscape-config-change'));
   }
   function migrate() {
-    const config = read();
+    const config = readRaw();
     let legacy = {};
     const legacyRaw = localStorage.getItem('dp49');
     if (legacyRaw) {
@@ -129,13 +147,21 @@
       if (!key && provider === 'deepseek') key = localStorage.getItem('dk30') || '';
       if (key) { config[provider] = { ...config[provider], apiKey: encode(key) }; changed = true; }
     }
+    if (config.deepseek && typeof config.deepseek === 'object' && !Array.isArray(config.deepseek)) {
+      const model = normalizeModel('deepseek', config.deepseek.model);
+      const customModels = normalizeModels(config.deepseek.customModels).filter(item => !DEEPSEEK_LEGACY_MODELS.has(item));
+      if (model !== (config.deepseek.model || '') || JSON.stringify(customModels) !== JSON.stringify(normalizeModels(config.deepseek.customModels))) {
+        config.deepseek = { ...config.deepseek, model, customModels };
+        changed = true;
+      }
+    }
     if (changed) localStorage.setItem(KEY, JSON.stringify(config));
     // Delete only the two known legacy secret entries after successful migration.
     localStorage.removeItem('dk30');
     if (!legacyRaw || Object.keys(legacy).every(provider => PROVIDERS[provider] && (!legacy[provider]?.apiKey || decode(legacy[provider].apiKey) || Object.prototype.hasOwnProperty.call(config[provider] || {}, 'apiKey')))) localStorage.removeItem('dp49');
   }
   try { migrate(); } catch (error) { console.warn('旧配置迁移未完成', error.name); }
-  const info = { deepseek:'推理与高速模型', openai:'GPT 多档模型', claude:'Opus、Sonnet 与 Haiku', gemini:'Gemini 系列', qwen:'通义千问系列' };
+  const info = { deepseek:'V4.1 Flash 高速模型', openai:'GPT 多档模型', claude:'Opus、Sonnet 与 Haiku', gemini:'Gemini 系列', qwen:'通义千问系列' };
   Object.entries(PROVIDERS).forEach(([key, provider]) => { provider.info = info[key]; });
   function getUrl(provider, model, stream = true) {
     const adapter = PROVIDERS[provider];
@@ -148,5 +174,5 @@
     if (provider === 'gemini') return PROVIDERS.gemini.parseResponse(payload);
     return payload.choices?.[0]?.delta?.content || '';
   }
-  window.DreamscapeConfig = { providers:PROVIDERS, read, decode, encode, normalizeModels, getKey, saveSelection, getUrl, getStreamText };
+  window.DreamscapeConfig = { providers:PROVIDERS, read, decode, encode, normalizeModels, normalizeModel, getKey, saveSelection, getUrl, getStreamText };
 })();
