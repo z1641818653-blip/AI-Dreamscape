@@ -922,8 +922,11 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 
   const MODEL_MIGRATIONS = {
     deepseek: {
-      'deepseek-chat': 'deepseek-v4-flash',
-      'deepseek-reasoner': 'deepseek-v4-pro'
+      'deepseek-chat': 'deepseek-v4.1-flash',
+      'deepseek-reasoner': 'deepseek-v4.1-flash',
+      'deepseek-v4-pro': 'deepseek-v4.1-flash',
+      'deepseek-flash': 'deepseek-v4.1-flash',
+      'deepseek-v4-flash': 'deepseek-v4.1-flash'
     },
     openai: {
       'gpt-4o': 'gpt-5.6-terra',
@@ -964,8 +967,9 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     const provider = PROVIDERS[source.provider] ? source.provider : 'deepseek';
     const availableModels = PROVIDERS[provider].models;
     const migratedModel = MODEL_MIGRATIONS[provider]?.[source.model];
-    const model = DreamscapeConfig.normalizeModels([source.model])[0]
-      ? source.model.trim()
+    const normalizedModel = DreamscapeConfig.normalizeModel(provider, source.model);
+    const model = normalizedModel
+      ? (migratedModel || normalizedModel)
       : (availableModels.includes(migratedModel) ? migratedModel : availableModels[0]);
     return {
       ...source,
@@ -1060,7 +1064,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
           "name": "亚当·斯密",
           "prompt": "你是一名资本主义经济制度的理论辩护者，角色名为“亚当·斯密”。\n\n你的任务不是简单宣传资本主义，而是从资本主义经济学、自由市场理论、产权制度、竞争机制、创新激励、资源配置效率等角度，对相关议题进行系统分析。\n\n你的核心观点包括：\n1. 市场竞争能够通过价格机制有效配置资源；\n2. 私有产权能够激励个人创造财富和推动创新；\n3. 企业家精神和资本积累是经济发展的重要动力；\n4. 自由选择和个人权利是社会发展的基础；\n5. 政府应主要提供规则、公共服务和市场监管，而不是过度干预经济。\n\n辩论规则：\n- 必须直接回应社会主义方提出的观点；\n- 不允许回避社会公平、贫富差距、市场失灵等问题；\n- 可以承认资本主义存在的问题，但需要提出市场化解决方案；\n- 使用经济学逻辑、历史案例和现实数据进行论证；\n- 保持理性，不攻击对方人格。\n\n当你认为自己的核心观点无法继续有效维护时，可以承认部分失败。",
           "provider": "deepseek",
-          "model": "deepseek-v4-flash",
+          "model": "deepseek-v4.1-flash",
           "temp": 0.75,
           "locked": true
         },
@@ -1069,7 +1073,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
           "name": "卡尔·马克思",
           "prompt": "你是一名社会主义理论辩护者，角色名为“卡尔·马克思”。\n\n你的任务不是简单否定资本主义，而是从社会主义政治经济学、社会公平、劳动关系、公共利益、财富分配等角度，对相关议题进行系统分析。\n\n你的核心观点包括：\n\n1. 经济制度不仅要关注效率，也必须关注公平；\n2. 财富创造过程中劳动者贡献应得到合理保障；\n3. 市场机制可能导致财富集中和阶层固化；\n4. 某些公共资源和基础领域需要社会共同管理；\n5. 政府和社会制度应该减少结构性不平等。\n\n辩论规则：\n- 必须回应资本主义方关于效率、创新、自由市场的论点；\n- 不允许简单说资本主义“邪恶”，需要分析具体制度问题；\n- 可以承认市场机制具有优势，但强调需要社会调节；\n- 使用历史案例、社会学研究和经济理论进行论证；\n- 保持理性，不攻击个人。\n\n当你认为自己的核心观点无法继续有效维护时，可以承认部分失败。",
           "provider": "deepseek",
-          "model": "deepseek-v4-flash",
+          "model": "deepseek-v4.1-flash",
           "temp": 0.75,
           "locked": true
         },
@@ -1078,7 +1082,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
           "name": "苏格拉底",
           "prompt": "你是一名中立哲学裁判，角色名为“苏格拉底”。\n\n你的任务不是支持任何政治经济制度，而是评价双方辩论质量，寻找逻辑漏洞，并最终判断哪一方在当前议题中更有说服力。\n\n你的评价标准：\n\n1. 逻辑完整性：\n- 是否存在明显矛盾；\n- 是否回避关键问题；\n- 推理是否成立。\n\n2. 现实解释能力：\n- 是否能够解释现实社会现象；\n- 是否考虑历史经验和实际限制。\n\n3. 平衡性：\n- 是否承认自身理论的问题；\n- 是否合理回应对方观点。\n\n4. 可执行性：\n- 提出的方案是否能够实际运行；\n- 是否考虑人的行为、经济规律和社会成本。\n\n辩论流程：\n\n每轮结束后：\n- 总结双方核心观点；\n- 指出双方最强和最弱论点；\n- 判断是否存在明显优势。\n\n停止条件：\n当一方无法有效回应核心质疑，或者其主要观点已经被另一方充分反驳时，宣布该方暂时失败。\n\n最终输出：\n【胜方】\n【失败方】\n【主要原因】\n【双方值得保留的观点】\n\n不要因为个人偏好选择胜方，只根据论证质量判断。",
           "provider": "deepseek",
-          "model": "deepseek-v4-flash",
+          "model": "deepseek-v4.1-flash",
           "temp": 0.3,
           "locked": true
         }
@@ -1377,7 +1381,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     history: [],
     selectedTags: new Set(),
     provider: 'deepseek',
-    model: 'deepseek-v4-flash',
+    model: 'deepseek-v4.1-flash',
     deepThinking: false,
     busy: false,
     selectorMounted: false
@@ -2751,7 +2755,7 @@ ${transcript}
     if (t.id === 'addAiBtn') {
       if (state.isDiscussing) { showToast('请先停止讨论再修改角色','warning'); return; }
       if (!state.room) { showToast('请先创建房间','warning'); return; }
-      state.room.participants.push(normalizeParticipant({type:'ai',name:'新 AI',prompt:'你是一个有用的AI助手。',provider:'deepseek',model:'deepseek-chat',temp:0.7}));
+      state.room.participants.push(normalizeParticipant({type:'ai',name:'新 AI',prompt:'你是一个有用的AI助手。',provider:'deepseek',model:'deepseek-v4.1-flash',temp:0.7}));
       renderSidebar(); saveRoom(state.room); return;
     }
     if (t.id === 'openRoleCreatorBtn') { openRoleCreator(); return; }
