@@ -33,7 +33,7 @@
     if(bytes.length>LIMIT)throw new Error('文件超过 64 MB，请使用文件地址直接获取');
     if(!bytes.length)throw new Error('文件正文为空');
     if(String(resource.format).toUpperCase()==='PDF'&&new TextDecoder().decode(bytes.slice(0,5))!=='%PDF-')throw new Error('返回内容不是 PDF，请检查来源页');
-    return {name:filename(resource.title,response.headers.get('x-research-format')||resource.format,url),bytes,type:type||'application/octet-stream'};
+    const versionLabel=resource.acquisition?.versionLabel||'',versionedTitle=versionLabel&&versionLabel!=='版本未确认'?`${resource.title}-${versionLabel}`:resource.title;return {name:filename(versionedTitle,response.headers.get('x-research-format')||resource.format,url),bytes,type:type||'application/octet-stream'};
   }
   function save(bytes,name,type='application/octet-stream'){const url=URL.createObjectURL(new Blob([bytes],{type})),a=document.createElement('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);}
   const table=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=(c&1)?0xedb88320^(c>>>1):c>>>1;table[n]=c>>>0;}
