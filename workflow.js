@@ -16,13 +16,13 @@ let workflowVersionFuture = {};
 let workflowVersionBaselines = {};
 let versionHistoryInitialized = false;
 let isRestoringWorkflowVersion = false;
-const DEEPSEEK_MODELS = DreamscapeConfig.providers.deepseek.models.map(id => ({id, label:id}));
-let providerState = { provider: 'DeepSeek', model: 'deepseek-v4.1-flash', apiKey: '' };
+const DEEPSEEK_MODELS = DreamscapeConfig.providers.deepseek.models.map(id => ({id, label:DreamscapeConfig.getModelLabel('deepseek', id)}));
+let providerState = { provider: 'DeepSeek', model: 'deepseek-flash', apiKey: '' };
 
 function normalizeDeepSeekProviderState() {
   providerState.provider = 'DeepSeek';
   if (!DEEPSEEK_MODELS.some(function(item) { return item.id === providerState.model; })) {
-    providerState.model = 'deepseek-v4.1-flash';
+    providerState.model = 'deepseek-flash';
   }
 }
 

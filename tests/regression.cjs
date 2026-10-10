@@ -64,15 +64,16 @@ function source(name) {
     await page.evaluate(() => localStorage.setItem('dp0', JSON.stringify({deepseek:{model:'deepseek-v4-pro',customModels:['deepseek-v4-flash','my-deepseek-model']}})));
     await page.reload({waitUntil:'networkidle'});
     const value = await page.evaluate(() => ({config:DreamscapeConfig.read().deepseek,builtins:DreamscapeConfig.providers.deepseek.builtinModels}));
-    assert.deepEqual(value.builtins, ['deepseek-v4.1-flash']);
-    assert.equal(value.config.model, 'deepseek-v4.1-flash');
+    assert.deepEqual(value.builtins, ['deepseek-flash']);
+    assert.equal(value.config.model, 'deepseek-flash');
     assert.deepEqual(value.config.customModels, ['my-deepseek-model']);
-    assert.deepEqual(await page.locator('#model-deepseek option').allTextContents(), ['deepseek-v4.1-flash','my-deepseek-model']);
+    assert.deepEqual(await page.locator('#model-deepseek option').allTextContents(), ['DeepSeek V4.1 Flash','my-deepseek-model']);
+    assert.deepEqual(await page.locator('#model-deepseek option').evaluateAll(options => options.map(option => option.value)), ['deepseek-flash','my-deepseek-model']);
   });
   await test('revealed API keys never enter cache or key-free downloaded backup', async () => {
     await page.locator('#key-deepseek').fill('dummy-secret');
     await page.locator('[data-provider="deepseek"] [data-reveal]').click();
-    await page.locator('#model-deepseek').selectOption('deepseek-v4.1-flash');
+    await page.locator('#model-deepseek').selectOption('deepseek-flash');
     await page.evaluate(() => DreamscapeStorage.persist());
     const downloading = page.waitForEvent('download');
     await page.locator('#exportDataBtn').evaluate(el => el.click());
@@ -138,8 +139,8 @@ function source(name) {
   await test('real storage event refreshes model selection in another tab', async () => {
     const other = await context.newPage(); await other.goto(base + '/settings.html');
     await other.evaluate(() => localStorage.setItem('dp0', JSON.stringify({deepseek:{apiKey:DreamscapeConfig.encode('other-tab-secret'),model:'deepseek-v4-pro'}})));
-    await page.waitForFunction(() => __chat.S.providers.deepseek.model === 'deepseek-v4.1-flash');
-    assert.equal(await page.locator('#chatModelSelector select').last().inputValue(), 'deepseek-v4.1-flash');
+    await page.waitForFunction(() => __chat.S.providers.deepseek.model === 'deepseek-flash');
+    assert.equal(await page.locator('#chatModelSelector select').last().inputValue(), 'deepseek-flash');
     await other.close();
   });
   await test('browser syntax highlighting loads and native Response remains intact', async () => {
@@ -411,8 +412,8 @@ function source(name) {
     await page.unroute('https://api.deepseek.com/**');
   });
   await test('connection diagnostic explains auth, permission, model and quota failures', async () => {
-    for(const [status,expected] of [[401,'API Key'],[403,'权限'],[404,'模型'],[429,'额度']]) {
-      await page.route('https://api.deepseek.com/**',route=>route.fulfill({status,body:'failure'}));
+    for(const [status,expected,body] of [[400,'official model id required',JSON.stringify({error:{message:'official model id required'}})],[401,'API Key','failure'],[403,'权限','failure'],[404,'模型','failure'],[429,'额度','failure']]) {
+      await page.route('https://api.deepseek.com/**',route=>route.fulfill({status,contentType:status===400?'application/json':'text/plain',body}));
       await page.locator('[data-provider="deepseek"] [data-test]').click();
       await page.waitForFunction(()=>!document.querySelector('[data-provider="deepseek"] [data-test]').disabled);
       assert.ok((await page.locator('[data-provider="deepseek"] [data-test-status]').textContent()).includes(expected));

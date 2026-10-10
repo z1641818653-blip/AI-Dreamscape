@@ -1,7 +1,8 @@
 (function () {
   'use strict';
-  const DEEPSEEK_MODEL = 'deepseek-v4.1-flash';
-  const DEEPSEEK_LEGACY_MODELS = new Set(['deepseek-v4-pro', 'deepseek-flash', 'deepseek-v4-flash', 'deepseek-chat', 'deepseek-reasoner']);
+  // DeepSeek exposes V4.1 Flash under the stable API id `deepseek-flash`.
+  const DEEPSEEK_MODEL = 'deepseek-flash';
+  const DEEPSEEK_LEGACY_MODELS = new Set(['deepseek-v4.1-flash', 'deepseek-v4-pro', 'deepseek-v4-flash', 'deepseek-chat', 'deepseek-reasoner']);
   const PROVIDERS = {
     deepseek: {
       name: 'DeepSeek',
@@ -163,6 +164,9 @@
   try { migrate(); } catch (error) { console.warn('旧配置迁移未完成', error.name); }
   const info = { deepseek:'V4.1 Flash 高速模型', openai:'GPT 多档模型', claude:'Opus、Sonnet 与 Haiku', gemini:'Gemini 系列', qwen:'通义千问系列' };
   Object.entries(PROVIDERS).forEach(([key, provider]) => { provider.info = info[key]; });
+  function getModelLabel(provider, model) {
+    return provider === 'deepseek' && model === DEEPSEEK_MODEL ? 'DeepSeek V4.1 Flash' : model;
+  }
   function getUrl(provider, model, stream = true) {
     const adapter = PROVIDERS[provider];
     let url = typeof adapter.endpoint === 'function' ? adapter.endpoint(model) : adapter.endpoint;
@@ -174,5 +178,5 @@
     if (provider === 'gemini') return PROVIDERS.gemini.parseResponse(payload);
     return payload.choices?.[0]?.delta?.content || '';
   }
-  window.DreamscapeConfig = { providers:PROVIDERS, read, decode, encode, normalizeModels, normalizeModel, getKey, saveSelection, getUrl, getStreamText };
+  window.DreamscapeConfig = { providers:PROVIDERS, read, decode, encode, normalizeModels, normalizeModel, getModelLabel, getKey, saveSelection, getUrl, getStreamText };
 })();
