@@ -6,6 +6,8 @@ AI 灵境是一组部署在 GitHub Pages 上的 AI 工具，并提供可选的�
 
 https://z1641818653-blip.github.io/AI-Dreamscape/index.html
 
+完整资料工作台（含二次采集与文件保存）：https://ai-dreamscape-research.onrender.com/research.html
+
 ## 页面状态
 
 | 页面 | 用途 | 当前状态 |
