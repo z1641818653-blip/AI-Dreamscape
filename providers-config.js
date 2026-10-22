@@ -83,7 +83,8 @@
       buildBody: (model, messages, mt, temp, options) => {
         const body = { model, messages, temperature: temp ?? 1, max_tokens: mt };
         if (/^glm-5\.3(?:-|$)/i.test(model)) {
-          const effort = options?.reasoningEffort ?? read().glm?.reasoningEffort;
+          const selected = options?.reasoningEffort ?? getPageGlmEffort();
+          const effort = selected || read().glm?.reasoningEffort;
           body.reasoning_effort = normalizeGlmEffort(effort);
           body.thinking = { type: 'enabled' };
         }
@@ -105,6 +106,17 @@
 
   const KEY = 'dp0';
   function normalizeGlmEffort(value) { return ['low', 'high', 'max'].includes(value) ? value : 'max'; }
+  function getPageGlmEffort() {
+    try { return localStorage.getItem('dreamscape_glm_effort_' + location.pathname.split('/').pop().replace(/[^a-z0-9_-]/gi, '_')) || ''; }
+    catch { return ''; }
+  }
+  function savePageGlmEffort(value) {
+    const key = 'dreamscape_glm_effort_' + location.pathname.split('/').pop().replace(/[^a-z0-9_-]/gi, '_');
+    if (['low', 'high', 'max'].includes(value)) localStorage.setItem(key, value);
+    else localStorage.removeItem(key);
+    window.dispatchEvent(new Event('dreamscape-config-change'));
+  }
+
   function normalizeModels(value) {
     const items = Array.isArray(value) ? value : String(value || '').split(/[,，\n]/);
     return [...new Set(items.filter(x => typeof x === 'string').map(x => x.trim()).filter(x => /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,159}$/.test(x)))].slice(0, 40);
@@ -197,5 +209,5 @@
     if (provider === 'gemini') return PROVIDERS.gemini.parseResponse(payload);
     return payload.choices?.[0]?.delta?.content || '';
   }
-  window.DreamscapeConfig = { providers:PROVIDERS, read, decode, encode, normalizeModels, normalizeModel, normalizeGlmEffort, getModelLabel, getKey, saveSelection, getUrl, getStreamText };
+  window.DreamscapeConfig = { providers:PROVIDERS, read, decode, encode, normalizeModels, normalizeModel, normalizeGlmEffort, getPageGlmEffort, savePageGlmEffort, getModelLabel, getKey, saveSelection, getUrl, getStreamText };
 })();

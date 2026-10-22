@@ -1,12 +1,12 @@
 (function () {
   'use strict';
   // Shared provider adapters remain the single source of endpoints and credentials.
-  async function complete({ provider, model, messages, maxTokens = 2400, temperature = .3, signal, onText }) {
+  async function complete({ provider, model, messages, maxTokens = 2400, temperature = .3, signal, onText, reasoningEffort }) {
     const adapter = DreamscapeConfig.providers[provider];
     if (!adapter) throw new Error('请选择有效的模型服务');
     const key = DreamscapeConfig.getKey(provider);
     if (!key) throw new Error(`${adapter.name} API 未配置，请先到全局配置保存 API Key`);
-    const body = adapter.buildBody(model, messages, maxTokens, temperature);
+    const body = adapter.buildBody(model, messages, maxTokens, temperature, {reasoningEffort});
     if (provider !== 'gemini') body.stream = true;
     return DreamscapeRequest.withTimeout(signal, 90000, async (requestSignal, touch) => {
       const response = await fetch(DreamscapeConfig.getUrl(provider, model), {

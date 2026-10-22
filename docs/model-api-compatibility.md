@@ -37,6 +37,6 @@ GLM 接入核对日期：2026-10-22；其他服务核对日期：2026-10-10。�
 
 ## GLM 参数
 
-使用 `https://open.bigmodel.cn/api/paas/v4/chat/completions` 与 Bearer 认证，复用 OpenAI SSE 解析。GLM 5.3 系列传入 `thinking.type: enabled` 和全局选择的 `reasoning_effort`（low / high / max，默认 max）。自定义的其他型号不自动附带这些参数。标准端点不启用保留式思考；现有页面只提交文本历史。连接测试为 GLM 预留 4096 token，避免原有 256 token 过早耗尽推理预算。
+使用 `https://open.bigmodel.cn/api/paas/v4/chat/completions` 与 Bearer 认证，复用 OpenAI SSE 解析。GLM 5.3 系列传入 `thinking.type: enabled` 和 `reasoning_effort`（优先使用角色/对比条目的独立选择，普通页面优先使用本页选择，否则沿用全局）（low / high / max，默认 max）。自定义的其他型号不自动附带这些参数。标准端点不启用保留式思考；现有页面只提交文本历史。连接测试为 GLM 预留 4096 token，避免原有 256 token 过早耗尽推理预算。
 
 [智谱对话补全](https://docs.bigmodel.cn/api-reference/模型-api/对话补全)、[GLM-5.3-Flash](https://docs.bigmodel.cn/cn/guide/models/vlm/glm-5.3-flash)、[思考模式](https://docs.bigmodel.cn/cn/guide/capabilities/thinking-mode)。

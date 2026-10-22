@@ -61,6 +61,7 @@
 
     let provider = getInitialProvider(allowed, opts.provider);
     let model = getInitialModel(provider, opts.model);
+    let reasoningEffort = opts.reasoningEffort ?? (opts.persist === false ? '' : DreamscapeConfig.getPageGlmEffort());
     const root = document.createElement('div');
     root.className = `ds-model-selector${opts.collapsible ? ' is-collapsible' : ''}${opts.compact ? ' is-compact' : ''}`;
     const body = document.createElement('div');
@@ -109,7 +110,28 @@
     const settings = document.createElement('a');
     settings.className = 'ds-model-settings'; settings.href = 'settings.html'; settings.textContent = '管理 API Key →';
     foot.append(state, settings);
-    body.append(row, foot);
+    const effortField = document.createElement('div');
+    effortField.className = 'ds-model-field';
+    const effortLabel = document.createElement('label');
+    effortLabel.textContent = '推理强度';
+    const effortSelect = document.createElement('select');
+    effortSelect.setAttribute('aria-label', '推理强度');
+    effortSelect.disabled = opts.disabled === true;
+    effortField.append(effortLabel, effortSelect);
+    body.append(row, effortField, foot);
+    function renderEffort() {
+      effortField.hidden = provider !== 'glm' || !/^glm-5\.3(?:-|$)/i.test(model);
+      effortField.style.display = effortField.hidden ? 'none' : '';
+      const inherited = DreamscapeConfig.normalizeGlmEffort(readConfig().glm?.reasoningEffort);
+      effortSelect.replaceChildren(new Option('沿用全局（' + inherited + '）', ''),
+        new Option('low · 轻量', 'low'), new Option('high · 深入', 'high'), new Option('max · 最大', 'max'));
+      effortSelect.value = ['low','high','max'].includes(reasoningEffort) ? reasoningEffort : '';
+    }
+    effortSelect.addEventListener('change', () => {
+      reasoningEffort = effortSelect.value;
+      if (opts.persist !== false) DreamscapeConfig.savePageGlmEffort(reasoningEffort);
+      notify('effort');
+    });
 
     function renderModels(requestedModel) {
       modelSelect.replaceChildren();
@@ -121,11 +143,14 @@
       const ready = hasApiKey(provider);
       state.textContent = ready ? `${PROVIDERS[provider].name} API 已配置` : `${PROVIDERS[provider].name} API 未配置`;
       state.classList.toggle('is-ready', ready);
+      renderEffort();
     }
 
     function notify(source) {
-      if (opts.persist !== false) saveSelection(provider, model, opts.saveProvider !== false);
-      if (typeof opts.onChange === 'function') opts.onChange({ provider, model, source });
+      const selection = { provider, model, reasoningEffort, source };
+      // Update the owning page before broadcasting a global configuration change.
+      if (typeof opts.onChange === 'function') opts.onChange(selection);
+      if (opts.persist !== false) saveSelection(selection.provider, selection.model, opts.saveProvider !== false);
     }
 
     providerSelect.addEventListener('change', () => {
@@ -135,6 +160,7 @@
     });
     modelSelect.addEventListener('change', () => {
       model = modelSelect.value;
+      renderEffort();
       notify('model');
     });
     renderModels(model);
@@ -145,6 +171,7 @@
     };
     const refresh = () => {
       if (!root.isConnected) { cleanup(); return; }
+      if (opts.persist !== false) reasoningEffort = DreamscapeConfig.getPageGlmEffort();
       renderModels(model);
     };
     window.addEventListener('storage', refresh);
@@ -152,11 +179,12 @@
 
     return {
       element: root,
-      getValue: () => ({ provider, model }),
+      getValue: () => ({ provider, model, reasoningEffort }),
       setValue(value) {
         if (value?.provider && allowed.includes(value.provider)) {
           provider = value.provider; providerSelect.value = provider;
         }
+        if (value && Object.prototype.hasOwnProperty.call(value, 'reasoningEffort')) reasoningEffort = value.reasoningEffort || '';
         renderModels(value?.model);
       },
       refreshStatus() { renderModels(model); },

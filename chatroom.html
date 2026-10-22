@@ -979,6 +979,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
       fixedProtocol: String(source.fixedProtocol || '').slice(0, 12000),
       provider,
       model,
+      reasoningEffort: ['low','high','max'].includes(source.reasoningEffort) ? source.reasoningEffort : '',
       temp: Number.isFinite(Number(source.temp)) ? Number(source.temp) : 0.7,
       collapsed: source.collapsed === true,
       locked: source.locked === true
@@ -1210,6 +1211,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
       fixedProtocol: participant.fixedProtocol || '',
       provider: participant.provider || 'deepseek',
       model: participant.model || '',
+      reasoningEffort: participant.reasoningEffort || '',
       temp: Number.isFinite(Number(participant.temp)) ? Number(participant.temp) : 0.7,
       locked: participant.locked === true
     };
@@ -1291,6 +1293,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
       fixedProtocol: String(source.fixedProtocol || '').slice(0, 12000),
       provider: String(source.provider || 'deepseek'),
       model: String(source.model || ''),
+      reasoningEffort: source.reasoningEffort,
       temp: Number(source.temp),
       locked: source.locked === true,
       collapsed: false
@@ -1636,6 +1639,7 @@ judge, fact_checker, moderator, summarizer, debater, counter_side, gentle, force
         prompt: '',
         provider: roleCreatorState.provider,
         model: roleCreatorState.model,
+        reasoningEffort: roleCreatorState.reasoningEffort || '',
         temp: 0.35
       });
       raw = await streamAI(participant, messages, null, null, {
@@ -1686,9 +1690,11 @@ judge, fact_checker, moderator, summarizer, debater, counter_side, gentle, force
         persist: false,
         provider: roleCreatorState.provider,
         model: roleCreatorState.model,
+        reasoningEffort: roleCreatorState.reasoningEffort || '',
         onChange(value) {
           roleCreatorState.provider = value.provider;
           roleCreatorState.model = value.model;
+          roleCreatorState.reasoningEffort = value.reasoningEffort;
           updateRoleCreatorDeepThinkingButton();
         }
       });
@@ -1717,6 +1723,7 @@ judge, fact_checker, moderator, summarizer, debater, counter_side, gentle, force
       fixedProtocol: compileRoleFixedProtocol(),
       provider: roleCreatorState.provider,
       model: roleCreatorState.model,
+      reasoningEffort: roleCreatorState.reasoningEffort || '',
       temp: draft.temp,
       enabled: true,
       collapsed: false,
@@ -2040,10 +2047,12 @@ judge, fact_checker, moderator, summarizer, debater, counter_side, gentle, force
           disabled: locked,
           provider: p.provider,
           model: p.model,
+          reasoningEffort: p.reasoningEffort || '',
           onChange(value) {
             if (room.participants[i]?.locked) return;
             room.participants[i].provider = value.provider;
             room.participants[i].model = value.model;
+            room.participants[i].reasoningEffort = value.reasoningEffort;
             saveRoom(room);
           }
         });
@@ -2290,7 +2299,7 @@ judge, fact_checker, moderator, summarizer, debater, counter_side, gentle, force
     const maxTokens = Number.isFinite(requestedMaxTokens)
       ? Math.min(64000, Math.max(1, Math.round(requestedMaxTokens)))
       : 4000;
-    const body = provider.buildBody(participant.model, messages, maxTokens, participant.temp);
+    const body = provider.buildBody(participant.model, messages, maxTokens, participant.temp, {reasoningEffort:participant.reasoningEffort || ''});
     if (participant.provider === 'deepseek' && typeof options?.deepThinking === 'boolean') {
       body.thinking = { type: options.deepThinking ? 'enabled' : 'disabled' };
     }
