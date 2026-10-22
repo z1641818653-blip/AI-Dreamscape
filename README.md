@@ -58,7 +58,7 @@ docs(index): 更新工具状态说明
 
 从主页的“资料工作台”进入 `research.html`，使用全局模型配置解析研究需求，检索 Crossref、Europe PMC 与 DataCite，按 DOI 合并重复项，并查看来源链路、模型匹配解释和实际文件地址。支持多条件筛选、选择性下载、ZIP 合集与 CSV 清单。未配置模型时可关闭模型开关直接检索关键词；示例体验与真实结果分开。
 
-`model-client.js` 复用现有五家提供商适配与流式解析，研究模块不单独保存密钥。通过 `npm start` 启动同域采集服务后，可解析公开来源页的附件并保存跨域文件，支持 Internet Archive、Europe PMC、Zenodo 与通用 HTML 二次采集。静态部署仍受跨域限制，详细启动与部署方式见 [采集服务](docs/research-service.md)，项目范围见 [资料工作台项目表](docs/research-workbench.md)。
+`model-client.js` 复用现有六家提供商适配与流式解析，研究模块不单独保存密钥。通过 `npm start` 启动同域采集服务后，可解析公开来源页的附件并保存跨域文件，支持 Internet Archive、Europe PMC、Zenodo 与通用 HTML 二次采集。静态部署仍受跨域限制，详细启动与部署方式见 [采集服务](docs/research-service.md)，项目范围见 [资料工作台项目表](docs/research-workbench.md)。
 
 ## v4.3 使用与后续方向
 
@@ -103,3 +103,11 @@ npm test
 支持目标数量、最大数量、独立来源分页、继续采集、模型辅助网页发现和自动二次文件查找；说明见 [采集指南](docs/research-collection.md)。
 
 [部署完整 Node.js 版本到 Render](https://render.com/deploy?repo=https://github.com/z1641818653-blip/AI-Dreamscape)。仓库 Blueprint 已配置免费实例、健康检查、同域地址自动识别和 CI 通过后发布；首次需在 Render 登录并确认创建。GitHub Pages 仍是静态版本。
+
+## GLM 5.3 接入
+
+全局配置新增智谱 GLM，内置 `glm-5.3`、`glm-5.3-flash`，使用智谱标准按量付费接口。保存 API Key 后，各页面可独立选择 GLM，聊天室可按角色选择；同一站点与浏览器共用密钥。GitHub Pages 与 Render 地址的浏览器配置各自独立。
+
+GLM 推理强度在全局配置选择 `low`、`high`、`max`（默认），所有页面请求共用；不支持 `mid` / `medium`，两个模型不能关闭思考。聊天页的思考按钮仅控制思考内容显示。其他提供商暂未增加强度设置。连接测试使用当前未保存的强度，且不保存配置。
+
+依据：[智谱对话补全](https://docs.bigmodel.cn/api-reference/模型-api/对话补全)、[GLM-5.3-Flash](https://docs.bigmodel.cn/cn/guide/models/vlm/glm-5.3-flash)。

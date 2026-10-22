@@ -174,6 +174,7 @@
           state.providers[key].apiKey = decodeKey(item.apiKey);
           state.providers[key].model = provider.models.includes(item.model) ? item.model : provider.models[0];
           state.providers[key].customModels = DreamscapeConfig.normalizeModels(item.customModels);
+          if (key === 'glm') state.providers[key].reasoningEffort = DreamscapeConfig.normalizeGlmEffort(item.reasoningEffort);
         });
       } catch {}
       const current = localStorage.getItem(CURRENT_PROVIDER_KEY);
@@ -204,6 +205,13 @@
         card.querySelector('[data-custom]').value = config.customModels.join(', ');
         refreshModels();
         card.querySelector('[data-custom]').addEventListener('change', refreshModels);
+        if (key === 'glm') {
+          const effortField = document.createElement('div');
+          effortField.className = 'field';
+          effortField.innerHTML = '<label for="effort-glm">推理强度（所有页面共用）</label><select id="effort-glm" data-effort data-unsaved><option value="low">low · 轻量</option><option value="high">high · 深入</option><option value="max">max · 最大（默认）</option></select><small>适用于 GLM 5.3 / 5.3 Flash；始终开启思考，不支持 mid / medium。使用智谱按量付费 API Key。</small>';
+          effortField.querySelector('select').value = DreamscapeConfig.normalizeGlmEffort(config.reasoningEffort);
+          card.append(effortField);
+        }
         const diagnostic = document.createElement('div');
         diagnostic.className = 'field';
         diagnostic.innerHTML = '<button class="secondary-btn" type="button" data-test>测试当前模型连接</button><span data-test-status role="status" style="font-size:12px">会发送一次简短请求，可能消耗少量额度；测试不会保存配置。</span>';
@@ -217,13 +225,13 @@
     function collectForm() {
       document.querySelectorAll('.provider-card').forEach(card => {
         const key = card.dataset.provider;
-        state.providers[key] = { apiKey:card.querySelector('[data-key]').value.trim(), model:card.querySelector('[data-model]').value, customModels:DreamscapeConfig.normalizeModels(card.querySelector('[data-custom]').value) };
+        state.providers[key] = { apiKey:card.querySelector('[data-key]').value.trim(), model:card.querySelector('[data-model]').value, customModels:DreamscapeConfig.normalizeModels(card.querySelector('[data-custom]').value), ...(key === 'glm' ? {reasoningEffort:DreamscapeConfig.normalizeGlmEffort(card.querySelector('[data-effort]').value)} : {}) };
       });
     }
     function saveConfig() {
       collectForm();
       const payload = DreamscapeConfig.read();
-      Object.keys(PROVIDERS).forEach(key => { payload[key] = { ...payload[key], apiKey:encodeKey(state.providers[key].apiKey), model:state.providers[key].model, customModels:state.providers[key].customModels }; });
+      Object.keys(PROVIDERS).forEach(key => { payload[key] = { ...payload[key], apiKey:encodeKey(state.providers[key].apiKey), model:state.providers[key].model, customModels:state.providers[key].customModels, ...(key === 'glm' ? {reasoningEffort:state.providers[key].reasoningEffort} : {}) }; });
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
         localStorage.setItem(CURRENT_PROVIDER_KEY, state.currentProvider);
@@ -247,7 +255,7 @@
       try {
         await DreamscapeRequest.withTimeout(null, 20000, async signal => {
           const adapter = PROVIDERS[provider];
-          const body = adapter.buildBody(model, [{role:'user',content:'Reply OK.'}], 256, 1);
+          const body = adapter.buildBody(model, [{role:'user',content:'Reply OK.'}], provider === 'glm' ? 4096 : 256, 1, {reasoningEffort:card.querySelector('[data-effort]')?.value});
           if (provider !== 'gemini') body.stream = false;
           const response = await fetch(DreamscapeConfig.getUrl(provider, model, false), {
             method:'POST', headers:{'Content-Type':'application/json', ...adapter.authHeader(key)}, body:JSON.stringify(body), signal
@@ -360,7 +368,7 @@
       if (event.target.matches('[data-default]')) { state.currentProvider = card.dataset.provider; configDirty=true;collectForm(); renderProviders(); window.DreamscapeStorage?.markDirty(); }
     });
     $('providerGrid').addEventListener('input', event => {
-      if(event.target.matches('[data-key],[data-model],[data-custom]')){configDirty=true;collectForm();updateSummary();}
+      if(event.target.matches('[data-key],[data-model],[data-custom],[data-effort]')){configDirty=true;collectForm();updateSummary();}
       if (!event.target.matches('[data-key]')) return;
       const card = event.target.closest('.provider-card'); const ready = Boolean(event.target.value.trim()); const badge = card.querySelector('[data-state]'); badge.textContent = ready ? '待保存' : '未配置'; badge.classList.toggle('ready', ready); collectForm(); updateSummary();
     });

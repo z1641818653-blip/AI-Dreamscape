@@ -60,6 +60,29 @@ function source(name) {
   }
   await page.setViewportSize({ width:1280, height:720 });
   await go('settings');
+  await test('GLM settings persist effort and shared adapter uses only supported values', async () => {
+    await page.locator('[data-provider="glm"] summary.provider-head').click();
+    await page.locator('#key-glm').fill('dummy-glm-key');
+    await page.locator('#model-glm').selectOption('glm-5.3-flash');
+    await page.locator('#effort-glm').selectOption('high');
+    await page.locator('#saveApiBtn').click();
+    await page.reload({waitUntil:'networkidle'});
+    assert.equal(await page.locator('#effort-glm').inputValue(), 'high');
+    const result = await page.evaluate(() => {
+      const p = DreamscapeConfig.providers.glm;
+      return {models:p.builtinModels, url:DreamscapeConfig.getUrl('glm','glm-5.3'),
+        bodies:['glm-5.3','glm-5.3-flash'].map(model=>p.buildBody(model,[],4096,.7)),
+        invalid:p.buildBody('glm-5.3',[],100,1,{reasoningEffort:'medium'}),
+        custom:p.buildBody('custom-model',[],100,1),
+        efforts:['low','high','max'].map(reasoningEffort=>p.buildBody('glm-5.3',[],100,1,{reasoningEffort}).reasoning_effort)};
+    });
+    assert.deepEqual(result.models, ['glm-5.3','glm-5.3-flash']);
+    assert.equal(result.url, 'https://open.bigmodel.cn/api/paas/v4/chat/completions');
+    for (const body of result.bodies) { assert.equal(body.reasoning_effort,'high'); assert.equal(body.thinking.type,'enabled'); }
+    assert.equal(result.invalid.reasoning_effort,'max');
+    assert.equal(result.custom.reasoning_effort,undefined);
+    assert.deepEqual(result.efforts,['low','high','max']);
+  });
   await test('DeepSeek only exposes V4.1 Flash and migrates retired built-in models', async () => {
     await page.evaluate(() => localStorage.setItem('dp0', JSON.stringify({deepseek:{model:'deepseek-v4-pro',customModels:['deepseek-v4-flash','my-deepseek-model']}})));
     await page.reload({waitUntil:'networkidle'});
@@ -185,7 +208,7 @@ function source(name) {
   await test('workbench parses stream tails, JSON fallbacks and all provider formats', async () => {
     const value = await page.evaluate(async () => {
       const output = [];
-      for (const provider of ['deepseek','openai','qwen','claude','gemini']) {
+      for (const provider of ['deepseek','openai','qwen','claude','gemini','glm']) {
         const data = provider === 'claude' ? {type:'content_block_delta',delta:{text:'reply'}} : provider === 'gemini' ? {candidates:[{content:{parts:[{text:'re'},{text:'ply'}]}}]} : {choices:[{delta:{content:'reply'}}]};
         window.fetch = async () => new Response('data:'+JSON.stringify(data),{headers:{'content-type':'text/event-stream'}});
         let text=''; await __chat.StreamModule.callStream(provider,'dummy',[],100,'dummy',{onContent:chunk=>text+=chunk},new AbortController().signal); output.push(text);
@@ -194,7 +217,7 @@ function source(name) {
       let text='';await __chat.StreamModule.callStream('deepseek','dummy',[],100,'dummy',{onContent:chunk=>text+=chunk});output.push(text);
       return output;
     });
-    assert.deepEqual(value, ['reply','reply','reply','reply','reply','json reply']);
+    assert.deepEqual(value, ['reply','reply','reply','reply','reply','reply','json reply']);
   });
   await test('workbench treats an empty final response as a failure', async () => {
     assert.match(await page.evaluate(async () => {
