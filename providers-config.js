@@ -79,7 +79,7 @@
       models: ['glm-5.3', 'glm-5.3-flash'],
       endpoint: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
       streamFormat: 'openai',
-      authHeader: (key) => ({ 'Authorization': 'Bearer ' + key }),
+      authHeader: (key) => ({ 'Authorization': 'Bearer ' + validateGlmKey(key), 'X-Dreamscape-Client':'1' }),
       buildBody: (model, messages, mt, temp, options) => {
         const body = { model, messages, temperature: temp ?? 1, max_tokens: mt };
         if (/^glm-5\.3(?:-|$)/i.test(model)) {
@@ -105,6 +105,8 @@
   };
 
   const KEY = 'dp0';
+  function cleanGlmKey(value) { return String(value || '').replace(/[\u200B-\u200D\u2060\uFEFF]/g, '').trim().replace(/^Bearer\s+/i, ''); }
+  function validateGlmKey(value) { const key = cleanGlmKey(value); if (!/^[\x21-\x7e]+$/.test(key)) throw new Error('API Key 格式无效：请只粘贴 Key 本身，不要附带中文、引号或换行'); return key; }
   function normalizeGlmEffort(value) { return ['low', 'high', 'max'].includes(value) ? value : 'max'; }
   function getPageGlmEffort() {
     try { return localStorage.getItem('dreamscape_glm_effort_' + location.pathname.split('/').pop().replace(/[^a-z0-9_-]/gi, '_')) || ''; }
@@ -198,7 +200,12 @@
   function getModelLabel(provider, model) {
     return provider === 'deepseek' && model === DEEPSEEK_MODEL ? 'DeepSeek V4.1 Flash' : model;
   }
-  function getUrl(provider, model, stream = true) {
+  function getUrl(provider, model, stream = true, options) {
+    if (provider === 'glm') {
+      const base = location.hostname === 'z1641818653-blip.github.io' ? 'https://ai-dreamscape-research.onrender.com' : '';
+      const mode = options?.apiMode ?? read().glm?.apiMode;
+      return base + '/api/models/glm' + (mode === 'coding' ? '?mode=coding' : '');
+    }
     const adapter = PROVIDERS[provider];
     let url = typeof adapter.endpoint === 'function' ? adapter.endpoint(model) : adapter.endpoint;
     if (provider === 'gemini' && !stream) url = url.replace(':streamGenerateContent?alt=sse', ':generateContent');
@@ -209,5 +216,5 @@
     if (provider === 'gemini') return PROVIDERS.gemini.parseResponse(payload);
     return payload.choices?.[0]?.delta?.content || '';
   }
-  window.DreamscapeConfig = { providers:PROVIDERS, read, decode, encode, normalizeModels, normalizeModel, normalizeGlmEffort, getPageGlmEffort, savePageGlmEffort, getModelLabel, getKey, saveSelection, getUrl, getStreamText };
+  window.DreamscapeConfig = { providers:PROVIDERS, read, decode, encode, normalizeModels, normalizeModel, cleanGlmKey, validateGlmKey, normalizeGlmEffort, getPageGlmEffort, savePageGlmEffort, getModelLabel, getKey, saveSelection, getUrl, getStreamText };
 })();

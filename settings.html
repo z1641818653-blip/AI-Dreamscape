@@ -174,7 +174,7 @@
           state.providers[key].apiKey = decodeKey(item.apiKey);
           state.providers[key].model = provider.models.includes(item.model) ? item.model : provider.models[0];
           state.providers[key].customModels = DreamscapeConfig.normalizeModels(item.customModels);
-          if (key === 'glm') state.providers[key].reasoningEffort = DreamscapeConfig.normalizeGlmEffort(item.reasoningEffort);
+          if (key === 'glm') { state.providers[key].reasoningEffort = DreamscapeConfig.normalizeGlmEffort(item.reasoningEffort); state.providers[key].apiMode = item.apiMode === 'coding' ? 'coding' : 'standard'; }
         });
       } catch {}
       const current = localStorage.getItem(CURRENT_PROVIDER_KEY);
@@ -208,9 +208,12 @@
         if (key === 'glm') {
           const effortField = document.createElement('div');
           effortField.className = 'field';
-          effortField.innerHTML = '<label for="effort-glm">推理强度（所有页面共用）</label><select id="effort-glm" data-effort data-unsaved><option value="low">low · 轻量</option><option value="high">high · 深入</option><option value="max">max · 最大（默认）</option></select><small>适用于 GLM 5.3 / 5.3 Flash；始终开启思考，不支持 mid / medium。使用智谱按量付费 API Key。</small>';
+          effortField.innerHTML = '<label for="effort-glm">推理强度（所有页面共用）</label><select id="effort-glm" data-effort data-unsaved><option value="low">low · 轻量</option><option value="high">high · 深入</option><option value="max">max · 最大（默认）</option></select><small>适用于 GLM 5.3 / 5.3 Flash；始终开启思考，不支持 mid / medium。</small>';
           effortField.querySelector('select').value = DreamscapeConfig.normalizeGlmEffort(config.reasoningEffort);
           card.append(effortField);
+          const modeField = document.createElement('div'); modeField.className = 'field';
+          modeField.innerHTML = '<label for="mode-glm">接口类型</label><select id="mode-glm" data-mode data-unsaved><option value="standard">标准 API（余额 / 资源包）</option><option value="coding">Coding Plan（编程套餐，仅编程场景）</option></select><small>GLM 请求经灵境服务转发到智谱；Key 只用于本次请求，不写入服务器文件或日志。GitHub Pages 使用灵境 Render 服务，首次可能需要等待唤醒。</small>';
+          modeField.querySelector('select').value = config.apiMode || 'standard'; card.append(modeField);
         }
         const diagnostic = document.createElement('div');
         diagnostic.className = 'field';
@@ -225,13 +228,14 @@
     function collectForm() {
       document.querySelectorAll('.provider-card').forEach(card => {
         const key = card.dataset.provider;
-        state.providers[key] = { apiKey:card.querySelector('[data-key]').value.trim(), model:card.querySelector('[data-model]').value, customModels:DreamscapeConfig.normalizeModels(card.querySelector('[data-custom]').value), ...(key === 'glm' ? {reasoningEffort:DreamscapeConfig.normalizeGlmEffort(card.querySelector('[data-effort]').value)} : {}) };
+        state.providers[key] = { apiKey:card.querySelector('[data-key]').value.trim(), model:card.querySelector('[data-model]').value, customModels:DreamscapeConfig.normalizeModels(card.querySelector('[data-custom]').value), ...(key === 'glm' ? {reasoningEffort:DreamscapeConfig.normalizeGlmEffort(card.querySelector('[data-effort]').value),apiMode:card.querySelector('[data-mode]').value} : {}) };
       });
     }
     function saveConfig() {
       collectForm();
+      if (state.providers.glm.apiKey) { try { state.providers.glm.apiKey = DreamscapeConfig.validateGlmKey(state.providers.glm.apiKey); } catch(error) { showToast(error.message, true); return; } }
       const payload = DreamscapeConfig.read();
-      Object.keys(PROVIDERS).forEach(key => { payload[key] = { ...payload[key], apiKey:encodeKey(state.providers[key].apiKey), model:state.providers[key].model, customModels:state.providers[key].customModels, ...(key === 'glm' ? {reasoningEffort:state.providers[key].reasoningEffort} : {}) }; });
+      Object.keys(PROVIDERS).forEach(key => { payload[key] = { ...payload[key], apiKey:encodeKey(state.providers[key].apiKey), model:state.providers[key].model, customModels:state.providers[key].customModels, ...(key === 'glm' ? {reasoningEffort:state.providers[key].reasoningEffort,apiMode:state.providers[key].apiMode} : {}) }; });
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
         localStorage.setItem(CURRENT_PROVIDER_KEY, state.currentProvider);
@@ -246,18 +250,19 @@
       const button = card.querySelector('[data-test]');
       const status = card.querySelector('[data-test-status]');
       const provider = card.dataset.provider;
-      const key = card.querySelector('[data-key]').value.trim();
+      let key = card.querySelector('[data-key]').value.trim();
+      if (provider === 'glm' && key) { try { key = DreamscapeConfig.validateGlmKey(key); } catch(error) { status.textContent = error.message; return; } }
       const model = card.querySelector('[data-model]').value;
       if (!key) { status.textContent = '请先填写 API Key'; return; }
       if (!model) { status.textContent = '请先选择模型'; return; }
       button.disabled = true; status.textContent = '正在连接…';
       const started = performance.now();
       try {
-        await DreamscapeRequest.withTimeout(null, 20000, async signal => {
+        await DreamscapeRequest.withTimeout(null, provider === 'glm' ? 120000 : 20000, async (signal, touch) => {
           const adapter = PROVIDERS[provider];
-          const body = adapter.buildBody(model, [{role:'user',content:'Reply OK.'}], provider === 'glm' ? 4096 : 256, 1, {reasoningEffort:card.querySelector('[data-effort]')?.value});
-          if (provider !== 'gemini') body.stream = false;
-          const response = await fetch(DreamscapeConfig.getUrl(provider, model, false), {
+          const body = adapter.buildBody(model, [{role:'user',content:'Reply OK.'}], provider === 'glm' ? 8192 : 256, 1, {reasoningEffort:card.querySelector('[data-effort]')?.value});
+          if (provider !== 'gemini') body.stream = provider === 'glm';
+          const response = await fetch(DreamscapeConfig.getUrl(provider, model, false, {apiMode:card.querySelector('[data-mode]')?.value}), {
             method:'POST', headers:{'Content-Type':'application/json', ...adapter.authHeader(key)}, body:JSON.stringify(body), signal
           });
           if (!response.ok) {
@@ -269,6 +274,12 @@
             } catch {}
             const reason = advice[response.status] || (response.status >= 500 ? '服务商暂时不可用，请稍后重试' : '请求被拒绝，请检查服务配置');
             throw new Error(`HTTP ${response.status}：${reason}${detail ? `（${detail}）` : ''}`);
+          }
+          if (provider === 'glm' && !(response.headers.get('content-type') || '').includes('json')) {
+            let text = '', thinking = 0;
+            await DreamscapeRequest.readSSE(response, data => { text += DreamscapeConfig.getStreamText(provider, data); thinking += (data.choices?.[0]?.delta?.reasoning_content || '').length; status.textContent = `已连接 · 思考 ${thinking} 字 · 正文 ${text.length} 字`; }, touch);
+            if (!text.trim()) throw new Error('接口已连接，但未返回正文，请切换 low 强度或在工作台重试');
+            return;
           }
           const data = await response.json();
           if (data.error) throw new Error('服务返回错误，请检查账号权限与模型 ID');
@@ -368,7 +379,7 @@
       if (event.target.matches('[data-default]')) { state.currentProvider = card.dataset.provider; configDirty=true;collectForm(); renderProviders(); window.DreamscapeStorage?.markDirty(); }
     });
     $('providerGrid').addEventListener('input', event => {
-      if(event.target.matches('[data-key],[data-model],[data-custom],[data-effort]')){configDirty=true;collectForm();updateSummary();}
+      if(event.target.matches('[data-key],[data-model],[data-custom],[data-effort],[data-mode]')){configDirty=true;collectForm();updateSummary();}
       if (!event.target.matches('[data-key]')) return;
       const card = event.target.closest('.provider-card'); const ready = Boolean(event.target.value.trim()); const badge = card.querySelector('[data-state]'); badge.textContent = ready ? '待保存' : '未配置'; badge.classList.toggle('ready', ready); collectForm(); updateSummary();
     });

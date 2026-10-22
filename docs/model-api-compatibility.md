@@ -37,6 +37,8 @@ GLM 接入核对日期：2026-10-22；其他服务核对日期：2026-10-10。�
 
 ## GLM 参数
 
-使用 `https://open.bigmodel.cn/api/paas/v4/chat/completions` 与 Bearer 认证，复用 OpenAI SSE 解析。GLM 5.3 系列传入 `thinking.type: enabled` 和 `reasoning_effort`（优先使用角色/对比条目的独立选择，普通页面优先使用本页选择，否则沿用全局）（low / high / max，默认 max）。自定义的其他型号不自动附带这些参数。标准端点不启用保留式思考；现有页面只提交文本历史。连接测试为 GLM 预留 4096 token，避免原有 256 token 过早耗尽推理预算。
+使用 `https://open.bigmodel.cn/api/paas/v4/chat/completions` 与 Bearer 认证，复用 OpenAI SSE 解析。GLM 5.3 系列传入 `thinking.type: enabled` 和 `reasoning_effort`（优先使用角色/对比条目的独立选择，普通页面优先使用本页选择，否则沿用全局）（low / high / max，默认 max）。自定义的其他型号不自动附带这些参数。标准端点不启用保留式思考；现有页面只提交文本历史。连接测试为 GLM 预留 8192 token，使用流式响应与 120 秒等待。
 
 [智谱对话补全](https://docs.bigmodel.cn/api-reference/模型-api/对话补全)、[GLM-5.3-Flash](https://docs.bigmodel.cn/cn/guide/models/vlm/glm-5.3-flash)、[思考模式](https://docs.bigmodel.cn/cn/guide/capabilities/thinking-mode)。
+
+浏览器通过 `/api/models/glm` 调用，服务端固定转发至智谱（标准或 Coding Plan 端点），不接受任意目标 URL。仅放行同域与项目 GitHub Pages 来源，禁止缓存，不记录 Key。GLM 密钥支持移除复制混入的零宽字符和 Bearer 前缀，发送前拒绝非 ASCII 字符。
