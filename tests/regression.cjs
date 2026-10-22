@@ -60,6 +60,78 @@ function source(name) {
   }
   await page.setViewportSize({ width:1280, height:720 });
   await go('settings');
+  await test('GLM settings persist effort and shared adapter uses only supported values', async () => {
+    await page.locator('[data-provider="glm"] summary.provider-head').click();
+    await page.locator('#key-glm').fill('dummy-glm-key');
+    await page.locator('#model-glm').selectOption('glm-5.3-flash');
+    await page.locator('#effort-glm').selectOption('high');
+    await page.locator('#saveApiBtn').click();
+    await page.reload({waitUntil:'networkidle'});
+    assert.equal(await page.locator('#effort-glm').inputValue(), 'high');
+    const result = await page.evaluate(() => {
+      const p = DreamscapeConfig.providers.glm;
+      return {models:p.builtinModels, url:DreamscapeConfig.getUrl('glm','glm-5.3'),
+        bodies:['glm-5.3','glm-5.3-flash'].map(model=>p.buildBody(model,[],4096,.7)),
+        invalid:p.buildBody('glm-5.3',[],100,1,{reasoningEffort:'medium'}),
+        custom:p.buildBody('custom-model',[],100,1),
+        efforts:['low','high','max'].map(reasoningEffort=>p.buildBody('glm-5.3',[],100,1,{reasoningEffort}).reasoning_effort)};
+    });
+    assert.deepEqual(result.models, ['glm-5.3','glm-5.3-flash']);
+    assert.equal(result.url, 'https://open.bigmodel.cn/api/paas/v4/chat/completions');
+    for (const body of result.bodies) { assert.equal(body.reasoning_effort,'high'); assert.equal(body.thinking.type,'enabled'); }
+    assert.equal(result.invalid.reasoning_effort,'max');
+    assert.equal(result.custom.reasoning_effort,undefined);
+    assert.deepEqual(result.efforts,['low','high','max']);
+  });
+  await test('GLM page controls persist independently and requests follow page or role overrides', async () => {
+    await go('chat');
+    const host = page.locator('#chatModelSelector');
+    await host.getByLabel('服务商', {exact:true}).selectOption('glm');
+    await host.getByLabel('模型', {exact:true}).selectOption('glm-5.3');
+    await host.getByLabel('推理强度', {exact:true}).selectOption('low');
+    assert.equal(await page.evaluate(()=>DreamscapeConfig.read().glm.reasoningEffort),'high');
+    await page.reload({waitUntil:'networkidle'});
+    assert.equal(await host.getByLabel('推理强度', {exact:true}).inputValue(),'low');
+    const request = await page.evaluate(async()=>{
+      let body;
+      window.fetch=async(url,options)=>{body=JSON.parse(options.body);return new Response('data: '+JSON.stringify({choices:[{delta:{content:'OK'}}]})+'\n\ndata: [DONE]\n\n',{headers:{'content-type':'text/event-stream'}});};
+      await __chat.StreamModule.callStream('glm','glm-5.3',[],4096,'dummy',{onContent(){}});
+      return body;
+    });
+    assert.equal(request.reasoning_effort,'low');
+    await go('latex');
+    assert.equal(await page.evaluate(()=>DreamscapeConfig.providers.glm.buildBody('glm-5.3',[],4096,1).reasoning_effort),'high');
+    await page.locator('#aiToggle').click();
+    const latexHost=page.locator('#latexModelSelector');
+    await latexHost.locator('summary').click();
+    await latexHost.getByLabel('服务商', {exact:true}).selectOption('glm');
+    await latexHost.getByLabel('推理强度', {exact:true}).selectOption('max');
+    assert.equal(await page.evaluate(()=>DreamscapeConfig.providers.glm.buildBody('glm-5.3',[],4096,1).reasoning_effort),'max');
+    await go('chatroom');
+    const values=await page.evaluate(async()=>{
+      const calls=[];
+      window.fetch=async(url,options)=>{calls.push(JSON.parse(options.body));return new Response(JSON.stringify({choices:[{message:{content:'OK'}}]}),{headers:{'content-type':'application/json'}});};
+      for(const reasoningEffort of ['low','max','']) await __room.streamAI({provider:'glm',model:'glm-5.3-flash',name:'test',temp:1,reasoningEffort},[{role:'user',content:'hello'}],null,null,{stream:false});
+      const mount=document.createElement('div');document.body.append(mount);
+      const selector=DreamscapeModelSelector.mount(mount,{persist:false,provider:'glm',model:'glm-5.3',reasoningEffort:'low'});
+      const select=mount.querySelector('[aria-label="推理强度"]');select.value='max';select.dispatchEvent(new Event('change'));
+      const selected=selector.getValue();selector.destroy();
+      return {efforts:calls.map(body=>body.reasoning_effort),selected,global:DreamscapeConfig.read().glm.reasoningEffort};
+    });
+    assert.deepEqual(values.efforts,['low','max','high']);
+    assert.equal(values.selected.reasoningEffort,'max');assert.equal(values.global,'high');
+    await go('research');
+    const researchHost=page.locator('#researchModelSelector');
+    await researchHost.getByLabel('服务商', {exact:true}).selectOption('glm');
+    await researchHost.getByLabel('推理强度', {exact:true}).selectOption('low');
+    assert.equal(await page.evaluate(()=>DreamscapeConfig.providers.glm.buildBody('glm-5.3',[],4096,1).reasoning_effort),'low');
+    await researchHost.getByLabel('推理强度', {exact:true}).selectOption('');
+    assert.equal(await page.evaluate(()=>DreamscapeConfig.providers.glm.buildBody('glm-5.3',[],4096,1).reasoning_effort),'high');
+    await researchHost.getByLabel('服务商', {exact:true}).selectOption('deepseek');
+    assert.equal(await researchHost.getByLabel('推理强度', {exact:true}).isVisible(),false);
+    await page.evaluate(()=>{for(let i=localStorage.length-1;i>=0;i--){const key=localStorage.key(i);if(key.startsWith('dreamscape_glm_effort_'))localStorage.removeItem(key);}});
+    await go('settings');
+  });
   await test('DeepSeek only exposes V4.1 Flash and migrates retired built-in models', async () => {
     await page.evaluate(() => localStorage.setItem('dp0', JSON.stringify({deepseek:{model:'deepseek-v4-pro',customModels:['deepseek-v4-flash','my-deepseek-model']}})));
     await page.reload({waitUntil:'networkidle'});
@@ -140,7 +212,7 @@ function source(name) {
     const other = await context.newPage(); await other.goto(base + '/settings.html');
     await other.evaluate(() => localStorage.setItem('dp0', JSON.stringify({deepseek:{apiKey:DreamscapeConfig.encode('other-tab-secret'),model:'deepseek-v4-pro'}})));
     await page.waitForFunction(() => __chat.S.providers.deepseek.model === 'deepseek-flash');
-    assert.equal(await page.locator('#chatModelSelector select').last().inputValue(), 'deepseek-flash');
+    assert.equal(await page.locator('#chatModelSelector').getByLabel('模型', {exact:true}).inputValue(), 'deepseek-flash');
     await other.close();
   });
   await test('browser syntax highlighting loads and native Response remains intact', async () => {
@@ -185,7 +257,7 @@ function source(name) {
   await test('workbench parses stream tails, JSON fallbacks and all provider formats', async () => {
     const value = await page.evaluate(async () => {
       const output = [];
-      for (const provider of ['deepseek','openai','qwen','claude','gemini']) {
+      for (const provider of ['deepseek','openai','qwen','claude','gemini','glm']) {
         const data = provider === 'claude' ? {type:'content_block_delta',delta:{text:'reply'}} : provider === 'gemini' ? {candidates:[{content:{parts:[{text:'re'},{text:'ply'}]}}]} : {choices:[{delta:{content:'reply'}}]};
         window.fetch = async () => new Response('data:'+JSON.stringify(data),{headers:{'content-type':'text/event-stream'}});
         let text=''; await __chat.StreamModule.callStream(provider,'dummy',[],100,'dummy',{onContent:chunk=>text+=chunk},new AbortController().signal); output.push(text);
@@ -194,7 +266,7 @@ function source(name) {
       let text='';await __chat.StreamModule.callStream('deepseek','dummy',[],100,'dummy',{onContent:chunk=>text+=chunk});output.push(text);
       return output;
     });
-    assert.deepEqual(value, ['reply','reply','reply','reply','reply','json reply']);
+    assert.deepEqual(value, ['reply','reply','reply','reply','reply','reply','json reply']);
   });
   await test('workbench treats an empty final response as a failure', async () => {
     assert.match(await page.evaluate(async () => {

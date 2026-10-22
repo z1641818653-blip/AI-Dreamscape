@@ -73,6 +73,25 @@
       },
       parseResponse: (data) => data.candidates?.[0]?.content?.parts?.filter(part => !part.thought).map(part => part.text || '').join('') || ''
     },
+    glm: {
+      name: '智谱 GLM',
+      icon: '🟡',
+      models: ['glm-5.3', 'glm-5.3-flash'],
+      endpoint: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
+      streamFormat: 'openai',
+      authHeader: (key) => ({ 'Authorization': 'Bearer ' + key }),
+      buildBody: (model, messages, mt, temp, options) => {
+        const body = { model, messages, temperature: temp ?? 1, max_tokens: mt };
+        if (/^glm-5\.3(?:-|$)/i.test(model)) {
+          const selected = options?.reasoningEffort ?? getPageGlmEffort();
+          const effort = selected || read().glm?.reasoningEffort;
+          body.reasoning_effort = normalizeGlmEffort(effort);
+          body.thinking = { type: 'enabled' };
+        }
+        return body;
+      },
+      parseResponse: (data) => data.choices?.[0]?.message?.content
+    },
     qwen: {
       name: '千问',
       icon: '🔴',
@@ -86,6 +105,18 @@
   };
 
   const KEY = 'dp0';
+  function normalizeGlmEffort(value) { return ['low', 'high', 'max'].includes(value) ? value : 'max'; }
+  function getPageGlmEffort() {
+    try { return localStorage.getItem('dreamscape_glm_effort_' + location.pathname.split('/').pop().replace(/[^a-z0-9_-]/gi, '_')) || ''; }
+    catch { return ''; }
+  }
+  function savePageGlmEffort(value) {
+    const key = 'dreamscape_glm_effort_' + location.pathname.split('/').pop().replace(/[^a-z0-9_-]/gi, '_');
+    if (['low', 'high', 'max'].includes(value)) localStorage.setItem(key, value);
+    else localStorage.removeItem(key);
+    window.dispatchEvent(new Event('dreamscape-config-change'));
+  }
+
   function normalizeModels(value) {
     const items = Array.isArray(value) ? value : String(value || '').split(/[,，\n]/);
     return [...new Set(items.filter(x => typeof x === 'string').map(x => x.trim()).filter(x => /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,159}$/.test(x)))].slice(0, 40);
@@ -162,7 +193,7 @@
     if (!legacyRaw || Object.keys(legacy).every(provider => PROVIDERS[provider] && (!legacy[provider]?.apiKey || decode(legacy[provider].apiKey) || Object.prototype.hasOwnProperty.call(config[provider] || {}, 'apiKey')))) localStorage.removeItem('dp49');
   }
   try { migrate(); } catch (error) { console.warn('旧配置迁移未完成', error.name); }
-  const info = { deepseek:'V4.1 Flash 高速模型', openai:'GPT 多档模型', claude:'Opus、Sonnet 与 Haiku', gemini:'Gemini 系列', qwen:'通义千问系列' };
+  const info = { deepseek:'V4.1 Flash 高速模型', openai:'GPT 多档模型', claude:'Opus、Sonnet 与 Haiku', gemini:'Gemini 系列', qwen:'通义千问系列', glm:'GLM 5.3 与 5.3 Flash' };
   Object.entries(PROVIDERS).forEach(([key, provider]) => { provider.info = info[key]; });
   function getModelLabel(provider, model) {
     return provider === 'deepseek' && model === DEEPSEEK_MODEL ? 'DeepSeek V4.1 Flash' : model;
@@ -178,5 +209,5 @@
     if (provider === 'gemini') return PROVIDERS.gemini.parseResponse(payload);
     return payload.choices?.[0]?.delta?.content || '';
   }
-  window.DreamscapeConfig = { providers:PROVIDERS, read, decode, encode, normalizeModels, normalizeModel, getModelLabel, getKey, saveSelection, getUrl, getStreamText };
+  window.DreamscapeConfig = { providers:PROVIDERS, read, decode, encode, normalizeModels, normalizeModel, normalizeGlmEffort, getPageGlmEffort, savePageGlmEffort, getModelLabel, getKey, saveSelection, getUrl, getStreamText };
 })();

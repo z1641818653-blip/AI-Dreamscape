@@ -1061,10 +1061,10 @@
 
   // ============ 流式+思考过程模块（独立） ============
   const StreamModule = {
-    async callStream(providerKey, model, messages, maxTokens, apiKey, callbacks, signal) {
+    async callStream(providerKey, model, messages, maxTokens, apiKey, callbacks, signal, options) {
       const provider = PROVIDERS[providerKey];
       if (!provider) throw new Error('未知提供商');
-      const body = provider.buildBody(model, messages, maxTokens, S.temp);
+      const body = provider.buildBody(model, messages, maxTokens, S.temp, options);
       if (providerKey !== 'gemini') body.stream = true;
       return DreamscapeRequest.withTimeout(signal || S.ac?.signal, 90000, async (requestSignal, touch) => {
         const response = await fetch(DreamscapeConfig.getUrl(providerKey, model), {
@@ -1774,9 +1774,11 @@ S.pe=false;updatePromptUI();setTimeout(function(){if(typeof MathJax!=='undefined
         persist: false,
         provider: entry.providerKey,
         model: entry.model,
+        reasoningEffort: entry.reasoningEffort || '',
         onChange(value) {
           S.compareEntries[idx].providerKey = value.provider;
           S.compareEntries[idx].model = value.model;
+          S.compareEntries[idx].reasoningEffort = value.reasoningEffort;
         }
       });
       const removeBtn = document.createElement('button');
@@ -1900,7 +1902,7 @@ S.pe=false;updatePromptUI();setTimeout(function(){if(typeof MathJax!=='undefined
               bubble.querySelectorAll('pre').forEach(function(pre){if(!pre.querySelector('.code-copy-btn')){var cb=document.createElement('button');cb.className='code-copy-btn';cb.textContent='复制';cb.onclick=function(e){e.stopPropagation();var code=pre.querySelector('code')?pre.querySelector('code').textContent:pre.textContent;navigator.clipboard.writeText(code).then(function(){cb.textContent='✓';cb.classList.add('copied');setTimeout(function(){cb.textContent='复制';cb.classList.remove('copied')},1500)}).catch(function(){showToast('复制失败','error')})};pre.style.position='relative';pre.appendChild(cb)}});
             }
           }
-        }, ac.signal).then(() => {
+        }, ac.signal, {reasoningEffort:entry.reasoningEffort || ''}).then(() => {
           results[key] = content;
           resultStatus[key] = 'complete';
           statusEl.textContent = content ? '✅' : '⚠️';
@@ -1926,6 +1928,7 @@ S.pe=false;updatePromptUI();setTimeout(function(){if(typeof MathJax!=='undefined
         storedResults[key] = {
           providerKey: entry.providerKey,
           model: entry.model,
+          reasoningEffort: entry.reasoningEffort || '',
           content: results[key] || '',
           status: resultStatus[key] || 'error'
         };
