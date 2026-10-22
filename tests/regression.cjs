@@ -77,7 +77,7 @@ function source(name) {
         efforts:['low','high','max'].map(reasoningEffort=>p.buildBody('glm-5.3',[],100,1,{reasoningEffort}).reasoning_effort)};
     });
     assert.deepEqual(result.models, ['glm-5.3','glm-5.3-flash']);
-    assert.equal(result.url, 'https://open.bigmodel.cn/api/paas/v4/chat/completions');
+    assert.equal(result.url, '/api/models/glm');
     for (const body of result.bodies) { assert.equal(body.reasoning_effort,'high'); assert.equal(body.thinking.type,'enabled'); }
     assert.equal(result.invalid.reasoning_effort,'max');
     assert.equal(result.custom.reasoning_effort,undefined);

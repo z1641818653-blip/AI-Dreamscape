@@ -106,8 +106,10 @@ npm test
 
 ## GLM 5.3 接入
 
-全局配置新增智谱 GLM，内置 `glm-5.3`、`glm-5.3-flash`，使用智谱标准按量付费接口。保存 API Key 后，工作台、LaTeX、资料工作台可独立选择 GLM，聊天室可按角色选择；流程树目前仍仅支持 DeepSeek；同一站点与浏览器共用密钥。GitHub Pages 与 Render 地址的浏览器配置各自独立。
+全局配置新增智谱 GLM，内置 `glm-5.3`、`glm-5.3-flash`，可选智谱标准 API 或 Coding Plan 编程接口。保存 API Key 后，工作台、LaTeX、资料工作台可独立选择 GLM，聊天室可按角色选择；流程树目前仍仅支持 DeepSeek；同一站点与浏览器共用密钥。GitHub Pages 与 Render 地址的浏览器配置各自独立。
 
-GLM 推理强度在全局配置选择 `low`、`high`、`max`（默认），作为默认值。工作台、LaTeX、资料工作台的模型选择区可单独选择强度并在本页记忆；聊天室按角色保存，工作台对比按当前模型条目分别选择。选择“沿用全局”恢复默认值，页面和角色覆盖不会修改全局配置；不支持 `mid` / `medium`，两个模型不能关闭思考。聊天页的思考按钮仅控制思考内容显示。其他提供商暂未增加强度设置。连接测试使用当前未保存的强度，且不保存配置。
+GLM 推理强度在全局配置选择 `low`、`high`、`max`（默认），作为默认值。工作台、LaTeX、资料工作台的模型选择区可单独选择强度并在本页记忆；聊天室按角色保存，工作台对比按当前模型条目分别选择。选择“沿用全局”恢复默认值，页面和角色覆盖不会修改全局配置；不支持 `mid` / `medium`，两个模型不能关闭思考。聊天页的思考按钮仅控制思考内容显示。其他提供商暂未增加强度设置。连接测试使用当前未保存的强度和接口类型，流式等待最长 120 秒，且不保存配置。
 
 依据：[智谱对话补全](https://docs.bigmodel.cn/api-reference/模型-api/对话补全)、[GLM-5.3-Flash](https://docs.bigmodel.cn/cn/guide/models/vlm/glm-5.3-flash)。
+
+GLM 浏览器直连存在跨域限制，现经 Node.js 服务的 `/api/models/glm` 转发。GitHub Pages 自动使用 `https://ai-dreamscape-research.onrender.com`；完整 Node.js 版本使用同域服务。Key 会经过该服务，仅用于请求内存转发，不写入服务器文件或日志。免费实例首次请求可能需要等待唤醒。纯静态自托管需使用完整 Node.js 服务才能调用 GLM。

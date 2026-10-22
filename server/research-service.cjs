@@ -6,6 +6,7 @@ const fs=require('node:fs');
 const path=require('node:path');
 const ipaddr=require('ipaddr.js');
 const cheerio=require('cheerio');
+const {createModelProxy}=require('./model-proxy.cjs');
 const LIMIT=64*1024*1024, PAGE_LIMIT=4*1024*1024;
 const EXTENSIONS={paper:['pdf','xml','txt'],report:['pdf','txt','xml'],book:['pdf','epub','txt'],dataset:['csv','json','zip','xml','parquet','nc','tif','xlsx'],video:['mp4','webm','mkv','mov'],audio:['mp3','m4a','ogg','flac','wav'],image:['jpg','jpeg','png','tif','tiff','jp2','svg'],software:['zip','7z','tar.gz','iso'],web:['html','htm','warc.gz'],other:['pdf','zip','csv','json','txt','xml','mp4','mp3']};
 EXTENSIONS.all=[...new Set(Object.values(EXTENSIONS).flat())];
@@ -95,11 +96,13 @@ async function inspectPage(value,{signal,fetcher=fetchPublic,keywords=''}={}){
   const files=extractCandidates(response.bytes.toString(),base,'all').slice(0,12).map(file=>({...file,type:formats[file.format.toLowerCase()]||'other',label:clean(new URL(file.url).pathname.split('/').at(-1)||'文件')}));
   return {url:base,title,description,license:clean($('link[rel="license"]').attr('href')||''),links:links.sort((a,b)=>b.score-a.score).slice(0,12),files,checkedAt:new Date().toISOString()};
 }
-function createServer({root=path.resolve(__dirname,'..'),fetcher=fetchPublic,origin=process.env.SITE_ORIGIN||process.env.RENDER_EXTERNAL_URL||'',maxActive=4}={}){
+function createServer({root=path.resolve(__dirname,'..'),fetcher=fetchPublic,origin=process.env.SITE_ORIGIN||process.env.RENDER_EXTERNAL_URL||'',maxActive=4,modelRequest}={}){
+  const modelProxy=createModelProxy({origin, ...(modelRequest?{request:modelRequest}:{})});
   let active=0;
   return http.createServer(async(req,res)=>{
     res.setHeader('X-Content-Type-Options','nosniff');const json=(status,data)=>{if(res.destroyed)return;res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(data));};
     let target;try{target=new URL(req.url,'http://localhost');}catch{return json(400,{error:'请求地址无效'});}
+    if(await modelProxy(req,res,target))return;
     if(target.pathname.startsWith('/api/research/')){
       const host=req.headers.host||'',allowed=origin?new URL(origin).host:/^(localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/.test(host)?host:'';
       if(!allowed||host!==allowed||(req.headers.origin&&req.headers.origin!==(origin||`http://${host}`)))return json(403,{error:'来源未获允许',code:'origin'});
