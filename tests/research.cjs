@@ -34,7 +34,7 @@ module.exports=async function({browser,base,test}){
     return route.abort();
   });
   const errors=[];page.on('pageerror',error=>errors.push(error.message));
-  async function go(){await page.goto(base+'/research.html');}
+  async function go(){await page.goto(base+'/research-collection.html');}
   async function query(){await page.locator('#prompt').fill('城市热岛文献与数据，2023年以后');await page.locator('#chatForm button[type=submit]').click();await page.waitForFunction(()=>document.getElementById('crawlStatus').textContent==='已完成');}
   await test('research: shared custom models and all five request adapters',async()=>{
     await go();assert.equal(await page.getByLabel('模型',{exact:true}).inputValue(),'integration-custom');

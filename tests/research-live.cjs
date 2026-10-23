@@ -14,7 +14,7 @@ const {createServer}=require('../server/research-service.cjs');
   async function post(action,data){const response=await fetch(base+'/api/research/'+action,{method:'POST',headers,body:JSON.stringify(data),signal:AbortSignal.timeout(action==='download'?240000:60000)});if(!response.ok)throw new Error((await response.json()).error||String(response.status));return response;}
   async function check(name,fn){const started=Date.now();try{const data=await fn();report.checks.push({name,passed:true,durationMs:Date.now()-started,...data});console.log('PASS',name);}catch(e){report.checks.push({name,passed:false,error:e.message,durationMs:Date.now()-started});console.log('FAIL',name,e.message);}}
   try{
-    browser=await chromium.launch({headless:true});const page=await browser.newPage({viewport:{width:1440,height:1000}});await page.goto(base+'/research.html');await page.waitForFunction(()=>DreamscapeResearchService.isAvailable());
+    browser=await chromium.launch({headless:true});const page=await browser.newPage({viewport:{width:1440,height:1000}});await page.goto(base+'/research-collection.html');await page.waitForFunction(()=>DreamscapeResearchService.isAvailable());
     let record;
     await check('Europe PMC real search through the browser and collector',async()=>{
       const records=await page.evaluate(()=>DreamscapeResearch.search('Europe PMC','malaria AND OPEN_ACCESS:Y',0,undefined,['paper']));assert.ok(records.length>0);record=records[0];return {count:records.length,title:record.title,sourceURL:record.url};
