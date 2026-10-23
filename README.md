@@ -113,3 +113,7 @@ GLM 推理强度在全局配置选择 `low`、`high`、`max`（默认），作�
 依据：[智谱对话补全](https://docs.bigmodel.cn/api-reference/模型-api/对话补全)、[GLM-5.3-Flash](https://docs.bigmodel.cn/cn/guide/models/vlm/glm-5.3-flash)。
 
 GLM 浏览器直连存在跨域限制，现经 Node.js 服务的 `/api/models/glm` 转发。GitHub Pages 自动使用 `https://ai-dreamscape-research.onrender.com`；完整 Node.js 版本使用同域服务。Key 会经过该服务，仅用于请求内存转发，不写入服务器文件或日志。免费实例首次请求可能需要等待唤醒。纯静态自托管需使用完整 Node.js 服务才能调用 GLM。
+
+## 资料检索 Agent 更新（2026-10-23）
+
+`research.html` 现为新版资料检索，包含多轮方向确认、工具调用搜集、证据审核、人工反馈、已有资料优先重审、项目上一版恢复和按需翻译。复用全局配置与现有 GLM 服务。旧版采集、下载和历史项目仍可从 `research-collection.html` 使用，数据没有删除或自动迁移。

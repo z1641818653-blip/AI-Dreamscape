@@ -48,7 +48,7 @@ function source(name) {
   page.on('pageerror', error => pageErrors.push(error.message));
   page.on('dialog', dialog => (dialog.type() === 'beforeunload' || acceptRestore) ? dialog.accept() : dialog.dismiss());
   async function go(name) { await page.goto(base + '/' + name + '.html', { waitUntil:'networkidle' }); }
-  for (const name of ['index', 'settings', 'chat', 'chatroom', 'workflow', 'latex', 'mdtest', 'research']) {
+  for (const name of ['index', 'settings', 'chat', 'chatroom', 'workflow', 'latex', 'mdtest', 'research-collection']) {
     await test(name + ': desktop/mobile startup without runtime errors or width overflow', async () => {
       pageErrors.length = 0;
       await page.setViewportSize({ width:1280, height:720 }); await go(name);
@@ -120,7 +120,7 @@ function source(name) {
     });
     assert.deepEqual(values.efforts,['low','max','high']);
     assert.equal(values.selected.reasoningEffort,'max');assert.equal(values.global,'high');
-    await go('research');
+    await go('research-collection');
     const researchHost=page.locator('#researchModelSelector');
     await researchHost.getByLabel('服务商', {exact:true}).selectOption('glm');
     await researchHost.getByLabel('推理强度', {exact:true}).selectOption('low');
@@ -839,6 +839,7 @@ function source(name) {
     await page.locator('.role-picker button').nth(1).click();await page.locator('#closeManager').click();assert.equal(await page.locator('#roomControls').isVisible(),false);
   });
   await require('./research.cjs')({browser,base,test});
+  await require('./research-agent.cjs')({browser,base,test});
   if (process.env.VISUAL_REPORT_DIR) {
     await page.screenshot({path:path.join(process.env.VISUAL_REPORT_DIR,'optimization-home-mobile.png'),fullPage:true});
     await go('settings');await page.screenshot({path:path.join(process.env.VISUAL_REPORT_DIR,'optimization-settings-mobile.png'),fullPage:true});
