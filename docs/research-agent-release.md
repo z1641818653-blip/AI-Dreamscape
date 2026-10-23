@@ -9,6 +9,6 @@
 - GLM 使用现有 `/api/models/glm`，沿用全局接口类型和推理强度；GitHub Pages 使用现有 Render 转发，不需新增服务器。
 - 浏览器任务使用 `dreamscape_agent_*` 存储，进入全站备份支持范围。旧数据未删除或转换。
 
-`research-collection.html` 是保留的资料采集与下载功能入口；历史项目、收藏、附件查找与 ZIP 下载继续使用原存储和服务。
+旧界面已下线，`research-collection.html` 仅用于跳转新版，不再提供旧功能。历史项目、收藏等原存储没有删除；后续迁移与功能回补见 `research-capability-roadmap.md`。
 
 候选审核和翻译均可能出错；图片目前只审核元数据。浏览器关闭后任务不继续后台运行。API 可用性仍取决于个人 Key、账户权限与网络；自动化验证使用虚构 Key 和模拟上游。

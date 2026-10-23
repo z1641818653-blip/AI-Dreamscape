@@ -1,6 +1,6 @@
 'use strict';
 const {test}=require('node:test');const assert=require('node:assert/strict');const {PassThrough}=require('node:stream');const {EventEmitter}=require('node:events');
-const {createServer}=require('../server/research-service.cjs');
+const {createServer}=require('./legacy-fixture.cjs');
 test('GLM relay validates origins and endpoints, forwards streaming and HTTP errors, and excludes secrets from local errors',async()=>{
  const calls=[];let fail=false;
  const request=(url,options,callback)=>{const req=new EventEmitter();req.destroy=()=>{};req.end=body=>{calls.push({url,options,body:JSON.parse(body)});queueMicrotask(()=>{if(fail){req.emit('error',new Error('upstream dummy-test-key'));return;}const stream=new PassThrough();stream.statusCode=options.headers.Authorization==='Bearer invalid'?401:200;stream.headers={'content-type':stream.statusCode===401?'application/json':'text/event-stream'};callback(stream);stream.end(stream.statusCode===401?'{}':'data: {"choices":[{"delta":{"content":"OK"}}]}\n\ndata: [DONE]\n\n');});};return req;};

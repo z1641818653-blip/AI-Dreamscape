@@ -1,6 +1,6 @@
 'use strict';
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
-const {chromium}=require('playwright');const {createServer,inspectPage,publicURL,ServiceError}=require('../server/research-service.cjs');
+const {chromium}=require('playwright');const {createServer,inspectPage,publicURL,ServiceError}=require('./legacy-fixture.cjs');
 function runtime(fetcher){const window={},scope={window,URL,AbortController,AbortSignal,DOMException,setTimeout,clearTimeout,fetch:fetcher};vm.createContext(scope);vm.runInContext(fs.readFileSync(path.join(__dirname,'../research-sources.js'),'utf8'),scope);scope.DreamscapeResearch=window.DreamscapeResearch;vm.runInContext(fs.readFileSync(path.join(__dirname,'../research-collection.js'),'utf8'),scope);return {scope,R:window.DreamscapeResearch,C:window.DreamscapeCollection};}
 function session(overrides={}){return {query:'topic',queries:['topic'],queryIndex:0,year:0,types:['paper'],sources:['Europe PMC'],cursors:{},queue:[],visited:[],limits:{target:25,maximum:30,rounds:5,requests:10,minutes:1},...overrides};}
 function pmc(page,total=100){return {hitCount:total,nextCursorMark:'cursor'+(page+1),resultList:{result:Array.from({length:20},(_,i)=>({id:'P'+(page*20+i),source:'MED',title:'Paper '+(page*20+i)}))}};}
