@@ -7,9 +7,10 @@ import {cachedTranslation,translationQueue,applyTranslations} from './translatio
 import {demoAdapters} from './demo.js';
 const $=id=>document.getElementById(id);let task,agent,filter='pending',busy=false,level=0,chinese=false,translating=false,translationController,localMatchIDs=null;
 const labels={idle:'准备就绪',running:'正在搜集',complete:'本轮完成',partial:'部分完成',paused:'已暂停',budget:'已到预算',error:'请求失败'};
+const visibleResults=()=>task.results.filter(r=>(filter==='all'||r.status===filter)&&(!localMatchIDs||localMatchIDs.includes(r.id)));
 const el=(tag,text,cls)=>{const n=document.createElement(tag);n.textContent=text;if(cls)n.className=cls;return n;};
 function render(){if(!task)return;$('workspace').hidden=false;$('status').textContent=(task.demo?'演示 · ':'')+(labels[task.status]||task.status)+` · ${task.used.steps}/${task.limits.steps} 轮 · ${task.used.requests}/${task.limits.requests} 次请求`;$('counts').textContent=`${task.results.filter(r=>r.status==='approved').length} 项通过 / ${task.results.length} 项候选`;$('summary').textContent=task.summary;$('plan').textContent=task.plan?['检索计划：'+task.plan.topic,'筛选：'+(task.plan.criteria.join('；')||'按原需求'),'排除：'+(task.plan.exclusions.join('；')||'无额外限制'),'查询：'+task.plan.queries.join(' / ')].join('\n'):'';$('gaps').textContent=task.gaps.length?'待补充：'+task.gaps.join('；'):'';$('start').disabled=busy;$('start').textContent=busy?'正在处理…':'搜索 ↗';$('demo').disabled=busy;$('stop').hidden=!busy;$('continue').disabled=busy;$('continue').textContent=task.demo?'继续演示':'继续深入';
- const missing=translationQueue(task.results.filter(r=>r.status===filter),level===2).length;$('language').textContent=translating?'取消翻译':chinese?(missing?'中文 · '+missing+'待译':'中文'):'原文';$('language').title=chinese?'点击返回原文；未翻译内容暂显示原文':'点击分批翻译当前分类全部结果；使用模型 API 计费';$('language').disabled=busy;
+ const missing=translationQueue(visibleResults(),level===2).length;$('language').textContent=translating?'取消翻译':chinese?(missing?'中文 · '+missing+'待译':'中文'):'原文';$('language').title=chinese?'点击返回原文；未翻译内容暂显示原文':'点击分批翻译当前分类全部结果；使用模型 API 计费';$('language').disabled=busy;
  $('level').textContent=['名称','基础','详细'][level]+' ▾';
  const list=$('results');list.replaceChildren();const rows=task.results.filter(r=>(filter==='all'||r.status===filter)&&(!localMatchIDs||localMatchIDs.includes(r.id)));const sort=$('sort').value;
  rows.sort((a,b)=>sort==='score'?b.score-a.score:sort==='year'?b.year-a.year:String(sort==='source'?a.source:a.title).localeCompare(String(sort==='source'?b.source:b.title),'zh-CN'));
@@ -107,7 +108,7 @@ $('feedback-form').onsubmit=e=>{e.preventDefault();rejectResult(task,$('feedback
 $('feedback-cancel').onclick=()=>$('feedback-dialog').close();
 $('language').onclick=async()=>{
  if(translating){translationController.abort();return;}if(busy||!task)return;
- const detail=level===2,records=task.results.filter(r=>r.status===filter),queue=translationQueue(records,detail);
+ const detail=level===2,records=visibleResults(),queue=translationQueue(records,detail);
  if(chinese){chinese=false;render();return;}
  if(!queue.length){chinese=true;render();return;}
  let c;try{c=requireKey();}catch(e){$('notice').textContent=e.message.replace('深入搜集','翻译');return;}
