@@ -6,7 +6,7 @@ AI 灵境是一组部署在 GitHub Pages 上的 AI 工具，并提供可选的�
 
 https://z1641818653-blip.github.io/AI-Dreamscape/index.html
 
-完整资料工作台（含二次采集与文件保存）：https://ai-dreamscape-research.onrender.com/research.html
+资料检索：https://z1641818653-blip.github.io/AI-Dreamscape/research.html
 
 ## 页面状态
 
@@ -116,4 +116,4 @@ GLM 浏览器直连存在跨域限制，现经 Node.js 服务的 `/api/models/gl
 
 ## 资料检索 Agent 更新（2026-10-23）
 
-`research.html` 现为新版资料检索，包含多轮方向确认、工具调用搜集、证据审核、人工反馈、已有资料优先重审、项目上一版恢复和按需翻译。复用全局配置与现有 GLM 服务。旧版采集、下载和历史项目仍可从 `research-collection.html` 使用，数据没有删除或自动迁移。
+`research.html` 现为新版资料检索，包含多轮方向确认、工具调用搜集、证据审核、人工反馈、已有资料优先重审、项目上一版恢复和按需翻译。复用全局配置与现有 GLM 服务。旧版界面已下线，旧入口自动进入新版。历史数据没有删除或自动转换；旧功能经验见 `docs/research-capability-roadmap.md`。
