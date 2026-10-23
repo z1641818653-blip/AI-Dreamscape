@@ -97,30 +97,67 @@
   });
   function normalize(source,item,index){const config=sources[source];return config?normalizeRecord(source,config.normalize(item,index),index):null;}
   function requestURL(source,query,year=0,types=['all']){const config=sources[source];if(!config)throw new Error('未知检索来源');return config.buildURL(query,year,types);}
+  registerSource('Semantic Scholar', {
+    url:'https://www.semanticscholar.org/',domain:'api.semanticscholar.org',description:'跨学科论文、摘要、引用与开放全文',types:['paper'],
+    buildURL(query,year){const u=new URL('https://api.semanticscholar.org/graph/v1/paper/search');u.searchParams.set('query',query);u.searchParams.set('limit','20');u.searchParams.set('fields','title,abstract,year,url,authors,externalIds,openAccessPdf');if(year)u.searchParams.set('year',year+'-');return u.href;},items:data=>data.data,
+    normalize(item){return {title:item.title,abstract:item.abstract,year:item.year,authors:(item.authors||[]).map(a=>a.name).join(', '),doi:item.externalIds?.DOI,url:item.url,downloadUrl:item.openAccessPdf?.url,type:'paper',format:item.openAccessPdf?.url?'PDF':'论文'};}
+  });
+  registerSource('Wikimedia Commons', {
+    url:'https://commons.wikimedia.org/',domain:'commons.wikimedia.org',description:'真实图片文件、作者与许可；不使用网站图标充当图片',types:['image'],
+    buildURL(query){const u=new URL('https://commons.wikimedia.org/w/api.php');Object.entries({action:'query',generator:'search',gsrsearch:query,gsrnamespace:'6',gsrlimit:'20',prop:'imageinfo',iiprop:'url|size|mime|extmetadata',iiurlwidth:'320',iiextmetadatafilter:'ImageDescription|Artist|LicenseShortName|DateTimeOriginal',format:'json',origin:'*'}).forEach(([k,v])=>u.searchParams.set(k,v));return u.href;},
+    items:data=>Object.values(data.query?.pages||{}).filter(p=>p.imageinfo?.[0]?.mime?.startsWith('image/')).sort((a,b)=>(a.index||0)-(b.index||0)),
+    normalize(item){const info=item.imageinfo[0],meta=info.extmetadata||{};return {title:item.title.replace(/^File:/,''),abstract:meta.ImageDescription?.value,authors:meta.Artist?.value,year:parseInt(meta.DateTimeOriginal?.value)||0,url:info.descriptionurl,downloadUrl:info.url,previewUrl:safeURL(info.thumburl),type:'image',format:info.mime.split('/')[1].toUpperCase(),license:meta.LicenseShortName?.value,size:info.width+' × '+info.height};}
+  });
+  registerSource('DeepSeek 网页搜索', {
+    url:'https://api-docs.deepseek.com/zh-cn/guides/search/',domain:'api.deepseek.com',description:'可选：使用全局 DeepSeek Key 搜索真实网页，按次计费；图片仍从图片库获取',types:['paper','web','report','book','dataset','software','video','audio','other'],optional:true,
+    buildURL:()=> 'https://api.deepseek.com/v1/tools/search',items:data=>data.results,
+    normalize(item){const url=safeURL(item.url),path=url.toLowerCase();let type='web';if(/arxiv\.org|doi\.org|semanticscholar\.org|aclanthology\.org|pubmed|europepmc|ieeexplore|dl\.acm\.org|sciencedirect|springer|nature\.com|\/papers?\//.test(path))type='paper';else if(/github\.com|gitlab\.com/.test(path))type='software';else if(/kaggle\.com|zenodo\.org|figshare\.com/.test(path))type='dataset';return {title:item.title,abstract:item.summary||item.snippet,year:parseInt(item.date)||0,url,type,format:type==='paper'?'论文来源':'网页',downloadUrl:/\.pdf(?:[?#]|$)/i.test(url)?url:''};}
+  });
   registerSource('网页采集',{url:'https://example.org/',domain:'已验证公开网页',description:'模型辅助发现并实际访问的公开页面',types:Object.keys(resourceTypes),discovery:true,buildURL:()=>'',items:data=>[],normalize:item=>item});
   async function searchPage(source,query,year,signal,types=['all'],position={page:1,cursor:'*'}){
     const config=sources[source];let address=requestURL(source,query,year,types);const url=new URL(address),page=Number(position.page)||1;
+    if(source==='Semantic Scholar')url.searchParams.set('offset',String((page-1)*20));
+    if(source==='Wikimedia Commons'&&position.cursor&&position.cursor!=='*')url.searchParams.set('gsroffset',position.cursor);
     if(source==='Crossref')url.searchParams.set('cursor',position.cursor||'*');
     else if(source==='Europe PMC')url.searchParams.set('cursorMark',position.cursor||'*');
     else if(source==='DataCite')url.searchParams.set('page[number]',String(page));
     else if(source==='Internet Archive')url.searchParams.set('page',String(page));
     else if(config.custom)address=config.buildURL(query,year,page);
     const controller=new AbortController(),abort=()=>controller.abort();if(signal?.aborted)abort();else signal?.addEventListener('abort',abort,{once:true});const timer=setTimeout(abort,30000);
-    try{let data;if(await window.DreamscapeResearchService?.ready)data=await DreamscapeResearchService.source(config.custom?address:url.href,controller.signal);else{const response=await fetch(config.custom?address:url.href,{signal:controller.signal,credentials:'omit',referrerPolicy:'no-referrer'});if(!response.ok)throw new Error(source+' HTTP '+response.status);data=await response.json();}
-      controller.signal.throwIfAborted();const items=config.items(data);if(!Array.isArray(items))throw new Error(source+' 返回格式不正确');
+    try{let data;if(source==='DeepSeek 网页搜索'){
+      const key=window.DreamscapeConfig?.getKey('deepseek');if(!key)throw new Error('请先配置全局 DeepSeek API Key');
+      const suffix=normalizeTypes(types).length===1&&types[0]==='paper'?' research paper':'';
+      const response=await fetch(address,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+key},body:JSON.stringify({query:Array.from(query+suffix+(year?' after:'+year:'')).slice(0,128).join(''),count:40,need_content:false}),signal:controller.signal,credentials:'omit'});
+      if(!response.ok)throw new Error('DeepSeek 搜索 HTTP '+response.status+'，请检查搜索权限、余额或限流');data=await response.json();
+    }else if(await window.DreamscapeResearchService?.ready)data=await DreamscapeResearchService.source(config.custom?address:url.href,controller.signal);else{const response=await fetch(config.custom?address:url.href,{signal:controller.signal,credentials:'omit',referrerPolicy:'no-referrer'});if(!response.ok)throw new Error(source+' HTTP '+response.status);data=await response.json();}
+      controller.signal.throwIfAborted();if(data.error)throw new Error(source+' 返回接口错误，请查看来源状态后重试');const items=config.items(data);if(!Array.isArray(items))throw new Error(source+' 返回格式不正确');
       const wanted=normalizeTypes(types),records=items.map((item,index)=>normalize(source,item,(page-1)*20+index)).filter(record=>record&&wanted.includes(record.type));
       const rawTotal=source==='Crossref'?data.message?.['total-results']:source==='Europe PMC'?data.hitCount:source==='DataCite'?data.meta?.total:source==='Internet Archive'?data.response?.numFound:null,total=Number.isFinite(Number(rawTotal))&&rawTotal!==null?Number(rawTotal):null;
-      const cursor=source==='Crossref'?data.message?.['next-cursor']:source==='Europe PMC'?data.nextCursorMark:null;
+      const cursor=source==='Wikimedia Commons'?data.continue?.gsroffset:source==='Crossref'?data.message?.['next-cursor']:source==='Europe PMC'?data.nextCursorMark:null;
       const customPaged=config.custom&&config.definition.searchUrl.includes('{page}');let done=!items.length;
-      if(['Crossref','Europe PMC'].includes(source))done=done||!cursor||(source==='Europe PMC'&&cursor===position.cursor)||items.length<20;
+      if(source==='Wikimedia Commons')done=data.continue?.gsroffset==null;
+      else if(source==='Semantic Scholar')done=data.next==null;
+      else if(source==='DeepSeek 网页搜索')done=true;
+      else if(['Crossref','Europe PMC'].includes(source))done=done||!cursor||(source==='Europe PMC'&&cursor===position.cursor)||items.length<20;
       else if(config.custom)done=done||!customPaged;else done=done||items.length<20||(total!==null&&page*20>=total);
-      return {records,total,rawCount:items.length,next:{page:page+1,cursor:typeof cursor==='string'?cursor.slice(0,10000):'',done}};
+      return {records,total,rawCount:items.length,next:{page:page+1,cursor:cursor!=null?String(cursor).slice(0,10000):'',done}};
     }catch(error){if(signal?.aborted)throw error;if(error.name==='AbortError')throw new Error(source+' 查询超时');throw error;}finally{clearTimeout(timer);signal?.removeEventListener('abort',abort);}
   }
   async function search(source,query,year,signal,types=['all']){return (await searchPage(source,query,year,signal,types)).records;}
   function merge(existing,incoming){const map=new Map(existing.map(r=>[r.id,r]));for(const r of incoming){const prior=map.get(r.id);if(!prior){map.set(r.id,r);continue;}prior.origins=[...prior.origins,...r.origins.filter(o=>!prior.origins.some(p=>p.source===o.source&&p.url===o.url))];if(!prior.abstract&&r.abstract)prior.abstract=r.abstract;if(!prior.downloadUrl&&r.downloadUrl){prior.downloadUrl=r.downloadUrl;prior.available=true;prior.format=r.format;}prior.score=Math.max(prior.score,r.score);}return [...map.values()];}
   function plan(value,fallback){const types=normalizeTypes(value?.types||value?.type||'all');return {query:text(value?.query||fallback).slice(0,300),topic:text(value?.topic||fallback).slice(0,100),reply:text(value?.reply||'检索条件已整理。'),types,type:types.length===1?types[0]:'all',year:Number.isInteger(value?.year)&&value.year>=1900&&value.year<=2100?value.year:0};}
   function applyRanking(records,value){const ranked=Array.isArray(value?.rankings)?value.rankings:[],map=new Map(records.map(r=>[r.id,r])),seen=new Set();for(const item of ranked){const r=map.get(item.id);if(!r||seen.has(item.id)||!Number.isFinite(item.score))continue;seen.add(item.id);r.score=Math.round(Math.max(0,Math.min(100,item.score)));r.reason=text(item.reason)||'模型未提供匹配理由';r.scoreKind='model';}return records;}
-  function applyReview(records,value){const reviews=Array.isArray(value?.reviews)?value.reviews:[],map=new Map(records.map(r=>[r.id,r])),seen=new Set();for(const item of reviews){const r=map.get(item.id),decision=item.decision==='reject'?'rejected':item.decision==='keep'?'approved':'';if(!r||seen.has(item.id)||!decision||!Number.isFinite(item.score))continue;seen.add(item.id);r.score=Math.round(Math.max(0,Math.min(100,item.score)));r.reason=text(item.reason)||'模型未提供审核理由';r.reviewStatus=decision;r.reviewReason=r.reason;r.reviewedAt=new Date().toISOString();r.scoreKind='model';}for(const r of records)if(!seen.has(r.id)){r.reviewStatus='unreviewed';r.reviewReason='模型未返回该条目的审核结果，暂时保留。';}return records;}
-  window.DreamscapeResearch={resourceTypes,sources,registerSource,registerDeclarativeSource,removeDeclarativeSource,testDeclarativeSource,sanitizeDefinition,sourceSupports,normalizeTypes,matchTypes,validType,safeURL,publicURL,text,normalize,requestURL,search,searchPage,merge,plan,applyRanking,applyReview};
+  function screenImages(records,request='') {
+    const logoTerms=/(?:\blogo\b|\bicons?\b|\bfavicon\b|图标|标志|商标)/i;
+    const wantsLogo=logoTerms.test(request)&&!/(?:不要|排除|不含|不需要|without|exclude|\bnot\b|\bno\b)[^，。,.;]{0,16}(?:logo|icon|favicon|图标|标志|商标)/i.test(request);
+    for(const r of records){if(r.type!=='image'||wantsLogo)continue;
+      let filename=r.title+' '+(r.downloadUrl||'').split('?')[0];try{filename=decodeURIComponent(filename);}catch{}filename=filename.replace(/_/g,' ');
+      if(/(?:\blogo(?:type)?\b|\bfavicon\b|\bicon\b|\bwordmark\b|\btrademark\b|公司标志|企业标识|商标)/i.test(filename)){
+        r.reviewStatus='rejected';r.reviewReason='这是标志、网站图标或商标，不能代替所需主题图片。';r.reason=r.reviewReason;r.score=0;r.scoreKind='rule';
+      }
+    }
+    return records;
+  }
+  function applyReview(records,value){const reviews=Array.isArray(value?.reviews)?value.reviews:[],map=new Map(records.map(r=>[r.id,r])),seen=new Set();for(const item of reviews){const r=map.get(item.id),decision=item.decision==='reject'?'rejected':item.decision==='keep'?(item.score>=60?'approved':'rejected'):item.decision==='uncertain'?'unreviewed':'';if(!r||seen.has(item.id)||!decision||!Number.isFinite(item.score))continue;seen.add(item.id);r.score=Math.round(Math.max(0,Math.min(100,item.score)));r.reason=text(item.reason)||'模型未提供审核理由';r.reviewStatus=decision;r.reviewReason=r.reason;r.reviewedAt=new Date().toISOString();r.scoreKind='model';}for(const r of records)if(!seen.has(r.id)){r.reviewStatus='unreviewed';r.reviewReason='模型未返回该条目的审核结果，暂时保留。';}return records;}
+  window.DreamscapeResearch={resourceTypes,sources,registerSource,registerDeclarativeSource,removeDeclarativeSource,testDeclarativeSource,sanitizeDefinition,sourceSupports,normalizeTypes,matchTypes,validType,safeURL,publicURL,text,normalize,requestURL,search,searchPage,merge,plan,applyRanking,applyReview,screenImages};
 })();

@@ -49,7 +49,7 @@ module.exports=async function({browser,base,test}){
   });
   await test('research: multi-type registry exposes media types and dispatches compatible sources',async()=>{
     const value=await page.evaluate(()=>({types:Object.keys(DreamscapeResearch.resourceTypes),videoSources:Object.keys(DreamscapeResearch.sources).filter(source=>DreamscapeResearch.sourceSupports(source,['video'])),archiveUrl:DreamscapeResearch.requestURL('Internet Archive','urban heat',2024,['video','audio'])}));
-    assert.ok(value.types.includes('video'));assert.ok(value.types.includes('software'));assert.deepEqual(value.videoSources.sort(),['DataCite','Internet Archive']);assert.match(value.archiveUrl,/advancedsearch/);assert.match(new URL(value.archiveUrl).searchParams.get('q'),/mediatype:\(movies OR audio\)/);
+    assert.ok(value.types.includes('video'));assert.ok(value.types.includes('software'));assert.deepEqual(value.videoSources.sort(),['DataCite','DeepSeek 网页搜索','Internet Archive']);assert.match(value.archiveUrl,/advancedsearch/);assert.match(new URL(value.archiveUrl).searchParams.get('q'),/mediatype:\(movies OR audio\)/);
   });
   await test('research: single PDF validation and real batch ZIP payloads',async()=>{
     let pending=page.waitForEvent('download');await page.getByRole('button',{name:'下载 Urban heat evidence',exact:true}).click();const download=await pending;assert.ok(fs.readFileSync(await download.path()).subarray(0,5).toString()==='%PDF-');
