@@ -1,0 +1,2 @@
+export function qualityLabels(r){const labels=[];if(r.type==='paper'){if(/preprint|posted-content|预印本/i.test(r.publicationType||''))labels.push('预发布资料');labels.push('同行评审未核实');}labels.push(r.abstract?'有摘要 / 描述':'未取得摘要');labels.push(r.excerpt?'已读取页面正文':'未读取正文');if(r.type==='image')labels.push('未做视觉核验');return labels;}
+export const TOOL_LABELS={plan_research:'拆解需求与调整计划',search_papers:'检索论文来源',search_images:'检索真实图片文件',search_web:'搜索网页',read_page:'阅读来源页面',review_results:'核对候选与原文依据',finish:'整理结果与剩余缺口'};

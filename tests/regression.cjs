@@ -841,6 +841,7 @@ function source(name) {
   });
   await require('./research.cjs')({browser,base,test});
   await require('./research-agent.cjs')({browser,base,test});
+  await require('./research-ux.cjs')({browser,base,test});
   if (process.env.VISUAL_REPORT_DIR) {
     await page.screenshot({path:path.join(process.env.VISUAL_REPORT_DIR,'optimization-home-mobile.png'),fullPage:true});
     await go('settings');await page.screenshot({path:path.join(process.env.VISUAL_REPORT_DIR,'optimization-settings-mobile.png'),fullPage:true});
