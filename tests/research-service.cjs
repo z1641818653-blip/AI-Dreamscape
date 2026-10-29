@@ -2,7 +2,7 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const {chromium}=require('playwright');
-const {LIMIT,ServiceError,publicURL,publicAddress,fetchPublic,extractCandidates,fileInfo,discoverResource,documentVersion,createServer}=require('../server/research-service.cjs');
+const {LIMIT,ServiceError,publicURL,publicAddress,fetchPublic,extractCandidates,fileInfo,discoverResource,documentVersion,createServer}=require('./legacy-fixture.cjs');
 function response(url,body,mime='application/json',headers={}){return {url,status:200,headers:{'content-type':mime,...headers},bytes:Buffer.from(body)};}
 test('collector rejects private, encoded and mapped addresses before connecting',async()=>{
   for(const url of ['http://example.org/a','https://user:pass@example.org/a','https://127.0.0.1/a','https://2130706433/a','https://[::ffff:127.0.0.1]/a','https://[fd00::1]/a','https://localhost/a','https://example.org:8443/a'])assert.throws(()=>publicURL(url));

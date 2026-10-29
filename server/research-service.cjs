@@ -102,6 +102,7 @@ function createServer({root=path.resolve(__dirname,'..'),fetcher=fetchPublic,ori
   return http.createServer(async(req,res)=>{
     res.setHeader('X-Content-Type-Options','nosniff');const json=(status,data)=>{if(res.destroyed)return;res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(data));};
     let target;try{target=new URL(req.url,'http://localhost');}catch{return json(400,{error:'请求地址无效'});}
+    if(['GET','HEAD'].includes(req.method)&&req.headers.host?.split(':')[0]==='ai-dreamscape-research.onrender.com'&&['/research.html','/research-collection.html'].includes(target.pathname)){res.writeHead(302,{Location:'https://z1641818653-blip.github.io/AI-Dreamscape/research.html','Cache-Control':'no-store'});return res.end();}
     if(await modelProxy(req,res,target))return;
     if(target.pathname.startsWith('/api/research/')){
       const host=req.headers.host||'',allowed=origin?new URL(origin).host:/^(localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/.test(host)?host:'';

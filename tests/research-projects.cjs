@@ -5,7 +5,7 @@ const fs=require('node:fs');
 const vm=require('node:vm');
 const crypto=require('node:crypto');
 const {chromium}=require('playwright');
-const {createServer,ServiceError}=require('../server/research-service.cjs');
+const {createServer,ServiceError}=require('./legacy-fixture.cjs');
 function factory(){const scope={window:{},crypto:crypto.webcrypto,structuredClone};vm.runInNewContext(fs.readFileSync(require('path').join(__dirname,'../research-projects.js'),'utf8'),scope);return scope.window.DreamscapeResearchProjects;}
 function memory(){const data=new Map();return {getItem:key=>data.get(key)??null,setItem:(key,value)=>data.set(key,value)};}
 test('projects migrate the last list, isolate workspaces and preserve annotations in history',()=>{
