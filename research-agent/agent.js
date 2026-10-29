@@ -16,16 +16,16 @@ const copy=value=>JSON.parse(JSON.stringify(value));
 export const safeURL=value=>{try{const u=new URL(value);return u.protocol==='https:'&&!u.username&&!u.password?u.href:'';}catch{return '';}};
 export function makeTask({request,type='paper',mode='agent',target=5,maxSteps=10,maxRequests=14,minutes=3,demo=false}){
  if(!String(request||'').trim())throw Error('请先输入需求');
- return {version:1,id:globalThis.crypto.randomUUID(),request:String(request).trim().slice(0,4000),type:['paper','image','web'].includes(type)?type:'paper',mode,target:Math.min(30,Math.max(1,Number(target)||5)),limits:{steps:Math.min(30,Math.max(1,Number(maxSteps)||10)),requests:Math.min(50,Math.max(1,Number(maxRequests)||14)),ms:Math.min(600000,Math.max(30000,(Number(minutes)||3)*60000))},demo,results:[],messages:[],pending:[],events:[],seen:[],plan:null,feedback:[],gaps:[],used:{steps:0,requests:0},status:'idle',summary:'',createdAt:new Date().toISOString()};
+ return {version:1,id:globalThis.crypto.randomUUID(),request:String(request).trim().slice(0,4000),type:['paper','image','web'].includes(type)?type:'paper',mode,target:Math.min(1000,Math.max(1,Number(target)||5)),limits:{steps:Math.min(10000,Math.max(1,Number(maxSteps)||10)),requests:Math.min(10000,Math.max(1,Number(maxRequests)||14)),ms:Math.min(86400000,Math.max(30000,(Number(minutes)||3)*60000))},demo,results:[],messages:[],pending:[],events:[],seen:[],plan:null,feedback:[],gaps:[],used:{steps:0,requests:0},status:'idle',summary:'',createdAt:new Date().toISOString()};
 }
 export function snapshot(task){
  // Credentials are deliberately absent from task state. Build an explicit allowlist.
- const keys=['version','id','request','type','mode','target','limits','demo','results','messages','pending','events','seen','plan','feedback','revisions','recheckIDs','gaps','used','status','summary','createdAt','usage','directionChoices','baseRequest'];
+ const keys=['version','id','request','type','mode','target','limits','demo','results','messages','pending','events','seen','plan','feedback','revisions','recheckIDs','gaps','used','status','summary','createdAt','usage','directionChoices','baseRequest','runStartCalls'];
  return copy(Object.fromEntries(keys.map(k=>[k,task[k]])));
 }
 export function restore(value){
  if(!value||value.version!==1||!Array.isArray(value.results)||!Array.isArray(value.messages)||!value.limits||!value.used)throw Error('任务记录格式无效');
- const t=snapshot(value);t.results=t.results.filter(r=>r&&typeof r.id==='string'&&safeURL(r.url)).slice(0,120);t.events=(t.events||[]).slice(-100);t.pending=Array.isArray(t.pending)?t.pending:[];t.feedback=Array.isArray(t.feedback)?t.feedback:[];t.status=['complete','partial','demo'].includes(t.status)?t.status:'paused';return t;
+ const t=snapshot(value);t.results=t.results.filter(r=>r&&typeof r.id==='string'&&safeURL(r.url)).slice(0,1000);t.events=(t.events||[]).slice(-100);t.pending=Array.isArray(t.pending)?t.pending:[];t.feedback=Array.isArray(t.feedback)?t.feedback:[];t.status=['complete','partial','demo'].includes(t.status)?t.status:'paused';return t;
 }
 export function rejectResult(task,id,reason){
  const r=task.results.find(r=>r.id===id);if(!r)throw Error('条目不存在');
@@ -38,7 +38,7 @@ export class ResearchAgent{
  emit(kind,text){const t=this.task;t.events.push({kind,text:String(text).slice(0,800),at:new Date().toISOString()});t.events=t.events.slice(-100);this.onChange(t);}
  stop(){this.controller?.abort();}
  approved(){return this.task.results.filter(r=>r.status==='approved').length;}
- add(incoming){const t=this.task;for(const item of incoming.slice(0,40)){const url=safeURL(item.url);if(!url||!item.title)continue;const id=item.doi?'doi:'+String(item.doi).toLowerCase():'url:'+url.replace(/#.*$/,'');const old=t.results.find(r=>r.id===id||r.url===url);if(old){if(item.queryGroup){old.queryGroups??=[];if(!old.queryGroups.includes(item.queryGroup))old.queryGroups.push(item.queryGroup);}if(!old.abstract)old.abstract=String(item.abstract||'').slice(0,6000);continue;}if(t.results.length>=120)break;
+ add(incoming){const t=this.task;for(const item of incoming.slice(0,40)){const url=safeURL(item.url);if(!url||!item.title)continue;const id=item.doi?'doi:'+String(item.doi).toLowerCase():'url:'+url.replace(/#.*$/,'');const old=t.results.find(r=>r.id===id||r.url===url);if(old){if(item.queryGroup){old.queryGroups??=[];if(!old.queryGroups.includes(item.queryGroup))old.queryGroups.push(item.queryGroup);}if(!old.abstract)old.abstract=String(item.abstract||'').slice(0,6000);continue;}if(t.results.length>=1000)break;
  const r={id,title:String(item.title).slice(0,500),abstract:String(item.abstract||'').slice(0,6000),url,doi:String(item.doi||'').slice(0,200),downloadURL:safeURL(item.downloadURL),previewURL:safeURL(item.previewURL),source:String(item.source||'').slice(0,80),type:item.type,queryGroups:item.queryGroup?[String(item.queryGroup).slice(0,160)]:[],authors:String(item.authors||'').slice(0,1200),journal:String(item.journal||'').slice(0,300),publicationType:String(item.publicationType||'').slice(0,160),year:Number(item.year)||0,license:String(item.license||'').slice(0,200),status:'pending',score:0,reason:'尚未核验',evidence:'',excerpt:'',demo:Boolean(t.demo)};
  if(r.type==='image'&&(!/(?:logo|图标|标志|商标)/i.test(t.request)||/(?:不要|排除|不含|非).{0,8}(?:logo|图标|标志|商标)/i.test(t.request))&&/(?:\blogo\b|favicon|\bicon\b|商标|厂商标志)/i.test(r.title.replace(/_/g,' '))){r.status='rejected';r.reason='网站图标或厂商标志不能代替主题图片';}
  t.results.push(r);}
@@ -57,12 +57,14 @@ export class ResearchAgent{
   if(name==='search_papers'&&!['crossref','europepmc'].includes(args.source))throw Error('不支持的论文来源');
   if(name!=='search_web'&&(!Number.isInteger(args.page)||args.page<1||args.page>10))throw Error('页码须为 1–10');
   const signature=JSON.stringify([name,args.query.trim().toLowerCase(),args.source||'',args.page||1]);if(t.seen.includes(signature))return {error:'该查询已完成，请更换关键词、来源或页码',results:[]};
-  if(t.used.requests>=t.limits.requests)throw Error('已达到检索与阅读请求上限');t.used.requests++;
+  if(t.limits.calls!=null&&(t.used.calls??t.used.steps+t.used.requests)>=t.limits.calls)throw Error('已达到调用次数上限');
+  if(t.used.requests>=t.limits.requests)throw Error('已达到检索与阅读请求上限');t.used.calls=(t.used.calls??t.used.steps+t.used.requests)+1;t.used.requests++;
   const rows=await this.tools[name](args,signal);signal.throwIfAborted();t.seen.push(signature);const before=t.results.length;this.add(rows);return {newResults:t.results.length-before,guidance:t.results.length===before?'没有新增候选，请换关键词或来源，避免重复翻页':'审核候选，再按未覆盖的条件补搜',results:t.results.map(({id,title,abstract,url,type,status,source})=>({id,title,abstract:abstract.slice(0,1800),url,type,status,source})),approved:this.approved(),target:t.target};
  }
  if(name==='read_page'){
   const r=t.results.find(r=>r.id===args.id);if(!r)throw Error('只能阅读已检索到的真实条目');
-  if(r.excerpt)return {id:r.id,content:r.excerpt};if(t.used.requests>=t.limits.requests)throw Error('已达到检索与阅读请求上限');t.used.requests++;
+  if(r.excerpt)return {id:r.id,content:r.excerpt};if(t.limits.calls!=null&&(t.used.calls??t.used.steps+t.used.requests)>=t.limits.calls)throw Error('已达到调用次数上限');
+  if(t.used.requests>=t.limits.requests)throw Error('已达到检索与阅读请求上限');t.used.calls=(t.used.calls??t.used.steps+t.used.requests)+1;t.used.requests++;
   const text=await this.tools.read_page({url:r.url},signal);signal.throwIfAborted();r.excerpt=String(text).slice(0,12000);return {id:r.id,content:r.excerpt};
  }
  if(name==='review_results'){
@@ -94,7 +96,8 @@ export class ResearchAgent{
    signal.throwIfAborted();
    if(!t.pending.length){
     const feedback=(t.feedback||[]).filter(f=>!f.sent);if(feedback.length){t.messages.push({role:'user',content:JSON.stringify({instruction:'根据以下人工反馈修订计划并补搜，不要重新批准这些条目',feedback})});for(const f of feedback)f.sent=true;}
-    t.used.steps++;this.emit('model',`第 ${t.used.steps} 轮：判断下一步工具与覆盖缺口`);
+    if(t.limits.calls!=null&&(t.used.calls??t.used.steps+t.used.requests)>=t.limits.calls){t.status='budget';t.summary='已达到调用次数上限，结果已保存。';break;}
+    t.used.calls=(t.used.calls??t.used.steps+t.used.requests)+1;t.used.steps++;this.emit('model',`第 ${t.used.steps} 轮：判断下一步工具与覆盖缺口`);
     const message=await this.model(t.messages,signal);signal.throwIfAborted();
     const calls=Array.isArray(message.tool_calls)?message.tool_calls:[];
     if(!calls.length){t.summary=String(message.content||'模型没有提出下一步工具').slice(0,2000);t.status='partial';break;}

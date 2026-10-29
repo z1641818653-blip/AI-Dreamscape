@@ -13,7 +13,7 @@ export function judgeRevision(task,request,type){
 }
 export function reviseTask(task,{request,type,target}){
  task.revisions??=[];task.revisions.push({request:task.request,type:task.type,at:new Date().toISOString()});task.revisions=task.revisions.slice(-20);
- const previous=task.request;task.request=request.trim().slice(0,4000);task.type=type;task.target=Math.min(30,Math.max(1,Number(target)||5));task.plan=null;
+ const previous=task.request;task.request=request.trim().slice(0,4000);task.type=type;task.target=Math.min(1000,Math.max(1,Number(target)||5));task.plan=null;
  // Complete outstanding tool messages before inserting the new user instruction.
  for(const c of task.pending||[])task.messages.push({role:'tool',tool_call_id:c.id,content:'{"error":"需求已更新，该调用取消"}'});task.pending=[];
  task.recheckIDs=task.results.filter(r=>!r.userRejected&&r.reason!=='网站图标或厂商标志不能代替主题图片').map(r=>r.id);

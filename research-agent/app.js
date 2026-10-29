@@ -1,5 +1,5 @@
 import {GROUPS,initialOptions,normalizeOptions,mergeOptions,selectionContext} from './directions.js';
-import {PRESETS,PRICES,VERIFIED,estimate,newUsage,recordUsage,mergeUsage,usageSummary,money} from './costs.js';
+import {PRICES,VERIFIED,estimate,newUsage,recordUsage,mergeUsage,usageSummary,money} from './costs.js';
 import {qualityLabels} from './presentation.js';
 import {loadConfig,selectedConfig} from './config.js';
 import {makeTask,snapshot,restore,ResearchAgent,rejectResult} from './agent.js';
@@ -13,7 +13,7 @@ let preparationUsage=newUsage(),confirmedDirections=[],directionOptions=[],chose
 const labels={idle:'准备就绪',running:'正在搜集',complete:'本轮完成',partial:'部分完成',paused:'已暂停',budget:'已到运行上限',error:'请求失败'};
 const visibleResults=()=>task.results.filter(r=>(filter==='all'||r.status===filter)&&(!localMatchIDs||localMatchIDs.includes(r.id)));
 const el=(tag,text,cls)=>{const n=document.createElement(tag);n.textContent=text;if(cls)n.className=cls;return n;};
-function render(){if(!task)return;$('workspace').hidden=false;$('status').textContent=(task.demo?'演示 · ':'')+(labels[task.status]||task.status)+` · ${task.used.steps}/${task.limits.steps} 轮 · ${task.used.requests}/${task.limits.requests} 次请求`;$('counts').textContent=`${task.results.filter(r=>r.status==='approved').length} 项通过 / ${task.results.length} 项候选`;$('summary').textContent=task.summary;$('plan').textContent=task.plan?['检索计划：'+task.plan.topic,'筛选：'+(task.plan.criteria.join('；')||'按原需求'),'排除：'+(task.plan.exclusions.join('；')||'无额外限制'),'查询：'+task.plan.queries.join(' / ')].join('\n'):'';$('gaps').textContent=task.gaps.length?'待补充：'+task.gaps.join('；'):'';$('start').disabled=busy;$('start').textContent=busy?'正在处理…':'搜索 ↗';$('demo').disabled=busy;$('stop').hidden=!busy;$('continue').disabled=busy;$('continue').textContent=task.demo?'继续演示':'继续深入';
+function render(){if(!task)return;$('workspace').hidden=false;$('status').textContent=(task.demo?'演示 · ':'')+(labels[task.status]||task.status)+` · 本次调用 ${Math.max(0,(task.used.calls??task.used.steps+task.used.requests)-(task.runStartCalls||0))} 次`;$('counts').textContent=`${task.results.filter(r=>r.status==='approved').length} 项通过 / ${task.results.length} 项候选`;$('summary').textContent=task.summary;$('plan').textContent=task.plan?['检索计划：'+task.plan.topic,'筛选：'+(task.plan.criteria.join('；')||'按原需求'),'排除：'+(task.plan.exclusions.join('；')||'无额外限制'),'查询：'+task.plan.queries.join(' / ')].join('\n'):'';$('gaps').textContent=task.gaps.length?'待补充：'+task.gaps.join('；'):'';$('start').disabled=busy;$('start').textContent=busy?'正在处理…':'搜索 ↗';$('demo').disabled=busy;$('stop').hidden=!busy;$('continue').disabled=busy;$('continue').textContent=task.demo?'继续演示':'继续深入';
  updateCosts();$('progress-strip').textContent=busy?(task.events.at(-1)?.text||'正在准备检索…'):`${task.results.length} 项候选 · ${task.results.filter(r=>r.status==='approved').length} 项主题符合 · ${task.results.filter(r=>r.status==='pending').length} 项待确认`;$('active-conditions').hidden=!(task.directionChoices?.length);$('condition-tags').replaceChildren(...(task.directionChoices||[]).map(o=>el('span',o.group+'：'+o.label,'condition-tag')));
  const missing=translationQueue(visibleResults(),level===2).length;$('language').textContent=translating?'取消翻译':chinese?(missing?'中文 · '+missing+'待译':'中文'):'原文';$('language').title=chinese?'点击返回原文；未翻译内容暂显示原文':'点击分批翻译当前分类全部结果；使用模型 API 计费';$('language').disabled=busy;
  $('level').textContent=['名称','基础','详细'][level]+' ▾';
@@ -38,19 +38,28 @@ function render(){if(!task)return;$('workspace').hidden=false;$('status').textCo
  $('events').replaceChildren(...task.events.slice(-30).map(e=>el('li',e.text)));
  try{localStorage.setItem('dreamscape_agent_task',JSON.stringify(snapshot(task)));}catch{$('notice').textContent='浏览器存储空间不足，建议导出进度。';}
 }
-function runLimits(){return {steps:Math.min(30,Math.max(1,Number($('run-steps').value)||10)),requests:Math.min(50,Math.max(1,Number($('run-requests').value)||14)),minutes:Math.min(10,Math.max(.5,Number($('run-minutes').value)||3))};}
-function updateCosts(){const c=selectedConfig($('provider').value),limits=runLimits(),mode=document.querySelector('[name=mode]:checked').value,type=$('type').value,e=estimate(c,limits,{mode,type,quickCount:($('direction-dialog').open?[...chosenDirections.values()]:task?.directionChoices||[]).filter(o=>o.group==='对象').length||1});const range=e.range.map(money).join('–');$('cost-brief').textContent=e.coding?'套餐积分另计':e.range[1]===0?'公共来源检索 ¥0':'约 '+range;$('cost-estimate').textContent=(e.coding?'GLM Coding Plan：无法按 Token 换算套餐积分或人民币；独立 DeepSeek 搜索 / 阅读约 '+range:'本轮搜集估算：'+range)+`；输入约 ${e.input[0].toLocaleString()}–${e.input[1].toLocaleString()} Token，输出约 ${e.output[0].toLocaleString()}–${e.output[1].toLocaleString()} Token。`;$('cost-assumptions').textContent=`估算假设：每轮输入 2,000–48,000 Token、输出 ${e.perRoundOutput[0].toLocaleString()}–${e.perRoundOutput[1].toLocaleString()} Token（含思考），最多 ${e.paid} 次付费网页搜索 / 阅读，按 ¥0.005 / 成功请求计。公共来源检索本身不收接口费。`;
- const ref=$('price-reference');ref.replaceChildren(document.createTextNode(`价格核对 ${VERIFIED} · `));const a=el('a','官方价格 ↗');a.href=e.price?.url||'https://api-docs.deepseek.com/zh-cn/quick_start/pricing/';a.target='_blank';a.rel='noopener noreferrer';ref.append(a,document.createTextNode(' · '+(e.price?.note||'')+(e.price?`；每百万 Token：输入 ¥${e.price.input.join('–')} / 输出 ¥${e.price.output.join('–')} / 缓存命中 ¥${e.price.hit.join('–')}`:'')));if(mode==='quick'){const deeper=estimate(c,limits,{mode:'agent',type});$('cost-estimate').textContent+=' 如切换深入搜集，当前设置约 '+(deeper.coding?'套餐积分另计，网页调用 '+deeper.range.map(money).join('–'):deeper.range.map(money).join('–'))+'。';}
- const ledger=mergeUsage(newUsage(),task?.usage||newUsage());mergeUsage(ledger,preparationUsage);const u=usageSummary(ledger);$('usage-summary').textContent=`已记录：${u.calls} 次模型调用 · 输入 ${u.input.toLocaleString()} / 输出 ${u.output.toLocaleString()} Token · ${ledger.search+ledger.fetch} 次付费网页调用 · ${ledger.public} 次公共来源请求。已知用量估算 ${u.range.map(money).join('–')}。`+(u.missing?` ${u.missing} 次响应未返回完整用量，金额不完整。`:'')+(u.coding?' 套餐调用另按供应商积分计算。':'')+' 用量来自已返回的接口响应，不是账单；取消或网络失败仍可能产生无法确认的费用。';}
-const globalLimits=loadConfig();if(globalLimits.steps!==10||globalLimits.requests!==14||globalLimits.minutes!==3)$('run-preset').value='custom';for(const [id,key] of [['run-steps','steps'],['run-requests','requests'],['run-minutes','minutes']])$(id).value=globalLimits[key];
-$('run-preset').onchange=()=>{const p=PRESETS[$('run-preset').value];if(p){$('run-steps').value=p.steps;$('run-requests').value=p.requests;$('run-minutes').value=p.minutes;}updateCosts();};
-for(const id of ['run-steps','run-requests','run-minutes'])$(id).oninput=()=>{$('run-preset').value='custom';updateCosts();};
+function runLimits(){const calls=Number($('run-calls').value),minutes=Number($('run-minutes').value);if(!Number.isInteger(calls)||calls<1||calls>10000)throw Error('调用次数请输入 1–10000 的整数');if(!Number.isFinite(minutes)||minutes<.5||minutes>1440)throw Error('运行时间请输入 0.5–1440 分钟');return {calls,steps:calls,requests:calls,minutes};}
+function validateTarget(){const n=Number($('target').value);if(!Number.isInteger(n)||n<1||n>1000)throw Error('目标数量请输入 1–1000 的整数');return n;}
+function updateCosts(){
+ let limits;try{limits=runLimits();$('limit-error').textContent='';}catch(error){$('limit-error').textContent=error.message;$('cost-brief').textContent='请检查输入';$('cost-estimate').textContent='';return;}
+ try{localStorage.setItem('dreamscape_agent_run_limits',JSON.stringify({calls:limits.calls,minutes:limits.minutes}));}catch{}
+ const c=selectedConfig($('provider').value),mode=document.querySelector('[name=mode]:checked').value,type=$('type').value,e=estimate(c,limits,{mode,type,quickCount:($('direction-dialog').open?[...chosenDirections.values()]:task?.directionChoices||[]).filter(o=>o.group==='对象').length||1}),range=e.range.map(money).join('–');
+ $('cost-brief').textContent=e.coding?'套餐积分另计':e.range[1]===0?'公共来源免费':'约 '+range;
+ $('cost-estimate').textContent=e.coding?'套餐积分另计；网页调用最多 '+range:mode==='quick'&&type!=='web'?'公共来源检索免费。':`按 ${limits.calls} 次调用估算：${range}。`;
+ $('cost-assumptions').textContent=`每次按输入 2,000–48,000、输出 ${e.perRoundOutput[0].toLocaleString()}–${e.perRoundOutput[1].toLocaleString()} Token估算；实际按用量计费。网页搜索/阅读 ¥0.005 / 成功请求。`;
+ const ref=$('price-reference');ref.replaceChildren(document.createTextNode(`价格核对 ${VERIFIED} · `));const a=el('a','官方价格 ↗');a.href=e.price?.url||'https://api-docs.deepseek.com/zh-cn/quick_start/pricing/';a.target='_blank';a.rel='noopener noreferrer';ref.append(a);
+ const ledger=mergeUsage(newUsage(),task?.usage||newUsage());mergeUsage(ledger,preparationUsage);const u=usageSummary(ledger);$('usage-summary').textContent=u.calls||ledger.search||ledger.fetch||ledger.public?`累计 ${u.calls+ledger.search+ledger.fetch+ledger.public} 次（含拆解 / 翻译） · 输入 ${u.input.toLocaleString()} / 输出 ${u.output.toLocaleString()} Token · 约 ${u.range.map(money).join('–')}`+(u.missing?'（部分用量未返回）':'')+(u.coding?'；套餐积分另计':''):'';
+}
+let savedRun={};try{savedRun=JSON.parse(localStorage.getItem('dreamscape_agent_run_limits')||'{}');}catch{}$('run-calls').value=savedRun.calls||20;$('run-minutes').value=savedRun.minutes||loadConfig().minutes;
+for(const id of ['run-calls','run-minutes']){$(id).oninput=updateCosts;$(id).onchange=updateCosts;}
+function targetChanged(){try{validateTarget();$('notice').textContent='';}catch(e){$('notice').textContent=e.message;}$('target-minus').disabled=Number($('target').value)<=1;$('target-plus').disabled=Number($('target').value)>=1000;}
+$('target').oninput=targetChanged;for(const [id,step] of [['target-minus',-1],['target-plus',1]])$(id).onclick=()=>{$('target').value=Math.min(1000,Math.max(1,(Number($('target').value)||5)+step));targetChanged();};
 for(const radio of document.querySelectorAll('[name=mode]'))radio.onchange=updateCosts;$('type').onchange=updateCosts;
 try{const selected=localStorage.getItem('dreamscape_agent_model');if(['deepseek','glm','glm-flash'].includes(selected))$('provider').value=selected;}catch{}
 $('provider').onchange=()=>{updateCosts();try{localStorage.setItem('dreamscape_agent_model',$('provider').value);}catch{}};
 const config=()=>({...selectedConfig($('provider').value),onUsage:event=>{const ledger=$('direction-dialog').open||!task?preparationUsage:(task.usage??=newUsage());recordUsage(ledger,event);updateCosts();if(task)try{localStorage.setItem('dreamscape_agent_task',JSON.stringify(snapshot(task)));}catch{}}});
 function requireKey(){const c=config();if(!(c.provider==='glm'?c.glmKey:c.key))throw Error('深入搜集需要模型 Key，请前往右上角“全局配置”填写。');return c;}
-async function runAgent(extend=false){const c=task.demo?{}:requireKey();const a=task.demo?demoAdapters(task):{tools:createTools(c),model:createModel(c)};agent=new ResearchAgent({task,...a,onChange:render});await agent.run({extend});filter=task.results.some(r=>r.status==='approved')?'approved':'pending';}
+async function runAgent(extend=false){if(!task.demo){const lim=runLimits();task.used.calls??=task.used.steps+task.used.requests;task.runStartCalls=task.used.calls;task.limits.calls=task.used.calls+lim.calls;task.limits.steps=task.used.steps+lim.calls;task.limits.requests=task.used.requests+lim.calls;task.limits.ms=lim.minutes*60000;}const c=task.demo?{}:requireKey();const a=task.demo?demoAdapters(task):{tools:createTools(c),model:createModel(c)};agent=new ResearchAgent({task,...a,onChange:render});await agent.run();filter=task.results.some(r=>r.status==='approved')?'approved':'pending';}
 async function action(fn){if(busy)return;if(translating){$('notice').textContent='请先取消或等待翻译完成。';return;}busy=true;$('start').disabled=true;$('start').textContent='正在处理…';$('notice').textContent='';render();try{await fn();}catch(e){$('notice').textContent=e.message;if(task){task.status='error';task.summary=e.message;}}finally{busy=false;$('start').disabled=false;$('start').textContent='搜索 ↗';render();}}
 let resolveDirection,directionRequest='',directionAbort,lastDirectionExtra='',directionRound=0;
 function chosenKey(o){return o.group+'|'+o.value.toLowerCase();}
@@ -81,13 +90,13 @@ $('route-dialog').addEventListener('cancel',()=>resolveRoute('cancel'));
 function archiveCurrent(){if(task)localStorage.setItem('dreamscape_agent_previous',JSON.stringify(snapshot(task)));}
 $('start').onclick=()=>action(async()=>{
  let request=$('request').value.trim();const type=$('type').value,mode=document.querySelector('[name=mode]:checked').value;
- if(!request)throw Error('请先输入需求');
+ if(!request)throw Error('请先输入需求');validateTarget();runLimits();
  request=await chooseDirections(request);if(request===null)return;
  localMatchIDs=null;let route=judgeRevision(task,request,type);let decision=route.action;
  if(decision==='ask')decision=await chooseRoute(route.reason);if(decision==='cancel')return;
  if(mode==='agent')requireKey();$('request').value=request;
  if(decision==='reuse'){
-  archiveCurrent();reviseTask(task,{request,type,target:$('target').value});task.directionChoices=confirmedDirections;task.baseRequest=directionRequest;task.usage??=newUsage();mergeUsage(task.usage,preparationUsage);preparationUsage=newUsage();filter='pending';render();
+  archiveCurrent();reviseTask(task,{request,type,target:$('target').value});const nextLimits=runLimits();task.used.calls??=task.used.steps+task.used.requests;task.runStartCalls=task.used.calls;task.limits.calls=task.used.calls+nextLimits.calls;task.limits.requests=task.used.requests+nextLimits.calls;task.limits.steps=task.used.steps+nextLimits.calls;task.limits.ms=nextLimits.minutes*60000;task.directionChoices=confirmedDirections;task.baseRequest=directionRequest;task.usage??=newUsage();mergeUsage(task.usage,preparationUsage);preparationUsage=newUsage();filter='pending';render();
   if(task.demo){task.summary+=' 当前为演示项目，真实搜集请新建项目。';return;}
   if(mode==='agent')await runAgent(task.used.steps>=task.limits.steps||task.used.requests>=task.limits.requests);
   else {
@@ -99,7 +108,7 @@ $('start').onclick=()=>action(async()=>{
   return;
  }
  const next=makeTask({request,type,mode,target:$('target').value,maxSteps:runLimits().steps,maxRequests:runLimits().requests,minutes:runLimits().minutes});
- next.directionChoices=confirmedDirections;next.baseRequest=directionRequest;next.usage=mergeUsage(newUsage(),preparationUsage);preparationUsage=newUsage();archiveCurrent();task=next;filter='pending';render();
+ next.limits.calls=runLimits().calls;next.directionChoices=confirmedDirections;next.baseRequest=directionRequest;next.usage=mergeUsage(newUsage(),preparationUsage);preparationUsage=newUsage();archiveCurrent();task=next;filter='pending';render();
  if(mode==='agent')await runAgent();else{
   await quickSearch();
  }
@@ -110,7 +119,7 @@ async function quickSearch(){
  const additions=(task.directionChoices||[]).filter(o=>['方向','关键词'].includes(o.group)).map(o=>o.value).join(' OR ');let completed=0;const before=task.results.length;
  try{
   const name=task.type==='paper'?'search_papers':task.type==='image'?'search_images':'search_web';
-  for(const topic of topics){if(task.used.requests>=task.limits.requests)break;signal.throwIfAborted();const query=[topic,additions].filter(Boolean).join(' ').slice(0,300);task.used.requests++;agent.emit('tool',`正在检索 ${completed+1}/${topics.length} 个方向：${query}`);const rows=await tools[name]({query,source:'crossref',page:1},signal);signal.throwIfAborted();agent.add(rows.map(r=>({...r,queryGroup:topic})));completed++;agent.emit('result',`已检索 ${completed}/${topics.length} 个方向，累计 ${task.results.length} 项候选`);}
+  for(const topic of topics){if(task.used.requests>=task.limits.requests)break;signal.throwIfAborted();const query=[topic,additions].filter(Boolean).join(' ').slice(0,300);if(task.limits.calls!=null&&(task.used.calls||0)>=task.limits.calls)break;task.used.calls=(task.used.calls||0)+1;task.used.requests++;agent.emit('tool',`正在检索 ${completed+1}/${topics.length} 个方向：${query}`);const rows=await tools[name]({query,source:'crossref',page:1},signal);signal.throwIfAborted();agent.add(rows.map(r=>({...r,queryGroup:topic})));completed++;agent.emit('result',`已检索 ${completed}/${topics.length} 个方向，累计 ${task.results.length} 项候选`);}
   task.status=completed<topics.length?'budget':'partial';task.summary=`快速检索完成：新增 ${task.results.length-before} 项，保留已有资料；已检索 ${completed}/${topics.length} 个方向，尚未按完整条件审核。`+(completed<topics.length?' 已达到请求上限，可调整运行限制后继续。':'');$('notice').textContent=task.summary;
  }finally{clearTimeout(timeout);}
 }
