@@ -4,7 +4,7 @@ module.exports=async({browser,base,test})=>{
  await test('research Agent: integrated entry, global configuration and iterative direction choices',async()=>{
   const page=await browser.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(base+'/research.html');
   assert.equal(await page.locator('#key').count(),0);assert.equal(await page.locator('#provider option').count(),3);
-  await page.locator('#demo').click();await page.locator('#counts').filter({hasText:'2 项通过 / 2 项候选'}).waitFor();await page.reload();await page.locator('#counts').filter({hasText:'2 项通过 / 2 项候选'}).waitFor();
+  assert.equal(await page.locator('#demo').count(),0);assert.equal(await page.locator('#request').inputValue(),'');
   await page.evaluate(()=>{localStorage.setItem('dp0',JSON.stringify({deepseek:{apiKey:btoa(encodeURIComponent('test-global-key'))},glm:{apiKey:btoa(encodeURIComponent('test-glm-key')),reasoningEffort:'high',apiMode:'coding'}}));});
   await page.route('https://api.deepseek.com/v1/chat/completions',route=>route.fulfill({json:{choices:[{message:{content:JSON.stringify({options:[{group:'对象',label:'苹果公司',value:'Apple Inc.'},{group:'方向',label:'产品设计',value:'product design'}]})}}]}}));
   await page.locator('#request').fill('苹果');await page.locator('#start').click();await page.locator('#direction-ai').click();await page.locator('#direction-status').filter({hasText:'第 1 轮'}).waitFor();await page.getByLabel('苹果公司',{exact:true}).check();await page.locator('#direction-extra').fill('近五年的案例');await page.locator('#direction-confirm').click();await page.locator('#direction-status').filter({hasText:'第 2 轮'}).waitFor();assert.equal(await page.getByLabel('苹果公司',{exact:true}).isChecked(),true);await page.locator('#direction-cancel').click();

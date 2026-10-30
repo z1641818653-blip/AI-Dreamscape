@@ -1,4 +1,4 @@
-import test from 'node:test';import assert from 'node:assert/strict';import {makeTask,ResearchAgent,snapshot,restore} from '../research-agent/agent.js';import {demoAdapters} from '../research-agent/demo.js';import {sourceURL} from '../research-agent/tools.js';
+import test from 'node:test';import assert from 'node:assert/strict';import {makeTask,ResearchAgent,snapshot,restore} from '../research-agent/agent.js';import {demoAdapters} from './fixtures/agent-demo.mjs';import {sourceURL} from '../research-agent/tools.js';
 const call=(name,args)=>({id:crypto.randomUUID(),type:'function',function:{name,arguments:JSON.stringify(args)}});
 const signal=new AbortController().signal;
 test('演示完成真实工具协议的多轮流程',async()=>{const task=makeTask({request:'测试',demo:true,target:2});const agent=new ResearchAgent({task,...demoAdapters(task)});await agent.run();assert.equal(task.status,'complete');assert.equal(agent.approved(),2);assert.equal(task.used.requests,3);assert.equal(task.pending.length,0);});
