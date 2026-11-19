@@ -57,18 +57,30 @@
     gemini: {
       name: 'Gemini',
       icon: '🔵',
-      models: ['gemini-3.8-flash', 'gemini-3.5-flash-lite', 'gemini-3.1-pro-preview', 'gemini-3.5-flash'],
+      models: ['gemini-4-hydrogen', 'gemini-4-neon', 'gemini-4-carbon', 'gemini-4-argon', 'gemini-3.8-flash', 'gemini-3.5-flash-lite', 'gemini-3.1-pro-preview'],
       endpoint: (model) => 'https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(model) + ':streamGenerateContent?alt=sse',
       streamFormat: 'gemini',
       authHeader: (key) => ({ 'x-goog-api-key': key }),
-      buildBody: (model, messages, mt, temp) => {
-        const contents = messages.filter(m => m.role !== 'system').map(m => ({
-          role: m.role === 'assistant' ? 'model' : 'user',
-          parts: [{ text: m.content }]
-        }));
+      buildBody: (model, messages, mt, temp, options = {}) => {
+        const contents = [];
+        for (const message of messages.filter(m => m.role !== 'system')) {
+          if (message.geminiContent) { contents.push(message.geminiContent); continue; }
+          if (message.role === 'tool') {
+            const call = messages.flatMap(m => m.tool_calls || []).find(c => c.id === message.tool_call_id);
+            if (!call) throw new Error('工具调用记录不完整，请重新开始检索');
+            let response; try { response = JSON.parse(message.content); } catch { response = {result:message.content}; }
+            const part = {functionResponse:{name:call.function.name,response:response && typeof response === 'object' && !Array.isArray(response) ? response : {result:response}}};
+            if (contents.at(-1)?.role === 'user' && contents.at(-1).parts.every(p => p.functionResponse)) contents.at(-1).parts.push(part);
+            else contents.push({role:'user',parts:[part]});
+          } else contents.push({role:message.role === 'assistant' ? 'model' : 'user',parts:[{text:String(message.content || '')}]});
+        }
         const system = messages.filter(m => m.role === 'system').map(m => m.content).filter(Boolean).join('\n\n');
-        const body = { contents, generationConfig: { maxOutputTokens: mt, temperature: temp ?? 0.7 } };
-        if (system) body.systemInstruction = { parts: [{ text: system }] };
+        const generationConfig = {maxOutputTokens:Math.max(8192, Math.min(65536, Number(mt) || 8192))};
+        if (!/^gemini-4-/.test(model)) generationConfig.temperature = temp ?? 1;
+        const effort = normalizeGeminiEffort(model, options.reasoningEffort ?? read().gemini?.reasoningEffort);
+        if (effort) generationConfig.thinkingConfig = {thinkingLevel:effort};
+        const body = {contents,generationConfig};
+        if (system) body.systemInstruction = {parts:[{text:system}]};
         return body;
       },
       parseResponse: (data) => data.candidates?.[0]?.content?.parts?.filter(part => !part.thought).map(part => part.text || '').join('') || ''
@@ -108,6 +120,13 @@
   function cleanGlmKey(value) { return String(value || '').replace(/[\u200B-\u200D\u2060\uFEFF]/g, '').trim().replace(/^Bearer\s+/i, ''); }
   function validateGlmKey(value) { const key = cleanGlmKey(value); if (!/^[\x21-\x7e]+$/.test(key)) throw new Error('API Key 格式无效：请只粘贴 Key 本身，不要附带中文、引号或换行'); return key; }
   function normalizeGlmEffort(value) { return ['low', 'high', 'max'].includes(value) ? value : 'max'; }
+  function getGeminiEfforts(model) {
+    if (/^gemini-4-(?:neon|hydrogen)$/.test(model)) return ['low','medium','high','xhigh'];
+    if (/^gemini-(?:4-|3\.8-|3\.1-pro)/.test(model)) return ['low','medium','high'];
+    if (/^gemini-(?:3\.6-flash|3\.5-flash-lite|3\.1-flash-lite|3-flash)/.test(model)) return ['minimal','low','medium','high'];
+    return [];
+  }
+  function normalizeGeminiEffort(model, value) { return getGeminiEfforts(model).includes(value) ? value : ''; }
   function getPageGlmEffort() {
     try { return localStorage.getItem('dreamscape_glm_effort_' + location.pathname.split('/').pop().replace(/[^a-z0-9_-]/gi, '_')) || ''; }
     catch { return ''; }
@@ -195,7 +214,7 @@
     if (!legacyRaw || Object.keys(legacy).every(provider => PROVIDERS[provider] && (!legacy[provider]?.apiKey || decode(legacy[provider].apiKey) || Object.prototype.hasOwnProperty.call(config[provider] || {}, 'apiKey')))) localStorage.removeItem('dp49');
   }
   try { migrate(); } catch (error) { console.warn('旧配置迁移未完成', error.name); }
-  const info = { deepseek:'V4.1 Flash 高速模型', openai:'GPT 多档模型', claude:'Opus、Sonnet 与 Haiku', gemini:'Gemini 系列', qwen:'通义千问系列', glm:'GLM 5.3 与 5.3 Flash' };
+  const info = { deepseek:'V4.1 Flash 高速模型', openai:'GPT 多档模型', claude:'Opus、Sonnet 与 Haiku', gemini:'Gemini 4 / Flash · Google 官方 API', qwen:'通义千问系列', glm:'GLM 5.3 与 5.3 Flash' };
   Object.entries(PROVIDERS).forEach(([key, provider]) => { provider.info = info[key]; });
   function getModelLabel(provider, model) {
     return provider === 'deepseek' && model === DEEPSEEK_MODEL ? 'DeepSeek V4.1 Flash' : model;
@@ -216,5 +235,5 @@
     if (provider === 'gemini') return PROVIDERS.gemini.parseResponse(payload);
     return payload.choices?.[0]?.delta?.content || '';
   }
-  window.DreamscapeConfig = { providers:PROVIDERS, read, decode, encode, normalizeModels, normalizeModel, cleanGlmKey, validateGlmKey, normalizeGlmEffort, getPageGlmEffort, savePageGlmEffort, getModelLabel, getKey, saveSelection, getUrl, getStreamText };
+  window.DreamscapeConfig = { providers:PROVIDERS, read, decode, encode, normalizeModels, normalizeModel, cleanGlmKey, validateGlmKey, normalizeGlmEffort, getGeminiEfforts, normalizeGeminiEffort, getPageGlmEffort, savePageGlmEffort, getModelLabel, getKey, saveSelection, getUrl, getStreamText };
 })();

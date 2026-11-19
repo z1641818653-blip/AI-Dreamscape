@@ -36,7 +36,7 @@ function render(){if(!task)return;$('workspace').hidden=false;$('status').textCo
 try{const selected=localStorage.getItem('dreamscape_agent_model');if(['deepseek','glm','glm-flash'].includes(selected))$('provider').value=selected;}catch{}
 $('provider').onchange=()=>{try{localStorage.setItem('dreamscape_agent_model',$('provider').value);}catch{}};
 const config=()=>selectedConfig($('provider').value);
-function requireKey(){const c=config();if(!(c.provider==='glm'?c.glmKey:c.key))throw Error('深入搜集需要模型 Key，请前往右上角“全局配置”填写。');return c;}
+function requireKey(){const c=config();if(!(c.provider==='gemini'?c.geminiKey:c.provider==='glm'?c.glmKey:c.key))throw Error('深入搜集需要模型 Key，请前往右上角“全局配置”填写。');return c;}
 async function runAgent(extend=false){const c=task.demo?{}:requireKey();const a=task.demo?demoAdapters(task):{tools:createTools(c),model:createModel(c)};agent=new ResearchAgent({task,...a,onChange:render});await agent.run({extend});filter=task.results.some(r=>r.status==='approved')?'approved':'pending';}
 async function action(fn){if(busy)return;if(translating){$('notice').textContent='请先取消或等待翻译完成。';return;}busy=true;$('start').disabled=true;$('start').textContent='正在处理…';$('notice').textContent='';render();try{await fn();}catch(e){$('notice').textContent=e.message;if(task){task.status='error';task.summary=e.message;}}finally{busy=false;$('start').disabled=false;$('start').textContent='搜索 ↗';render();}}
 let resolveDirection,directionRequest='',directionAbort,lastDirectionExtra='',directionRound=0;
