@@ -3,7 +3,7 @@ const assert=require('node:assert/strict');
 module.exports=async({browser,base,test})=>{
  await test('research Agent: integrated entry, global configuration and iterative direction choices',async()=>{
   const page=await browser.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(base+'/research.html');
-  assert.equal(await page.locator('#key').count(),0);assert.equal(await page.locator('#provider option').count(),3);
+  assert.equal(await page.locator('#key').count(),0);assert.equal(await page.locator('#provider option').count(),4);
   await page.locator('#demo').click();await page.locator('#counts').filter({hasText:'2 项通过 / 2 项候选'}).waitFor();await page.reload();await page.locator('#counts').filter({hasText:'2 项通过 / 2 项候选'}).waitFor();
   await page.evaluate(()=>{localStorage.setItem('dp0',JSON.stringify({deepseek:{apiKey:btoa(encodeURIComponent('test-global-key'))},glm:{apiKey:btoa(encodeURIComponent('test-glm-key')),reasoningEffort:'high',apiMode:'coding'}}));});
   await page.route('https://api.deepseek.com/v1/chat/completions',route=>route.fulfill({json:{choices:[{message:{content:JSON.stringify({options:[{group:'对象',label:'苹果公司',value:'Apple Inc.'},{group:'方向',label:'产品设计',value:'product design'}]})}}]}}));

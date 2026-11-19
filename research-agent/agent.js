@@ -97,7 +97,7 @@ export class ResearchAgent{
     const message=await this.model(t.messages,signal);signal.throwIfAborted();
     const calls=Array.isArray(message.tool_calls)?message.tool_calls:[];
     if(!calls.length){t.summary=String(message.content||'模型没有提出下一步工具').slice(0,2000);t.status='partial';break;}
-    t.messages.push({role:'assistant',content:message.content||null,...(message.reasoning_content?{reasoning_content:message.reasoning_content}:{}),tool_calls:calls});t.pending=copy(calls);
+    t.messages.push({role:'assistant',content:message.content||null,...(message.geminiContent?{geminiContent:message.geminiContent}:{}),...(message.reasoning_content?{reasoning_content:message.reasoning_content}:{}),tool_calls:calls});t.pending=copy(calls);
     if(message.content)this.emit('plan',message.content);
    }
    while(t.pending.length){

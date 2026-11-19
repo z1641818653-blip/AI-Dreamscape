@@ -840,6 +840,7 @@ function source(name) {
     await page.locator('.role-picker button').nth(1).click();await page.locator('#closeManager').click();assert.equal(await page.locator('#roomControls').isVisible(),false);
   });
   await require('./research.cjs')({browser,base,test});
+  await require('./gemini.cjs')({browser,base,test});
   await require('./research-agent.cjs')({browser,base,test});
   if (process.env.VISUAL_REPORT_DIR) {
     await page.screenshot({path:path.join(process.env.VISUAL_REPORT_DIR,'optimization-home-mobile.png'),fullPage:true});
